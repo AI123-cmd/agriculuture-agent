@@ -4,15 +4,15 @@ from sqlalchemy import Date, Numeric, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
+from app.db.owned import OwnedMixin
 
 
-class Crop(Base, TimestampMixin):
+class Crop(Base, TimestampMixin, OwnedMixin):
     """作物表。"""
 
     __tablename__ = "crop"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
     field_id: Mapped[str | None] = mapped_column(String(36), nullable=True, comment="关联地块ID")
     crop_name: Mapped[str] = mapped_column(String(32), nullable=False, comment="作物名称(用户自由输入)")
     crop_variety: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="品种")

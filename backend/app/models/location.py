@@ -2,15 +2,15 @@ from sqlalchemy import Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
+from app.db.owned import OwnedMixin
 
 
-class Location(Base, TimestampMixin):
+class Location(Base, TimestampMixin, OwnedMixin):
     """农事地点表。"""
 
     __tablename__ = "location"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
     location_name: Mapped[str] = mapped_column(String(128), nullable=False, comment="地点名称")
     latitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)

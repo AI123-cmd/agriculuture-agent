@@ -2,20 +2,24 @@ from sqlalchemy import ForeignKey, Numeric, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
+from app.db.owned import OwnedMixin
 
 
-class FarmerProfile(Base, TimestampMixin):
+class FarmerProfile(Base, TimestampMixin, OwnedMixin):
     """农户档案表。"""
 
     __tablename__ = "farmer_profile"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    # 覆盖 OwnedMixin 的列：一人一档需唯一约束，且归属主体删除时档案级联删除。
+    # 覆盖后混入里的普通索引不再生成，只留这一个唯一索引。
     user_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("user.id", name="fk_farmer_profile_user", ondelete="CASCADE"),
         unique=True,
         index=True,
         nullable=False,
+        comment="归属用户ID",
     )
     real_name: Mapped[str] = mapped_column(String(32), nullable=False, comment="真实姓名")
     age: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)

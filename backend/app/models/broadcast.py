@@ -3,15 +3,15 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
+from app.db.owned import OwnedMixin
 
 
-class BroadcastLog(Base, TimestampMixin):
+class BroadcastLog(Base, TimestampMixin, OwnedMixin):
     """今日农事播报日志表。"""
 
     __tablename__ = "broadcast_log"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
     date: Mapped[str] = mapped_column(String(16), index=True, nullable=False, comment="YYYY-MM-DD")
     time: Mapped[str | None] = mapped_column(String(8), nullable=True)
     title: Mapped[str] = mapped_column(String(64), nullable=False)
