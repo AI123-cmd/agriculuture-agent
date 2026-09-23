@@ -131,7 +131,7 @@ async def build_graph():
     graph.add_node("triage", run_triage)
     graph.add_node("confirm_object", confirm_object)
     graph.add_node("subgraph_router", subgraph_router)
-    graph.add_node("report_guard", build_report_guard_node())
+    graph.add_node("report_guard", build_report_guard_node())   # config=None：按 state 取红线
     graph.add_node("followup", followup)
     graph.add_node("handoff", build_handoff_node())
 
@@ -173,7 +173,7 @@ async def build_graph():
 
 ### 子图内部必须实现的四条边
 
-主图无法反向注册子图内部节点，因此子图文件（T2-27 至 T2-29）必须自己实现以下四条边，且边函数一律从 `routes.py` 取：`graph.add_edge("observe", "report_guard")`（普通边，看现场后交给兜底检查）；`graph.add_conditional_edges("report_guard", route_after_subgraph_guard, ROUTE_AFTER_SUBGRAPH_GUARD)`（键含 `observe` / `interview` / `end`，命中或不放行时走子图出口）；`graph.add_conditional_edges("interview", route_after_interview, ROUTE_AFTER_INTERVIEW)`（含 `interview` 回环、`verify`、`panel`、`handoff`）；`graph.add_conditional_edges("judge", route_after_judge, ROUTE_AFTER_JUDGE)` 与 `graph.add_edge("prescribe", END)`（`END` 指子图出口，交回主图的 `gate`）。养猪子图是唯一例外：入口多一个 `report_guard` 节点（见 T2-28）。
+主图无法反向注册子图内部节点，因此子图文件（T2-27 至 T2-29）必须自己实现以下四条边，且边函数一律从 `routes.py` 取：`graph.add_edge("observe", "report_guard")`（普通边，看现场后交给兜底检查）；`graph.add_conditional_edges("report_guard", route_after_subgraph_guard, ROUTE_AFTER_SUBGRAPH_GUARD)`（键含 `observe` / `interview` / `handoff`，其中 `handoff` 映射子图出口 `__end__`，命中或不放行时出子图）；`graph.add_conditional_edges("interview", route_after_interview, ROUTE_AFTER_INTERVIEW)`（含 `interview` 回环、`verify`、`panel`、`handoff`）；`graph.add_conditional_edges("judge", route_after_judge, ROUTE_AFTER_JUDGE)` 与 `graph.add_edge("prescribe", END)`（`END` 指子图出口，交回主图）。养猪子图是唯一例外：入口多一个守卫节点 `report_guard_entry`（见 T2-28）。
 
 ### 为什么"受理即分流"必须前移
 
