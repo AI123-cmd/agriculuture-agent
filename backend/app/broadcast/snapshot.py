@@ -2,10 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models import Crop, FarmerProfile
+from app.repositories import Repositories
 from app.tools import sensors, weather
 
 
@@ -27,25 +24,19 @@ class EnvSnapshot:
     source: str = "mock"  # device / weather / mock
 
 
-async def build_snapshot(db: AsyncSession | None, user_id: str) -> EnvSnapshot:
+async def build_snapshot(repos: Repositories | None, user_id: str) -> EnvSnapshot:
     """组装环境快照：真实设备读数 → 天气兜底 → mock 兜底。
 
     Device 表当前尚无实时读数字段，故传感器值由 tools.sensors 提供
     （有设备则附设备列表、无设备时静态兜底），接入真实平台后在 sensors 处替换。
     """
-    sensor = await sensors.query_sensors(db, user_id) if db is not None else {}
+    sensor = await sensors.query_sensors(repos, user_id) if repos is not None else {}
 
     crop = None
     profile_row = None
-    if db is not None:
-        crop = (
-            (await db.execute(select(Crop).where(Crop.user_id == user_id).order_by(Crop.is_main.desc())))
-            .scalars()
-            .first()
-        )
-        profile_row = (
-            (await db.execute(select(FarmerProfile).where(FarmerProfile.user_id == user_id))).scalars().first()
-        )
+    if repos is not None:
+        crop = await repos.crop.main_crop(repos.db, user_id)
+        profile_row = await repos.profile.get_for_user(repos.db, user_id)
 
     location = ""
     if profile_row:
@@ -66,3 +57,6 @@ async def build_snapshot(db: AsyncSession | None, user_id: str) -> EnvSnapshot:
         forecast={"summary": summary, "rainfall": None, "condition": summary},
         source=sensor.get("source", "mock"),
     )
+
+
+__all__ = ["EnvSnapshot", "build_snapshot"]

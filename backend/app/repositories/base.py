@@ -80,12 +80,27 @@ class OwnedRepository(Generic[ModelT]):
             stmt = stmt.order_by(order_by)
         return (await db.execute(stmt.limit(limit).offset(offset))).scalars().all()
 
-    async def list_all(self, db: AsyncSession, user_id: str, **conditions: Any) -> Sequence[ModelT]:
-        """不分页取全部（注销账号等内部流程用），仍强制带归属条件。"""
+    async def list_all(
+        self, db: AsyncSession, user_id: str, *, order_by: Any = None, **conditions: Any
+    ) -> Sequence[ModelT]:
+        """不分页取全部（注销账号、设备列表等内部流程用），仍强制带归属条件。
+
+        `conditions` 的键是模型字段名，值是该字段的等值过滤；`order_by` 传单个
+        排序表达式，多列排序传元组（如 `(Crop.is_main.desc(), Crop.create_time)`）。
+        """
         stmt = self._owned_query(user_id)
         for field, value in conditions.items():
             stmt = stmt.where(getattr(self.model, field) == value)
+        if order_by is not None:
+            stmt = stmt.order_by(*order_by) if isinstance(order_by, tuple) else stmt.order_by(order_by)
         return (await db.execute(stmt)).scalars().all()
+
+    async def first(self, db: AsyncSession, user_id: str, **conditions: Any) -> ModelT | None:
+        """取满足条件的首行（一人一档的档案、唯一画像等），归属条件始终生效。"""
+        stmt = self._owned_query(user_id)
+        for field, value in conditions.items():
+            stmt = stmt.where(getattr(self.model, field) == value)
+        return (await db.execute(stmt)).scalars().first()
 
     async def count(self, db: AsyncSession, user_id: str) -> int:
         stmt = select(func.count()).select_from(self.model).where(self.model.user_id == self._require_user(user_id))

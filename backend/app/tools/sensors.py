@@ -1,18 +1,19 @@
-"""传感器查询工具（MCP）：读取地块空气/土壤温湿度、光照、pH/EC。"""
+"""传感器查询工具（MCP）：读取地块空气/土壤温湿度、光照、pH/EC。
+
+与 `tools/profile.py` 同：接收 `Repositories | None`，不出现 `AsyncSession`。
+"""
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models import Device
+from app.repositories import Repositories
 
 
-async def query_sensors(db: AsyncSession | None, user_id: str) -> dict:
+async def query_sensors(repos: Repositories | None, user_id: str) -> dict:
     """读取农户名下传感器快照；无设备/无平台接入时返回静态兜底。"""
     devices: Sequence[Device] = []
-    if db is not None:
-        devices = (await db.execute(select(Device).where(Device.user_id == user_id))).scalars().all()
+    if repos is not None:
+        devices = await repos.device.list_for_user(repos.db, user_id)
     return {
         "air_temperature": 26.5,
         "air_humidity": 78,
@@ -27,3 +28,6 @@ async def query_sensors(db: AsyncSession | None, user_id: str) -> dict:
         ],
         "source": "sensor_snapshot",
     }
+
+
+__all__ = ["query_sensors"]

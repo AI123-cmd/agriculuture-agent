@@ -1,21 +1,16 @@
 """地点服务。"""
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import new_id
 from app.integrations.geocoding import reverse_geocode
 from app.integrations.weather import get_weather_summary
-from app.models import Location
+from app.repositories import location_repo
 from app.schemas import SetLocationRequest
 
 
 class LocationService:
     async def set_location(self, db: AsyncSession, user_id: str, req: SetLocationRequest) -> dict:
-        loc = (await db.execute(select(Location).where(Location.user_id == user_id))).scalars().first()
-        if loc is None:
-            loc = Location(id=new_id("loc"), user_id=user_id)
-            db.add(loc)
+        loc = await location_repo.get_or_create(db, user_id)
 
         loc.location_name = req.locationName
         loc.latitude = req.latitude
@@ -30,3 +25,6 @@ class LocationService:
 
     def reverse_geocode(self, latitude: float, longitude: float) -> dict:
         return reverse_geocode(latitude, longitude)
+
+
+__all__ = ["LocationService"]

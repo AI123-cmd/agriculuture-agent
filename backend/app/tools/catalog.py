@@ -11,7 +11,11 @@ from app.tools import knowledge, profile, sensors, weather
 
 
 def build_tools() -> list:
-    """返回可绑定到大模型的工具列表（JSON 友好签名）。"""
+    """返回可绑定到大模型的工具列表（JSON 友好签名）。
+
+    工具签名里只有 `user_id`，没有数据库会话：模型侧调用不携带上下文，
+    因此传 `None` 表示"无库上下文"，走静态兜底分支。
+    """
 
     async def sensors_tool(user_id: str) -> dict:
         return await sensors.query_sensors(None, user_id)

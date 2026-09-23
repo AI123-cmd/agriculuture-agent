@@ -1,20 +1,77 @@
 """数据访问层入口：暴露各仓储单例。
 
 仓储是纯逻辑对象（无状态、无配置），故用模块级单例而非 `lru_cache` 工厂。
+调用方只从这里取单例，不自行实例化，避免出现第二份实现。
 """
 
+from dataclasses import dataclass
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.repositories.base import OwnedRepository
+from app.repositories.broadcast import BroadcastLogRepository, broadcast_repo
 from app.repositories.conversation import (
     ConversationRepository,
-    ConversationScopedRepository,
+    CropRepository,
     conversation_repo,
-    message_repo,
+    crop_repo,
 )
+from app.repositories.device import DeviceRepository, device_repo
+from app.repositories.field import FieldRepository, field_repo
+from app.repositories.location import LocationRepository, location_repo
+from app.repositories.memory import MemorySummaryRepository, memory_repo
+from app.repositories.message import ConversationScopedRepository, message_repo
+from app.repositories.profile import FarmerProfileRepository, profile_repo
+from app.repositories.tag import ProfileTagRepository, tag_repo
+from app.repositories.user import UserRepository, user_repo
+
+
+@dataclass(frozen=True)
+class Repositories:
+    """一次调用的数据访问入口：把会话与仓储绑成一个对象传递。
+
+    `app/tools/` 与 `app/broadcast/` 原本接收 `AsyncSession | None`，ORM 类型因此
+    渗进了 `app/agent/nodes/`（L2 的隐患）。改为接收本对象后，工具层签名里不再
+    出现 `AsyncSession`，"无库上下文"（离线兜底）仍用 `None` 表达，语义不变。
+    """
+
+    db: AsyncSession
+    profile: FarmerProfileRepository = profile_repo
+    crop: CropRepository = crop_repo
+    tag: ProfileTagRepository = tag_repo
+    device: DeviceRepository = device_repo
+    location: LocationRepository = location_repo
+    field: FieldRepository = field_repo
+    memory: MemorySummaryRepository = memory_repo
+    broadcast: BroadcastLogRepository = broadcast_repo
+    conversation: ConversationRepository = conversation_repo
+    message: ConversationScopedRepository = message_repo
+    user: UserRepository = user_repo
+
 
 __all__ = [
     "OwnedRepository",
     "ConversationRepository",
     "ConversationScopedRepository",
+    "CropRepository",
+    "FarmerProfileRepository",
+    "BroadcastLogRepository",
+    "DeviceRepository",
+    "FieldRepository",
+    "LocationRepository",
+    "MemorySummaryRepository",
+    "ProfileTagRepository",
+    "UserRepository",
+    "Repositories",
     "conversation_repo",
+    "crop_repo",
     "message_repo",
+    "profile_repo",
+    "broadcast_repo",
+    "device_repo",
+    "field_repo",
+    "location_repo",
+    "memory_repo",
+    "tag_repo",
+    "user_repo",
 ]

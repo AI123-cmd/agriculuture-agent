@@ -32,8 +32,9 @@ async def mark_done(
 async def preview(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user)) -> dict:
     """实时生成今日播报但不落库，便于前端/联调调试。"""
     from app.broadcast import generate_broadcast
+    from app.repositories import Repositories
 
-    results = await generate_broadcast(db, user_id)
+    results = await generate_broadcast(Repositories(db), user_id)
     items = [
         {
             "type": r.type,

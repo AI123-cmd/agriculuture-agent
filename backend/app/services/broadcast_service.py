@@ -2,51 +2,35 @@
 
 from datetime import date
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import new_id
 from app.models import BroadcastLog
+from app.repositories import Repositories, broadcast_repo
 
 
 class BroadcastService:
     async def get_today(self, db: AsyncSession, user_id: str) -> dict:
         today = date.today().isoformat()
-        items = (
-            (
-                await db.execute(
-                    select(BroadcastLog)
-                    .where(BroadcastLog.user_id == user_id, BroadcastLog.date == today)
-                    .order_by(BroadcastLog.time)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        items = list(await broadcast_repo.list_by_date(db, user_id, today))
         if not items:
             items = await self._generate(db, user_id, today)
         return {"date": today, "items": [self._to_item(i) for i in items]}
 
     async def mark_done(self, db: AsyncSession, user_id: str, item_id: str) -> None:
-        item = (
-            (await db.execute(select(BroadcastLog).where(BroadcastLog.id == item_id, BroadcastLog.user_id == user_id)))
-            .scalars()
-            .first()
-        )
-        if item:
-            item.done = 1
-            await db.commit()
+        """标记完成。归属不符时影响 0 行、不抛异常：重复点击不该报错。"""
+        await broadcast_repo.mark_done(db, user_id, item_id)
+        await db.commit()
 
     async def _generate(self, db: AsyncSession, user_id: str, today: str) -> list[BroadcastLog]:
         from app.broadcast import generate_broadcast  # 延迟导入，避免包间循环依赖
 
-        results = await generate_broadcast(db, user_id)
+        results = await generate_broadcast(Repositories(db), user_id)
 
         items = []
         for idx, r in enumerate(results):
             item = BroadcastLog(
                 id=new_id("bc"),
-                user_id=user_id,
                 date=today,
                 time=f"{9 + idx * 2:02d}:00",
                 title=r.title[:64],
@@ -57,7 +41,7 @@ class BroadcastService:
                 meta=r.meta,
                 done=0,
             )
-            db.add(item)
+            await broadcast_repo.add(db, user_id, item)
             items.append(item)
         await db.commit()
         return items
@@ -73,3 +57,6 @@ class BroadcastService:
             "level": item.level,
             "source": item.source,
         }
+
+
+__all__ = ["BroadcastService"]

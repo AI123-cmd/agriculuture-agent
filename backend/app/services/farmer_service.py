@@ -2,11 +2,10 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import new_id
 from app.models import Crop, FarmerProfile
+from app.repositories import crop_repo, profile_repo
 from app.schemas import ProfileRequest
 from app.services.profile_service import ProfileService
 
@@ -17,26 +16,15 @@ def _float(v: float | None) -> float | None:
 
 class FarmerService:
     async def get_profile(self, db: AsyncSession, user_id: str) -> dict:
-        profile = (await db.execute(select(FarmerProfile).where(FarmerProfile.user_id == user_id))).scalars().first()
+        profile = await profile_repo.get_for_user(db, user_id)
         if profile is None:
             return {"hasProfile": False, "profile": None}
 
-        crops = (
-            (
-                await db.execute(
-                    select(Crop).where(Crop.user_id == user_id).order_by(Crop.is_main.desc(), Crop.create_time)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        crops = await crop_repo.list_for_profile(db, user_id)
         return {"hasProfile": True, "profile": self._build_profile(profile, crops)}
 
     async def save_profile(self, db: AsyncSession, user_id: str, req: ProfileRequest) -> dict:
-        profile = (await db.execute(select(FarmerProfile).where(FarmerProfile.user_id == user_id))).scalars().first()
-        if profile is None:
-            profile = FarmerProfile(id=new_id("fp"), user_id=user_id)
-            db.add(profile)
+        profile = await profile_repo.get_or_create(db, user_id)
 
         profile.real_name = req.realName
         profile.age = req.age
@@ -52,19 +40,19 @@ class FarmerService:
         profile.water_source = req.waterSource
         profile.remark = req.remark
 
-        # 覆盖作物列表，首条为主作物
-        await db.execute(delete(Crop).where(Crop.user_id == user_id))
-        for i, item in enumerate(req.crops):
-            db.add(
-                Crop(
-                    id=new_id("crop"),
-                    user_id=user_id,
-                    crop_name=item.cropName,
-                    plant_mu=item.plantMu or 0,
-                    growth_stage=item.growthStage or "",
-                    is_main=1 if i == 0 else 0,
-                )
-            )
+        # 覆盖作物列表，首条为主作物；清空与写入都在仓储内按归属执行
+        await crop_repo.replace_all(
+            db,
+            user_id,
+            [
+                {
+                    "crop_name": item.cropName,
+                    "plant_mu": item.plantMu,
+                    "growth_stage": item.growthStage,
+                }
+                for item in req.crops
+            ],
+        )
 
         # 归档保存后刷新画像标签
         await ProfileService().update_tags(db, user_id, [c.cropName for c in req.crops])
@@ -96,3 +84,6 @@ class FarmerService:
                 for c in crops
             ],
         }
+
+
+__all__ = ["FarmerService"]

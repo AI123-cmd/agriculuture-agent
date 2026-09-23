@@ -2,11 +2,11 @@
 
 from datetime import datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models import Device
+from app.repositories import Repositories
 from app.tools import sensors
 
 
@@ -25,8 +25,9 @@ class EnvironmentService:
         }
 
     async def detail(self, db: AsyncSession, user_id: str) -> dict:
-        s = await self._sensor(db, user_id)
-        devices = (await db.execute(select(Device).where(Device.user_id == user_id))).scalars().all()
+        repos = Repositories(db)
+        s = await sensors.query_sensors(repos, user_id)
+        devices = await repos.device.list_for_user(db, user_id)
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         return {
             "metrics": [
@@ -67,7 +68,7 @@ class EnvironmentService:
         }
 
     async def _sensor(self, db: AsyncSession, user_id: str) -> dict:
-        return await sensors.query_sensors(db, user_id)
+        return await sensors.query_sensors(Repositories(db), user_id)
 
     def _soil_status(self, moisture: float | None) -> str:
         if moisture is None:
@@ -80,3 +81,6 @@ class EnvironmentService:
         if device.status == 0:
             return "离线"
         return "刚刚"
+
+
+__all__ = ["EnvironmentService"]

@@ -1,22 +1,25 @@
-"""农户档案检索工具（MCP）：拉取档案 + 作物 + 画像标签。"""
+"""农户档案检索工具（MCP）：拉取档案 + 作物 + 画像标签。
+
+工具层接收 `Repositories | None` 而不是 `AsyncSession | None`：`app/agent/` 不得
+直接依赖 ORM（L2 规则），传仓储对象使工具层签名里不出现 `AsyncSession`；
+`None` 仍表示"无库上下文"，用于离线兜底。
+"""
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models import Crop, FarmerProfile, UserProfileTag
+from app.models import Crop
+from app.repositories import Repositories
 
 
-async def query_profile(db: AsyncSession | None, user_id: str) -> dict:
+async def query_profile(repos: Repositories | None, user_id: str) -> dict:
     """检索农户档案、作物与画像标签。"""
     profile = None
     crops: Sequence[Crop] = []
     tag = None
-    if db is not None:
-        profile = (await db.execute(select(FarmerProfile).where(FarmerProfile.user_id == user_id))).scalars().first()
-        crops = (await db.execute(select(Crop).where(Crop.user_id == user_id))).scalars().all()
-        tag = (await db.execute(select(UserProfileTag).where(UserProfileTag.user_id == user_id))).scalars().first()
+    if repos is not None:
+        profile = await repos.profile.get_for_user(repos.db, user_id)
+        crops = await repos.crop.list_for_profile(repos.db, user_id)
+        tag = await repos.tag.get_for_user(repos.db, user_id)
 
     def mask(name: str) -> str:
         return (name[0] + "**") if name else "农户"
@@ -33,3 +36,6 @@ async def query_profile(db: AsyncSession | None, user_id: str) -> dict:
         "tags": tag.tags if tag and tag.tags else [],
         "source": "farmer_profile",
     }
+
+
+__all__ = ["query_profile"]
