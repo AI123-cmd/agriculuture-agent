@@ -47,9 +47,9 @@
 """Checkpointer 单例：PostgreSQL 持久化检查点，支持多实例并发与中断恢复。"""
 from __future__ import annotations
 
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.core.config import get_settings
 

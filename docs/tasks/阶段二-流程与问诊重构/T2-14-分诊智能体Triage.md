@@ -38,13 +38,13 @@
 ### 类骨架
 
 ```python
+
 class TriageAgent(BaseAgent[TriageResult]):
     name = "triage"
     output_schema = TriageResult
     task_type = TaskType.TRIAGE
     failure_mode = FailureMode.DEGRADE          # 回退通用流程
     max_attempts = 2
-
     def __init__(self, gateway: ModelGateway, configs: dict[ProcessId, ProcessConfig]) -> None:
         super().__init__(gateway)
         self._configs = configs
@@ -105,7 +105,6 @@ class TriageAgent(BaseAgent[TriageResult]):
         profile_pid = state.get("profile_process_id")
         text = self._current_message_text(state)
         matched = match_object_alias(text, self._configs)
-
         if profile_pid is None:
             return None                                    # 档案为空，不做确认，直接按分诊结果走
         if matched is None or matched == profile_pid:

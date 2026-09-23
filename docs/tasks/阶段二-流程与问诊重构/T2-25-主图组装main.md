@@ -124,7 +124,7 @@ def route_to_subgraph(state: ConsultationState) -> str:
     return f"subgraph_{process_id.value}"
 
 
-def build_graph():
+async def build_graph():
     """构建并编译主图（含 Postgres checkpointer）。"""
     graph = StateGraph(ConsultationState)
 
@@ -176,7 +176,7 @@ def build_graph():
 
 ### 子图内部必须实现的三条边
 
-主图无法反向注册子图内部节点，因此子图文件（T2-27 至 T2-29）必须自己实现以下三条边，且边函数一律从 `routes.py` 取：`graph.add_conditional_edges("observe", route_after_observe_or_guard, ROUTE_AFTER_OBSERVE)`（键含 `report_guard`，把控制交回主图做兜底检查）；`graph.add_conditional_edges("interview", route_after_interview, ROUTE_AFTER_INTERVIEW)`（含 `interview` 回环、`verify`、`panel`、`handoff`）；`graph.add_conditional_edges("judge", route_after_judge, ROUTE_AFTER_JUDGE)` 与 `graph.add_edge("prescribe", END)`（`END` 指子图出口，交回主图的 `gate`）。主图在 `subgraph_*` 节点后补一条边 `graph.add_edge(f"subgraph_{p.value}", "gate")`，保证子图出口落到闸门。
+主图无法反向注册子图内部节点，因此子图文件（T2-27 至 T2-29）必须自己实现以下三条边，且边函数一律从 `routes.py` 取：`graph.add_conditional_edges("observe", route_after_observe, ROUTE_AFTER_OBSERVE)`（键含 `report_guard`，把控制交回主图做 observe 之后的兜底检查）；`graph.add_conditional_edges("interview", route_after_interview, ROUTE_AFTER_INTERVIEW)`（含 `interview` 回环、`verify`、`panel`、`handoff`）；`graph.add_conditional_edges("judge", route_after_judge, ROUTE_AFTER_JUDGE)` 与 `graph.add_edge("prescribe", END)`（`END` 指子图出口，交回主图的 `gate`）。主图在 `subgraph_*` 节点后补一条边 `graph.add_edge(f"subgraph_{p.value}", "gate")`，保证子图出口落到闸门。养猪子图是唯一例外：它自带 `report_guard` 节点，`observe` 出边用 `route_after_pig_report_guard` 留在子图内（见 T2-28）。
 
 ### 为什么"受理即分流"必须前移
 

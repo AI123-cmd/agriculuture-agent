@@ -2,25 +2,18 @@
 
 ## 这一项要做什么
 
-把 `app/agent/state.py` 从当前的 `AgentState`（以 `crop_tag`、`symptoms`、`step` 为核心的会话式状态）重构为技术方案 5.3.1 定义的 `ConsultationState` 黑板式共享状态。新状态加 `slots`、`observations`、`evidence`、`diagnosis`、`prescription`、`gate_result`、`report_decision` 等键，并以 `stage: ConsultStage` 取代原来的 `step: str`。
-
-重构的理由是当前状态把事实散落在 `symptoms`、`management`、`environment` 三个弱类型字典里，没有来源、没有状态、没有归属约束，任何智能体都能覆盖任何字段。黑板式状态把每个事实收进带 `status` 与 `source` 的 `SlotValue`，让"单一写入者""只写不覆盖""带状态写入"三条规则可以被代码执行。
+把 `app/agent/state.py` 从当前的 `AgentState`（以 `crop_tag`、`symptoms`、`step` 为核心的会话式状态）重构为技术方案 5.3.1 定义的 `ConsultationState` 黑板式共享状态。新状态加 `slots`、`observations`、`evidence`、`diagnosis`、`prescription`、`gate_result`、`report_decision` 等键，并以 `stage: ConsultStage` 取代原来的 `step: str`。 重构的理由是当前状态把事实散落在 `symptoms`、`management`、`environment` 三个弱类型字典里，没有来源、没有状态、没有归属约束，任何智能体都能覆盖任何字段。黑板式状态把每个事实收进带 `status` 与 `source` 的 `SlotValue`，让"单一写入者""只写不覆盖""带状态写入"三条规则可以被代码执行。
 
 ## 前置依赖
 
-- 依赖 T2-01：必须已提供 `ProcessId`、`ConsultStage`、`SlotSource`、`SlotStatus`、`SOURCE_PRIORITY`
-- 依赖 T2-02：必须已提供 `ProcessConfig` 与 `SlotSpec`（写入校验要查 `owner`）
-- 外部条件：删除现有 `app/agent/graph.py` 与 `app/agent/nodes/` 的引用要同步进行，但**不要在更早的任务里删 `ai_router/`**
-- 与 T2-24 的关系：本项只定义状态与写入函数，条件边函数在 T2-24
+- 依赖 T2-01：必须已提供 `ProcessId`、`ConsultStage`、`SlotSource`、`SlotStatus`、`SOURCE_PRIORITY`；依赖 T2-02：必须已提供 `ProcessConfig` 与 `SlotSpec`（写入校验要查 `owner`）
+- 外部条件：删除现有 `app/agent/graph.py` 与 `app/agent/nodes/` 的引用要同步进行，但**不要在更早的任务里删 `ai_router/`**；与 T2-24 的关系：本项只定义状态与写入函数，条件边函数在 T2-24
 
 ## 参考章节
 
-- 技术方案 第5章 5.3.1 共享状态 ConsultationState（`SlotValue`、`EvidenceItem`、`ConsultationState` 全字段）
-- 技术方案 第5章 5.3.1 `ConsultStage` 的十一个取值
-- 技术方案 第6章 6.3 黑板式共享状态（三条读写规则与来源优先级表）
-- 技术方案 第6章 6.3 多地块的处理（`farm_plot_id` 必填，槽位键加地块前缀）
-- 技术方案 第7章 7.3 状态机推进规则（轮次与预算字段）
-- 技术方案 第12章 12.4 问诊与处方卡（`process_locked` 与 `config_version`）
+- 技术方案 第5章 5.3.1 共享状态 ConsultationState（`SlotValue`、`EvidenceItem`、`ConsultationState` 全字段）；技术方案 第5章 5.3.1 `ConsultStage` 的十一个取值
+- 技术方案 第6章 6.3 黑板式共享状态（三条读写规则与来源优先级表）；技术方案 第6章 6.3 多地块的处理（`farm_plot_id` 必填，槽位键加地块前缀）
+- 技术方案 第7章 7.3 状态机推进规则（轮次与预算字段）；技术方案 第12章 12.4 问诊与处方卡（`process_locked` 与 `config_version`）
 
 ## 改动范围
 
@@ -40,14 +33,12 @@
 class SlotValue(BaseModel):
     """单个信息槽位，带来源与状态。技术方案 5.3.1 原样定义。"""
     model_config = ConfigDict(extra="forbid")
-
     key: str
     value: str | None = None
     status: Literal["filled", "unknown", "missing"] = "missing"
     source: Literal["profile", "sensor", "weather", "user_answer", "image", "inferred"]
     confidence: float | None = None
     asked_at_round: int | None = None
-
     @model_validator(mode="after")
     def _status_consistency(self) -> "SlotValue":
         if self.status == "filled" and self.value is None:
@@ -67,7 +58,6 @@ class SlotValue(BaseModel):
 class EvidenceItem(BaseModel):
     """一条证据，必须带溯源。技术方案 5.3.1 原样定义。"""
     model_config = ConfigDict(extra="forbid")
-
     knowledge_id: str
     title: str
     content: str
@@ -125,7 +115,6 @@ class ConsultationState(TypedDict, total=False):
 class BlackboardError(RuntimeError):
     """写入违反黑板规则时抛出。"""
 
-
 def write_slot(
     state: ConsultationState,
     slot: SlotValue,
@@ -136,13 +125,11 @@ def write_slot(
 ) -> None:
     """按黑板三条规则写入槽位。"""
     key = f"{plot_prefix}.{slot.key}" if plot_prefix else slot.key
-
     spec = config.slot_spec(slot.key)
     if spec is None:
         raise BlackboardError(f"槽位 {slot.key} 未在流程 {config.process_id.value} 中声明")
     if spec.owner != writer:
         raise BlackboardError(f"槽位 {slot.key} 的写入者为 {spec.owner}，{writer} 无权写入")
-
     existing = state.get("slots", {}).get(key)
     if existing is not None and existing.status == "filled":
         if SOURCE_PRIORITY[SlotSource(slot.source)] >= SOURCE_PRIORITY[SlotSource(existing.source)]:
@@ -160,7 +147,6 @@ def write_slot(
 def read_slot(state: ConsultationState, key: str, *, plot_prefix: str | None = None) -> SlotValue | None:
     full_key = f"{plot_prefix}.{key}" if plot_prefix else key
     return state.get("slots", {}).get(full_key)
-
 
 def slot_summary(state: ConsultationState) -> dict[str, str]:
     """把槽位压成 键 → 展示值 的映射，供提示词注入。unknown 用固定文案。"""
@@ -180,7 +166,6 @@ def slot_summary(state: ConsultationState) -> dict[str, str]:
 ```python
 def set_stage(state: ConsultationState, stage: ConsultStage) -> dict:
     return {"stage": stage}
-
 
 def append_evidence(state: ConsultationState, items: list[EvidenceItem]) -> dict:
     merged = {e["knowledge_id"]: e for e in (state.get("evidence") or [])}

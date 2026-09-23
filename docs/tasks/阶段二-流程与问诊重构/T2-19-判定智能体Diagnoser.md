@@ -2,27 +2,19 @@
 
 ## 这一项要做什么
 
-在 `app/agent/agents/diagnoser.py` 中实现判定智能体，综合证据集与槽位输出 `DiagnosisResult`。它是全链路自治程度最高的环节（技术方案 5.1 标注为"高（推理）"），也是准确性的核心：鉴别推理与易混淆项排除都在这里完成。
-
-本智能体有三个必须由代码保证的行为：把握程度只输出枚举而不是分数、对有易混淆项的流程强制输出排除项、结论不确定时给出不确定性来源或待补信息。三者中前两条依赖流程配置，第三条依赖契约校验。
+在 `app/agent/agents/diagnoser.py` 中实现判定智能体，综合证据集与槽位输出 `DiagnosisResult`。它是全链路自治程度最高的环节（技术方案 5.1 标注为"高（推理）"），也是准确性的核心：鉴别推理与易混淆项排除都在这里完成。 本智能体有三个必须由代码保证的行为：把握程度只输出枚举而不是分数、对有易混淆项的流程强制输出排除项、结论不确定时给出不确定性来源或待补信息。三者中前两条依赖流程配置，第三条依赖契约校验。
 
 ## 前置依赖
 
-- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`
-- 依赖 T2-11：必须已提供 `DiagnosisResult`
-- 依赖 T2-18：必须已提供 `EvidenceSet`，空集时须走不确定路径
-- 依赖 T2-02：必须已提供 `ProcessConfig` 的 `confusable_items` 与 `terminology`
-- 依赖 T2-23：转人工上下文包由本项在超边界时调用（反向依赖，本项只产出触发信号）
-- 依赖 T2-55、T2-57：必须已提供网关与任务路由（`TaskType.DIAGNOSE` 对应主模型档位）
+- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`；依赖 T2-11：必须已提供 `DiagnosisResult`
+- 依赖 T2-18：必须已提供 `EvidenceSet`，空集时须走不确定路径；依赖 T2-02：必须已提供 `ProcessConfig` 的 `confusable_items` 与 `terminology`
+- 依赖 T2-23：转人工上下文包由本项在超边界时调用（反向依赖，本项只产出触发信号）；依赖 T2-55、T2-57：必须已提供网关与任务路由（`TaskType.DIAGNOSE` 对应主模型档位）
 
 ## 参考章节
 
-- 技术方案 第5章 5.3.4 判定契约 DiagnosisResult（三条硬约束）
-- 技术方案 第5章 5.3.4 `excluded` 必填且非空（对有易混淆项的流程）
-- 技术方案 第5章 5.3.4 `out_of_scope = True` 时跳过处方环节直达转人工
-- 技术方案 第9章 9.1 `confusable_items` 直接生成判定契约的 excluded 字段
-- 技术方案 第6章 6.4 受限并行会诊（`force_uncertain` 的意义）
-- 技术方案 第4章 4.4 模型分层策略（判定用主模型，准确性的核心环节）
+- 技术方案 第5章 5.3.4 判定契约 DiagnosisResult（三条硬约束）；技术方案 第5章 5.3.4 `excluded` 必填且非空（对有易混淆项的流程）
+- 技术方案 第5章 5.3.4 `out_of_scope = True` 时跳过处方环节直达转人工；技术方案 第9章 9.1 `confusable_items` 直接生成判定契约的 excluded 字段
+- 技术方案 第6章 6.4 受限并行会诊（`force_uncertain` 的意义）；技术方案 第4章 4.4 模型分层策略（判定用主模型，准确性的核心环节）
 - 技术方案 第6章 6.7 转人工升级（四类情形中的超出能力边界）
 
 ## 改动范围
@@ -45,7 +37,6 @@ class DiagnoserAgent(BaseAgent[DiagnosisResult]):
     task_type = TaskType.DIAGNOSE
     failure_mode = FailureMode.DEGRADE          # 输出不确定加求助引导
     max_attempts = 2
-
     def __init__(self, gateway: ModelGateway, budget: ConsultBudget) -> None:
         super().__init__(gateway)
         self._budget = budget
@@ -63,7 +54,6 @@ class DiagnoserAgent(BaseAgent[DiagnosisResult]):
             if pair.must_exclude:
                 required.update(pair.candidates)
         return required
-
     def validate_output(self, result: DiagnosisResult, state: ConsultationState, ctx: AgentContext) -> None:
         """业务校验：有易混淆项的流程必须显式排除。"""
         required = self.required_exclusions(ctx.process_config)
@@ -76,43 +66,34 @@ class DiagnoserAgent(BaseAgent[DiagnosisResult]):
             raise ContractViolation(f"未显式排除: {sorted(missing)}")
 ```
 
-`missing` 的计算里减去了 `result.conclusion`：如果结论本身就是某个候选（如结论是"青枯病"），它不需要出现在排除项里，但另一个候选必须出现。技术方案 5.3.4 的表述是"强制输出排除项，使模型必须做鉴别而不是直接匹配"，因此校验的重点是"另一个候选有没有被排除"，而不是"所有候选都要出现在排除列表"。
-
-这条校验失败会触发重试（带修复提示），重试仍失败则降级为不确定结论。降级为不确定比输出一个未做鉴别的确定结论更安全：辣椒流程的青枯病与枯萎病处置方向完全不同，猜错的代价是无效用药。
+`missing` 的计算里减去了 `result.conclusion`：如果结论本身就是某个候选（如结论是"青枯病"），它不需要出现在排除项里，但另一个候选必须出现。技术方案 5.3.4 的表述是"强制输出排除项，使模型必须做鉴别而不是直接匹配"，因此校验的重点是"另一个候选有没有被排除"，而不是"所有候选都要出现在排除列表"。 这条校验失败会触发重试（带修复提示），重试仍失败则降级为不确定结论。降级为不确定比输出一个未做鉴别的确定结论更安全：辣椒流程的青枯病与枯萎病处置方向完全不同，猜错的代价是无效用药。
 
 ### 不确定结论的补全
 
 ```python
     async def post_validate(self, result: DiagnosisResult, state: ConsultationState, ctx: AgentContext) -> DiagnosisResult:
         updates: dict[str, Any] = {}
-
         # 1. 术语档位由代码填入，不由模型自由生成
         updates["terminology_profile"] = ctx.process_config.process_id.value
-
         # 2. 证据集为空时强制不确定
         evidence = state.get("evidence") or []
         if not evidence and result.confidence_level != "uncertain":
             updates["confidence_level"] = "uncertain"
             updates.setdefault("uncertainty_source", []).append("未检索到支撑条目")
-
         # 3. 面板未收敛时强制不确定（由 T2-20 写入 state 标记）
         if state.get("panel_force_uncertain"):
             updates["confidence_level"] = "uncertain"
             updates.setdefault("uncertainty_source", []).append("并行会诊未能唯一确定")
-
         # 4. 超边界时补齐原因
         if result.out_of_scope and not result.boundary_reason:
             updates["boundary_reason"] = "该问题超出本流程的能力范围"
-
         merged = {**result.model_dump(), **updates}
         if merged["confidence_level"] == "uncertain" and not merged["needs_more_info"] and not merged["uncertainty_source"]:
             merged["needs_more_info"] = ["建议补充症状照片或到农技站咨询"]
         return DiagnosisResult.model_validate(merged)
 ```
 
-`terminology_profile` 由代码从 `process_id` 填入而不是让模型生成。技术方案 5.3.4 的注释说明它是"命中的流程术语档，如 tea"。既然问诊已经在茶流程内进行，这个值就是确定的，让模型生成只会引入不一致。
-
-三条强制不确定的来源都记入 `uncertainty_source`：无证据、面板未收敛、以及模型自身判断不确定。三者分开记录，让线上能区分"知识库覆盖不足"与"真难判断"，前者要补知识，后者要补判据。
+`terminology_profile` 由代码从 `process_id` 填入而不是让模型生成。技术方案 5.3.4 的注释说明它是"命中的流程术语档，如 tea"。既然问诊已经在茶流程内进行，这个值就是确定的，让模型生成只会引入不一致。 三条强制不确定的来源都记入 `uncertainty_source`：无证据、面板未收敛、以及模型自身判断不确定。三者分开记录，让线上能区分"知识库覆盖不足"与"真难判断"，前者要补知识，后者要补判据。
 
 ### 内部置信度分数与展示的分离
 
@@ -155,9 +136,7 @@ class DiagnoserAgent(BaseAgent[DiagnosisResult]):
         )
 ```
 
-技术方案 6.7 要求超边界时输出"建议咨询当地农技站 + 可自行观察的要点"。"可自行观察的要点"从 `basis` 取前两条，因为 `basis` 是模型已经逐条列出的判断依据，它本身就是观察项的来源。这样文案的实质内容有出处，而不是重新生成一段泛泛的建议。
-
-`out_of_scope=True` 时主图跳过处方直达转人工，这个路由由 `route_after_judge`（T2-24）实现，本智能体只负责正确置位这个字段。
+技术方案 6.7 要求超边界时输出"建议咨询当地农技站 + 可自行观察的要点"。"可自行观察的要点"从 `basis` 取前两条，因为 `basis` 是模型已经逐条列出的判断依据，它本身就是观察项的来源。这样文案的实质内容有出处，而不是重新生成一段泛泛的建议。 `out_of_scope=True` 时主图跳过处方直达转人工，这个路由由 `route_after_judge`（T2-24）实现，本智能体只负责正确置位这个字段。
 
 ### 提示词构造
 
@@ -188,9 +167,7 @@ def build_diagnoser_prompt(
             {"role": "user", "content": "\n".join(user)}]
 ```
 
-提示词中显式禁止百分比，与契约层不含分数字段形成双保险。技术方案 5.3.4 指出"把握程度必须用农户听得懂的话表达，不能显示百分比分数"，而模型在自由生成时很容易写出"大约 70% 的可能是"，因此这条禁令必须在提示词里也出现一次。
-
-`format_evidence` 传入的是证据的序列化字典（来自 `state["evidence"]`），只注入相关条目的标题与内容摘要，不注入全部。技术方案 10.4 的上下文裁剪要求"只注入相关槽位与证据"。
+提示词中显式禁止百分比，与契约层不含分数字段形成双保险。技术方案 5.3.4 指出"把握程度必须用农户听得懂的话表达，不能显示百分比分数"，而模型在自由生成时很容易写出"大约 70% 的可能是"，因此这条禁令必须在提示词里也出现一次。 `format_evidence` 传入的是证据的序列化字典（来自 `state["evidence"]`），只注入相关条目的标题与内容摘要，不注入全部。技术方案 10.4 的上下文裁剪要求"只注入相关槽位与证据"。
 
 ### 降级实现
 
@@ -209,18 +186,12 @@ def build_diagnoser_prompt(
         )
 ```
 
-降级的 `excluded` 用 `required_exclusions` 的完整集合填充，而不是留空。理由是这个集合是配置给定的、与本次问诊内容无关的固定值，填上不构成任何编造。若留空，契约的业务校验会再次失败，形成降级后又降级的循环。
-
-`out_of_scope=False` 是刻意的：判定服务不可用不等于问题超边界。超边界是一个关于问题内容的判断，服务不可用时无从判断，因此按"不超边界"处理并输出不确定结论。这样农户拿到的是一条"暂时给不出明确结论，建议观察或求助"的回复，而不是被直接推到人工通道。
+降级的 `excluded` 用 `required_exclusions` 的完整集合填充，而不是留空。理由是这个集合是配置给定的、与本次问诊内容无关的固定值，填上不构成任何编造。若留空，契约的业务校验会再次失败，形成降级后又降级的循环。 `out_of_scope=False` 是刻意的：判定服务不可用不等于问题超边界。超边界是一个关于问题内容的判断，服务不可用时无从判断，因此按"不超边界"处理并输出不确定结论。这样农户拿到的是一条"暂时给不出明确结论，建议观察或求助"的回复，而不是被直接推到人工通道。
 
 ## 验收标准
 
-- `pytest tests/agent/test_diagnoser_agent.py` 全部通过，含三类用例：辣椒流程输出 `excluded` 缺一个候选时抛 `ContractViolation` 并重试、证据集为空时 `confidence_level` 被覆写为 `uncertain`、模型不可用时降级且 `excluded` 等于配置要求的完整集合
-- 断言 `DiagnosisResult.model_fields` 中不含任何名称含 `score` 或 `percent` 的字段
-- 断言 `internal_confidence` 的返回值不被写入 `DiagnosisResult`（检查 `result.model_dump()` 的键集合）
-- 断言 `terminology_profile` 恒等于 `process_config.process_id.value`
-- 断言 `panel_force_uncertain` 为 True 时 `confidence_level` 被覆写为 `uncertain` 且 `uncertainty_source` 含"并行会诊"
-- 断言 `should_loop_back` 在 `judge_loops` 达到 `max_judge_loops` 时返回 False，在 `round` 达到 `max_interview_rounds` 时返回 False
-- 断言 `out_of_scope=True` 时 `should_loop_back` 返回 False
-- 断言 `build_boundary_notice` 的输出包含 `basis` 中的至少一条内容
+- `pytest tests/agent/test_diagnoser_agent.py` 全部通过，含三类用例：辣椒流程输出 `excluded` 缺一个候选时抛 `ContractViolation` 并重试、证据集为空时 `confidence_level` 被覆写为 `uncertain`、模型不可用时降级且 `excluded` 等于配置要求的完整集合；断言 `DiagnosisResult.model_fields` 中不含任何名称含 `score` 或 `percent` 的字段
+- 断言 `internal_confidence` 的返回值不被写入 `DiagnosisResult`（检查 `result.model_dump()` 的键集合）；断言 `terminology_profile` 恒等于 `process_config.process_id.value`
+- 断言 `panel_force_uncertain` 为 True 时 `confidence_level` 被覆写为 `uncertain` 且 `uncertainty_source` 含"并行会诊"；断言 `should_loop_back` 在 `judge_loops` 达到 `max_judge_loops` 时返回 False，在 `round` 达到 `max_interview_rounds` 时返回 False
+- 断言 `out_of_scope=True` 时 `should_loop_back` 返回 False；断言 `build_boundary_notice` 的输出包含 `basis` 中的至少一条内容
 - `ruff check`、`ruff format --check`、`mypy app` 三条命令返回 0

@@ -2,27 +2,18 @@
 
 ## 这一项要做什么
 
-在 `app/agent/state.py` 中建立全项目唯一的枚举来源，覆盖流程标识、问诊环节、槽位状态与来源、把握程度、闸门裁定、证据种类、任务类型等取值。技术方案 5.2 要求"枚举封闭"，即这些取值必须是 Python `Enum` 而不是自由字符串，大模型输出的自由文本必须解析落到枚举上，解析失败即视为契约违约。
-
-把这些枚举集中在一处，是为了让契约层、智能体层、闸门层、知识库层、模型网关引用同一份定义。若各处各写一遍字符串常量，一次措辞变更就会在不同层之间产生不匹配，而这类不匹配在安全校验链路上是不可接受的。
+在 `app/agent/state.py` 中建立全项目唯一的枚举来源，覆盖流程标识、问诊环节、槽位状态与来源、把握程度、闸门裁定、证据种类、任务类型等取值。技术方案 5.2 要求"枚举封闭"，即这些取值必须是 Python `Enum` 而不是自由字符串，大模型输出的自由文本必须解析落到枚举上，解析失败即视为契约违约。 把这些枚举集中在一处，是为了让契约层、智能体层、闸门层、知识库层、模型网关引用同一份定义。若各处各写一遍字符串常量，一次措辞变更就会在不同层之间产生不匹配，而这类不匹配在安全校验链路上是不可接受的。
 
 ## 前置依赖
 
-- 上游任务：无（本批次第一项）
-- 外部环境：Python 3.11+，pydantic 2.x，与 T1-01 确定的 `requirements.txt` 一致
+- 上游任务：无（本批次第一项）；外部环境：Python 3.11+，pydantic 2.x，与 T1-01 确定的 `requirements.txt` 一致
 - 现有代码现状：`backend/app/agent/state.py` 当前只定义 `Step`（六值）与 `AgentState`，本项用新枚举整体取代 `Step`
 
 ## 参考章节
 
-- 技术方案 第5章 5.2 契约设计总原则（枚举封闭、事实必带溯源、区分未知与缺失）
-- 技术方案 第5章 5.3.1 共享状态 ConsultationState（`ConsultStage` 的十一个取值）
-- 技术方案 第6章 6.3 黑板式共享状态（来源优先级表）
-- 技术方案 第8章 8.2 规则清单（`severity` 的 block / warn）
-- 技术方案 第9章 9.1 流程配置模型（`SlotSpec.group` 的六个中文取值）
-- 技术方案 第5章 5.3.6 门禁契约 GateResult（`decision` 三值）
-- 技术方案 第5章 5.3.7 报告守卫契约 ReportDecision（`trigger_source` 四值）
-- 技术方案 第12章 12.2 流程类型与档案模型调整（`object_type` 三值）
-- 技术方案 第4章 4.4 模型分层策略（任务类型与模型档位的对应）
+- 技术方案 第5章 5.2 契约设计总原则（枚举封闭、事实必带溯源、区分未知与缺失）；技术方案 第5章 5.3.1 共享状态 ConsultationState（`ConsultStage` 的十一个取值）
+- 技术方案 第6章 6.3 黑板式共享状态（来源优先级表）；技术方案 第8章 8.2 规则清单（`severity` 的 block 与 warn）；第9章 9.1 流程配置模型（`SlotSpec.group` 六个中文取值）
+- 技术方案 第5章 5.3.6 门禁契约 GateResult（`decision` 三值）；5.3.7 报告守卫契约（`trigger_source` 四值）；技术方案 第12章 12.2 流程类型与档案模型调整（`object_type` 三值）；第4章 4.4 模型分层策略（任务类型与模型档位）
 
 ## 改动范围
 
@@ -88,7 +79,6 @@ class SlotSource(str, Enum):
     USER_ANSWER = "user_answer"
     IMAGE = "image"
     INFERRED = "inferred"
-
 # 数字越小优先级越高，高优先级可覆盖低优先级（技术方案 6.3）
 SOURCE_PRIORITY: dict[SlotSource, int] = {
     SlotSource.PROFILE: 1,
@@ -180,9 +170,9 @@ class TaskType(str, Enum):
     REPORT_GUARD = "report_guard"
 ```
 
-`SlotGroup` 用中文枚举值，因为它是配置里给人看的分类；`SlotOwner` 用英文，因为它是代码标识，会出现在 `SlotValue` 写入方的判断中。
+`SlotGroup` 用中文枚举值，因为它是配置里给人看的分类；`SlotOwner` 用英文，因为它是代码标识，会出现在 `SlotValue` 写入方的判断中。`TaskType` 与模型网关的任务类型路由（T2-57）对应，每个值对应一个模型档位。
 
-### 未知环节的解析入口
+### 未知取值的解析入口
 
 ```python
 def parse_stage(raw: str) -> ConsultStage:
@@ -191,7 +181,6 @@ def parse_stage(raw: str) -> ConsultStage:
         return ConsultStage(raw)
     except ValueError as exc:
         raise EnumParseError(f"非法 consult_stage: {raw!r}") from exc
-
 
 def parse_process_id(raw: str) -> ProcessId:
     """流程标识解析，未登记的流程名不得静默回落到 general。"""

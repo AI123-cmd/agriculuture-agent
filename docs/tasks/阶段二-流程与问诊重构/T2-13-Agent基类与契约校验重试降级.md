@@ -2,27 +2,19 @@
 
 ## 这一项要做什么
 
-在 `app/agent/agents/base.py` 中实现智能体基类，把契约校验、失败重试、降级路径与结构化输出强制这四件横切的事收在一处。每个具体智能体只需声明它的输出契约类型、提示词构造方式、降级实现与失败行为类别，不重复写解析与重试逻辑。
-
-这四件事之所以要统一下沉，是因为它们决定了安全链路的行为：解析失败必须触发降级而不是正则硬抽，重试必须有限次且有退避，守卫类智能体必须 fail-closed 而其余可以降级继续服务。散落在七个智能体里各写一遍，一定会有某一处写漏。
+在 `app/agent/agents/base.py` 中实现智能体基类，把契约校验、失败重试、降级路径与结构化输出强制这四件横切的事收在一处。每个具体智能体只需声明它的输出契约类型、提示词构造方式、降级实现与失败行为类别，不重复写解析与重试逻辑。 这四件事之所以要统一下沉，是因为它们决定了安全链路的行为：解析失败必须触发降级而不是正则硬抽，重试必须有限次且有退避，守卫类智能体必须 fail-closed 而其余可以降级继续服务。散落在七个智能体里各写一遍，一定会有某一处写漏。
 
 ## 前置依赖
 
-- 依赖 T2-56：必须已提供模型供应商适配器与结构化输出能力（`gateway.chat(task_type, messages, schema)`）
-- 依赖 T2-09 至 T2-12：必须已提供全部契约类型，基类以泛型约束它们
-- 依赖 T2-55：必须已提供模型网关统一入口
-- 依赖 T2-01：必须已提供 `TaskType`
-- 外部环境：`tenacity` 已写入 `requirements.txt`；`USE_MOCK_LLM=true` 时网关返回预设结构化响应
-- 与 T2-24 的关系：基类负责节点内部逻辑，主图的条件边由 T2-24 组装
+- 依赖 T2-56：必须已提供模型供应商适配器与结构化输出能力（`gateway.chat(task_type, messages, schema)`）；依赖 T2-09 至 T2-12：必须已提供全部契约类型，基类以泛型约束它们
+- 依赖 T2-55：必须已提供模型网关统一入口；依赖 T2-01：必须已提供 `TaskType`
+- 外部环境：`tenacity` 已写入 `requirements.txt`；`USE_MOCK_LLM=true` 时网关返回预设结构化响应；与 T2-24 的关系：基类负责节点内部逻辑，主图的条件边由 T2-24 组装
 
 ## 参考章节
 
-- 技术方案 第5章 5.1 智能体总表（十项智能体的类型、自治程度、失败行为）
-- 技术方案 第5章 5.2 契约设计总原则（枚举封闭、解析失败即契约违约）
-- 技术方案 第7章 7.3 状态机推进规则（节点级重试 tenacity 指数退避最多 2 次）
-- 技术方案 第10章 10.2 供应商适配（结构化输出的三层保障）
-- 技术方案 第10章 10.3 降级链路（问诊模板问题、判定不确定、处方转农技站）
-- 技术方案 第6章 6.5 独立仲裁（生成链路降级继续，仲裁链路 fail-closed）
+- 技术方案 第5章 5.1 智能体总表（十项智能体的类型、自治程度、失败行为）；技术方案 第5章 5.2 契约设计总原则（枚举封闭、解析失败即契约违约）
+- 技术方案 第7章 7.3 状态机推进规则（节点级重试 tenacity 指数退避最多 2 次）；技术方案 第10章 10.2 供应商适配（结构化输出的三层保障）
+- 技术方案 第10章 10.3 降级链路（问诊模板问题、判定不确定、处方转农技站）；技术方案 第6章 6.5 独立仲裁（生成链路降级继续，仲裁链路 fail-closed）
 - 全局约定 第六节（失败行为分两类）
 
 ## 改动范围
@@ -52,6 +44,7 @@ class FailureMode(str, Enum):
 
 ```python
 @dataclass(slots=True)
+
 class AgentContext:
     """一次智能体调用的环境依赖。全部为只读视图。"""
     process_config: ProcessConfig
@@ -69,37 +62,29 @@ class AgentContext:
 ```python
 OutT = TypeVar("OutT", bound=BaseModel)
 
-
 class BaseAgent(Generic[OutT], ABC):
     """智能体基类：契约校验 + 重试 + 降级 + 结构化输出。"""
-
     name: ClassVar[str]
     output_schema: ClassVar[type[BaseModel]]
     task_type: ClassVar[TaskType]
     failure_mode: ClassVar[FailureMode] = FailureMode.DEGRADE
     max_attempts: ClassVar[int] = 2          # 首次之外的额外尝试次数，总计最多 3 次调用
-
     def __init__(self, gateway: ModelGateway) -> None:
         self._gateway = gateway
-
     # ---- 子类必须实现 ----
     @abstractmethod
     def build_messages(self, state: ConsultationState, ctx: AgentContext) -> list[dict]:
         """拼装提示词。结构化字段注入，不拼接自由文本。"""
-
     @abstractmethod
     async def degrade(self, state: ConsultationState, ctx: AgentContext, reason: str) -> OutT:
         """降级路径。必须返回满足契约的对象，不得返回 None。"""
-
     # ---- 子类可选覆盖 ----
     async def post_validate(self, result: OutT, state: ConsultationState, ctx: AgentContext) -> OutT:
         """契约之外的业务校验，如判定契约的排除项非空检查。"""
         return result
-
     def validate_output(self, result: OutT, state: ConsultationState, ctx: AgentContext) -> None:
         """可覆盖的额外校验，抛 ContractViolation 触发重试。"""
         return None
-
     # ---- 统一入口 ----
     async def run(self, state: ConsultationState, ctx: AgentContext) -> OutT:
         try:
@@ -109,11 +94,9 @@ class BaseAgent(Generic[OutT], ABC):
             return result
         except Exception as exc:                 # noqa: BLE001
             return await self._on_failure(state, ctx, exc)
-
     async def _call_with_retry(self, state: ConsultationState, ctx: AgentContext) -> OutT:
         """带指数退避的重试。仅对契约违约与瞬时故障重试。"""
         attempt_state: dict[str, Any] = {"n": 0, "last_error": None}
-
         @retry(
             stop=stop_after_attempt(self.max_attempts),
             wait=wait_exponential(multiplier=0.5, min=0.5, max=4),
@@ -133,7 +116,6 @@ class BaseAgent(Generic[OutT], ABC):
             result = self.output_schema.model_validate(response.parsed)
             self.validate_output(result, state, ctx)
             return cast(OutT, result)
-
         return await _attempt()
 ```
 
@@ -164,11 +146,9 @@ class BaseAgent(Generic[OutT], ABC):
         reason = f"{type(exc).__name__}: {exc}"
         log.warning("agent degraded", extra={"agent": self.name, "failure_mode": self.failure_mode.value, "reason": reason})
         metrics.incr("agent_degraded_total", tags={"agent": self.name, "mode": self.failure_mode.value})
-
         if self.failure_mode is FailureMode.FAIL_CLOSED:
             return await self.fail_closed(state, ctx, reason)
         return await self.degrade(state, ctx, reason)
-
     async def fail_closed(self, state: ConsultationState, ctx: AgentContext, reason: str) -> OutT:
         """守卫类失败路径。默认实现为子类未覆盖时抛异常，强制显式实现。"""
         raise NotImplementedError(f"{self.name} 声明 fail_closed 但未实现 fail_closed 路径")

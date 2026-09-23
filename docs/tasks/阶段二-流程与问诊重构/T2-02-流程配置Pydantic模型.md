@@ -36,10 +36,10 @@
 ### 外壳模型 ProcessConfig
 
 ```python
+
 class ProcessConfig(BaseModel):
     """一条流程的完整配置。加载成功即视为该流程可路由。"""
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     process_id: ProcessId
     version: int
     display_name: str
@@ -65,9 +65,9 @@ class ProcessConfig(BaseModel):
 ### 槽位规格 SlotSpec
 
 ```python
+
 class SlotSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     key: str
     label: str
     display_label: str
@@ -84,9 +84,9 @@ class SlotSpec(BaseModel):
 ### 术语表 TerminologySpec
 
 ```python
+
 class TerminologySpec(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     internal_terms: dict[str, str]
     colloquial_map: dict[str, str]
     display_metrics: list[str]
@@ -97,13 +97,12 @@ class TerminologySpec(BaseModel):
 ### 易混淆项 ConfusablePair
 
 ```python
+
 class ConfusablePair(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     candidates: list[str]
     decisive_features: dict[str, list[str]]
     must_exclude: bool = True
-
     @model_validator(mode="after")
     def _features_cover_candidates(self) -> "ConfusablePair":
         missing = set(self.candidates) - set(self.decisive_features)
@@ -117,55 +116,45 @@ class ConfusablePair(BaseModel):
 ### 其余子模型
 
 ```python
+
 class RedlineSpec(BaseModel):
     """单条流程红线。id 形如 TEA-01，rule 可为逗号分隔的多规则。"""
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     id: str
     desc: str
     rule: str
     severity: ViolationSeverity
     data: dict = {}
 
-
 class TimingRule(BaseModel):
     """时机判据，供提示快照生成使用。"""
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     id: str
     when: dict
     prompt: str
 
-
 class OutputTemplateSpec(BaseModel):
     """输出模板，模板出事实、模型只改写。"""
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     section_order: list[str]
     max_chars: int = 400
     required_sections: list[str] = []
 
-
 class FollowupTaskSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     after_action: str | None = None
     after_days: int
     ask: str
     kind: str = "effect_check"
 
-
 class FollowupPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     triggers: list[FollowupTaskSpec]
     window_based: bool = False
-
 
 class OfflineQuestion(BaseModel):
     """无传感器时的增强追问。"""
     model_config = ConfigDict(extra="forbid", frozen=True)
-
     slot_key: str
     text: str
     options: list[str] | None = None
@@ -177,21 +166,19 @@ class OfflineQuestion(BaseModel):
 ### 便捷读取方法
 
 ```python
+
 class ProcessConfig(BaseModel):
     ...
     def required_slot_keys(self) -> list[str]:
         return [s.key for s in self.required_slots if s.required]
-
     def slot_spec(self, key: str) -> SlotSpec | None:
         return next((s for s in self.required_slots if s.key == key), None)
-
     def redline_rule_ids(self) -> list[str]:
         """展开逗号分隔的 rule 字段，供闸门反查漏配。"""
         ids: list[str] = []
         for item in self.redlines:
             ids.extend(r.strip() for r in item.rule.split(",") if r.strip())
         return ids
-
     def check_owns(self, key: str, owner: str) -> bool:
         spec = self.slot_spec(key)
         return spec is not None and spec.owner == owner

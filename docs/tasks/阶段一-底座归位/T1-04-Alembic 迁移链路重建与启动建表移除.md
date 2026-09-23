@@ -62,8 +62,6 @@ from alembic import op
 
 revision = "0001"
 down_revision = None
-branch_labels = None
-depends_on = None
 
 
 def upgrade() -> None:
@@ -82,7 +80,7 @@ def upgrade() -> None:
         sa.Column("update_time", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_user_openid", "user", ["openid"], unique=True)
-    # ... 其余 10 张表逐个 create_table + create_index
+    # ... 其余 10 张表逐个 create_table + create_index，此处只列两处关键差异
     op.create_table(
         "ai_message",
         sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
@@ -94,6 +92,8 @@ def upgrade() -> None:
         sa.Column("update_time", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_ai_message_conversation_id", "ai_message", ["conversation_id"])
+    op.create_index("ix_ai_conversation_update_time", "ai_conversation", ["update_time"])
+    op.create_index("ix_crop_user_id", "crop", ["user_id"])
     # 高优先级外键（技术方案 12.7）
     op.create_foreign_key(
         "fk_ai_message_conversation", "ai_message", "ai_conversation",
@@ -103,8 +103,6 @@ def upgrade() -> None:
         "fk_farmer_profile_user", "farmer_profile", "user",
         ["user_id"], ["id"], ondelete="CASCADE",
     )
-    op.create_index("ix_ai_conversation_update_time", "ai_conversation", ["update_time"])
-    op.create_index("ix_crop_user_id", "crop", ["user_id"])
 
 
 def downgrade() -> None:
@@ -119,7 +117,7 @@ def downgrade() -> None:
 
 ### 三、删除启动建表路径
 
-`Base.metadata.create_all` 现状只出现在 `0001_initial.py`（删除）与 `tests/conftest.py`（改为迁移建库）。加一条 CI 检查防止回潮：
+`Base.metadata.create_all` 现状只出现在 `0001_initial.py`（删除）与 `tests/conftest.py`（改为迁移建库）。加 CI 检查防回潮：
 
 ```bash
 # scripts/check_migrations.sh 片段
@@ -128,21 +126,7 @@ if grep -rn "metadata.create_all" backend/app backend/alembic; then
 fi
 ```
 
-`tests/conftest.py` 改为：
-
-```python
-@pytest.fixture(scope="session")
-def migrated_db():
-    """用迁移建测试库，保证迁移链路本身也被测试覆盖。"""
-    from alembic import command
-    from alembic.config import Config
-    cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL_SYNC"])
-    command.upgrade(cfg, "head")
-    yield
-```
-
-测试库从 SQLite 内存改为本地 PG 临时库，因为 `create_hypertable` 与 `vector` 类型在 SQLite 上不存在。这是对技术方案的一处推断，方案未明确测试库形态；CI 无 PG 时退化为 session 级 Docker PG。
+`tests/conftest.py` 的 `migrated_db` fixtures 改为用 `command.upgrade(Config("alembic.ini"), "head")` 建库。测试库从 SQLite 内存改为本地 PG 临时库，因为 `create_hypertable` 与 `vector` 类型在 SQLite 上不存在。这是对技术方案的一处推断，方案未明确测试库形态；CI 无 PG 时退化为 session 级 Docker PG。
 
 ### 四、启动时校验迁移版本
 
@@ -163,30 +147,11 @@ async def verify_schema_revision(engine) -> None:
         )
 ```
 
-`EXPECTED_REVISION` 与 `alembic heads` 输出的 `alembic/HEAD` 文件双写是刻意的：前者是代码断言值，后者是发布产物校验值，两者都由发布流程刷新，避免"迁移加了但忘了更新期望值"。
+`EXPECTED_REVISION` 与 `alembic heads` 输出的 `alembic/HEAD` 文件双写是刻意的：前者是代码断言值，后者是发布产物校验值，避免"迁移加了但忘了更新期望值"。
 
 ### 五、env.py 改造
 
-```python
-def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.", poolclass=pool.NullPool, future=True,
-    )
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            compare_type=True,              # 类型变更能被检测
-            compare_server_default=True,    # 默认值变更能被检测
-            include_schemas=True,           # 覆盖 knowledge / checkpoint schema
-            version_table_schema="public",  # 版本表不随 search_path 漂移
-        )
-        with context.begin_transaction():
-            context.run_migrations()
-```
-
-`include_schemas=True` 是必需的，否则 `knowledge` schema 下的表不参与 autogenerate 比对。
+`run_migrations_online` 的 `context.configure` 增加四个参数：`compare_type=True`（类型变更可检测）、`compare_server_default=True`（默认值变更可检测）、`include_schemas=True`（覆盖 `knowledge` / `checkpoint` schema，否则这些 schema 下的表不参与 autogenerate 比对）、`version_table_schema="public"`（版本表不随 `search_path` 漂移）。
 
 ### 六、检查点表是否纳入迁移
 
