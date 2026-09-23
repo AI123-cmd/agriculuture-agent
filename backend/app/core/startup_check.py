@@ -25,8 +25,7 @@ async def verify_schema_revision(engine: AsyncEngine) -> None:
         current = row.scalar_one_or_none()
     if current != EXPECTED_REVISION:
         raise RuntimeError(
-            f"迁移版本不匹配：数据库为 {current}，代码期望 {EXPECTED_REVISION}，"
-            "请先执行 alembic upgrade head"
+            f"迁移版本不匹配：数据库为 {current}，代码期望 {EXPECTED_REVISION}，请先执行 alembic upgrade head"
         )
 
 

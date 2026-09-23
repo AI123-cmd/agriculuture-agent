@@ -35,11 +35,12 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # 结构校验必须在预热之前：表结构漂移时不应先建连接再退出
+    # 迁移版本校验必须在预热之前：结构漂移时不应先建连接再退出
     await verify_schema_revision(engine)
-    await verify_checkpoint_schema(engine)
-    # 预热：初始化 checkpointer 与诊断图单例
+    # 预热：初始化 checkpointer 与诊断图单例（顺带由 setup() 建出检查点表）
     await get_agent()
+    # 检查点表由 setup() 自建，故数量断言必须排在预热之后
+    await verify_checkpoint_schema(engine)
     yield
     # 收尾：先关检查点连接池，再释放业务引擎
     await close_checkpointer()

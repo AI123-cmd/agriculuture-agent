@@ -44,10 +44,7 @@ def upgrade() -> None:
         )
         """
     )
-    op.execute(
-        "SELECT create_hypertable('env_reading', 'observed_at', "
-        "chunk_time_interval => INTERVAL '7 days')"
-    )
+    op.execute("SELECT create_hypertable('env_reading', 'observed_at', chunk_time_interval => INTERVAL '7 days')")
     op.execute("CREATE INDEX ON env_reading (user_id, metric, observed_at DESC)")
 
 

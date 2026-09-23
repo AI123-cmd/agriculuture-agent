@@ -16,10 +16,10 @@ async def test_required_extensions_installed(engine) -> None:
     """vector 与 timescaledb 两个扩展各存在一行。"""
     async with engine.connect() as conn:
         rows = (
-            await conn.execute(
-                text("SELECT extname FROM pg_extension WHERE extname IN ('vector', 'timescaledb')")
-            )
-        ).scalars().all()
+            (await conn.execute(text("SELECT extname FROM pg_extension WHERE extname IN ('vector', 'timescaledb')")))
+            .scalars()
+            .all()
+        )
 
     assert set(rows) == {"vector", "timescaledb"}
 
@@ -32,10 +32,10 @@ async def test_knowledge_and_checkpoint_schemas_exist(engine) -> None:
     """
     async with engine.connect() as conn:
         rows = (
-            await conn.execute(
-                text("SELECT nspname FROM pg_namespace WHERE nspname IN ('knowledge', 'checkpoint')")
-            )
-        ).scalars().all()
+            (await conn.execute(text("SELECT nspname FROM pg_namespace WHERE nspname IN ('knowledge', 'checkpoint')")))
+            .scalars()
+            .all()
+        )
 
     assert set(rows) == {"knowledge", "checkpoint"}
 
@@ -45,10 +45,7 @@ async def test_env_reading_is_hypertable(engine) -> None:
     async with engine.connect() as conn:
         count = (
             await conn.execute(
-                text(
-                    "SELECT count(*) FROM timescaledb_information.hypertables "
-                    "WHERE hypertable_name = 'env_reading'"
-                )
+                text("SELECT count(*) FROM timescaledb_information.hypertables WHERE hypertable_name = 'env_reading'")
             )
         ).scalar_one()
 
@@ -59,15 +56,19 @@ async def test_env_reading_primary_key_is_composite(engine) -> None:
     """主键必须是 (id, observed_at) 两列。单列主键在超表上根本建不出来。"""
     async with engine.connect() as conn:
         columns = (
-            await conn.execute(
-                text(
-                    "SELECT a.attname FROM pg_index i "
-                    "JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) "
-                    "WHERE i.indrelid = 'env_reading'::regclass AND i.indisprimary "
-                    "ORDER BY a.attname"
+            (
+                await conn.execute(
+                    text(
+                        "SELECT a.attname FROM pg_index i "
+                        "JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) "
+                        "WHERE i.indrelid = 'env_reading'::regclass AND i.indisprimary "
+                        "ORDER BY a.attname"
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert sorted(columns) == ["id", "observed_at"]
 
@@ -94,6 +95,9 @@ async def test_knowledge_item_embedding_accepts_1024_dim_vector(engine) -> None:
 
     assert get_settings().EMBEDDING_DIM == 1024
 
+    # 用非零向量：pgvector 的余弦距离 `<=>` 对零向量未定义，返回 NaN
+    vec = str([1.0] * 1024)
+
     async with engine.begin() as conn:
         await conn.execute(
             text(
@@ -101,14 +105,12 @@ async def test_knowledge_item_embedding_accepts_1024_dim_vector(engine) -> None:
                 "(id, process_id, category, status, title, content, embedding) "
                 "VALUES ('k1', 'wheat', 'pest', 'published', 't', 'c', :vec)"
             ),
-            {"vec": str([0.0] * 1024)},
+            {"vec": vec},
         )
         similarity = (
             await conn.execute(
-                text(
-                    "SELECT 1 - (embedding <=> :probe) FROM knowledge.knowledge_item WHERE id = 'k1'"
-                ),
-                {"probe": str([0.0] * 1024)},
+                text("SELECT 1 - (embedding <=> :probe) FROM knowledge.knowledge_item WHERE id = 'k1'"),
+                {"probe": vec},
             )
         ).scalar_one()
         await conn.execute(text("DELETE FROM knowledge.knowledge_item WHERE id = 'k1'"))
@@ -150,10 +152,7 @@ async def test_seven_day_chunk_interval_takes_effect(engine) -> None:
             )
         chunk_count = (
             await conn.execute(
-                text(
-                    "SELECT count(*) FROM timescaledb_information.chunks "
-                    "WHERE hypertable_name = 'env_reading'"
-                )
+                text("SELECT count(*) FROM timescaledb_information.chunks WHERE hypertable_name = 'env_reading'")
             )
         ).scalar_one()
         await conn.execute(text("DELETE FROM env_reading"))

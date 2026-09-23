@@ -23,7 +23,7 @@ class EnvReading(Base):
     __tablename__ = "env_reading"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     device_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     farm_entry_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     metric: Mapped[str] = mapped_column(String(30), nullable=False, comment="如 soil_temp / soil_moisture")
@@ -33,7 +33,5 @@ class EnvReading(Base):
     observed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, nullable=False, comment="观测时刻，分区列"
     )
-    quality: Mapped[str] = mapped_column(
-        String(10), nullable=False, comment="ok/suspect/stale：异常数据标记而非丢弃"
-    )
+    quality: Mapped[str] = mapped_column(String(10), nullable=False, comment="ok/suspect/stale：异常数据标记而非丢弃")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

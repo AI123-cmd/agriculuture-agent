@@ -2,10 +2,10 @@
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 import app.models  # noqa: F401  确保所有模型注册到 Base.metadata
+from alembic import context
 from app.core.config import get_settings
 from app.db.base import Base
 
@@ -27,13 +27,37 @@ target_metadata = Base.metadata
 # checkpoint schema 的表由 LangGraph 的 AsyncPostgresSaver.setup() 自建，
 # 不纳入比对，否则 autogenerate 会不断生成"删掉检查点表"的错误差异；
 # _timescaledb_* 是扩展的内部 schema，同理必须排除。
-_COMPARED_SCHEMAS = {"public", "knowledge"}
+_COMPARED_SCHEMAS = {"knowledge"}
+
+# 由原始 DDL 管理、ORM 元数据无法表达的表：
+# - env_reading：TimescaleDB 超表，建表后还要 create_hypertable 改造，
+#   autogenerate 只能看到一张普通表，比对必然失真，故排除。
+# - checkpoint_*：LangGraph 自建，结构随其版本演进。
+_DDL_MANAGED_TABLES = {"env_reading"}
+
+
+def _is_ddl_managed(name: str | None) -> bool:
+    return name in _DDL_MANAGED_TABLES or (name or "").startswith("checkpoint")
 
 
 def include_name(name: str | None, type_: str, parent_names: dict) -> bool:
-    """限制 autogenerate 的比对范围，避免把扩展与检查点表当成"待删除"。"""
+    """限制 autogenerate 的比对范围，避免把扩展与检查点表当成"待删除"。
+
+    注意 `name is None` 必须放行：alembic 在调用名称过滤器之前会把"默认
+    schema"（即 public）替换成 `None`，若一并拦掉，整张 public 会被判定为
+    "库里不存在"，于是生成一堆 `create_table` 假差异。
+    """
     if type_ == "schema":
-        return name in _COMPARED_SCHEMAS
+        return name is None or name in _COMPARED_SCHEMAS
+    if type_ == "table":
+        return not _is_ddl_managed(name)
+    return True
+
+
+def include_object(obj: object, name: str | None, type_: str, reflected: bool, compare_to: object) -> bool:
+    """排除由原始 DDL 管理的表，其余一律参与比对。"""
+    if type_ == "table" and _is_ddl_managed(name):
+        return False
     return True
 
 

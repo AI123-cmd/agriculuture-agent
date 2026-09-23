@@ -1,4 +1,4 @@
-from sqlalchemy import Numeric, SmallInteger, String
+from sqlalchemy import ForeignKey, Numeric, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
@@ -10,7 +10,13 @@ class FarmerProfile(Base, TimestampMixin):
     __tablename__ = "farmer_profile"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("user.id", name="fk_farmer_profile_user", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
     real_name: Mapped[str] = mapped_column(String(32), nullable=False, comment="真实姓名")
     age: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     gender: Mapped[int] = mapped_column(SmallInteger, default=0, comment="1男2女")

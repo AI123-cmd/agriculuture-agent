@@ -39,11 +39,13 @@ def upgrade() -> None:
             content     TEXT         NOT NULL,
             facts       JSONB,
             embedding   vector(1024),
-            create_time TIMESTAMPTZ  DEFAULT now(),
-            update_time TIMESTAMPTZ  DEFAULT now()
+            create_time TIMESTAMPTZ  NOT NULL DEFAULT now(),
+            update_time TIMESTAMPTZ  NOT NULL DEFAULT now()
         )
         """
     )
+    op.execute("COMMENT ON COLUMN knowledge.knowledge_item.create_time IS '创建时间'")
+    op.execute("COMMENT ON COLUMN knowledge.knowledge_item.update_time IS '更新时间'")
     op.execute("CREATE INDEX ix_knowledge_item_process_id ON knowledge.knowledge_item (process_id)")
     op.execute("CREATE INDEX ix_knowledge_item_region_code ON knowledge.knowledge_item (region_code)")
     op.execute("CREATE INDEX ix_knowledge_item_status ON knowledge.knowledge_item (status)")

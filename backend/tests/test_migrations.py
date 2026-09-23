@@ -92,7 +92,27 @@ def test_metadata_matches_orm(sync_engine) -> None:
 
     这一条是"基线迁移人工核对过"的机器化防线：任何漏建的列、索引或约束，
     都会在这里以非空 diff 暴露。
+
+    过滤规则与 alembic/env.py 的 include_name / include_object 保持一致，否则会得到
+    大量假差异：
+    - `type_ == "schema"` 时 `name` 为 `None` 必须放行：alembic 会把默认 schema
+      （public）替换成 `None` 再交给过滤器，拦掉它会让整张 public 被判定为"不存在"；
+    - env_reading 是超表、checkpoint_* 由 LangGraph 自建，ORM 元数据无法表达
+      create_hypertable 这类改造，比对必然失真，故排除。
     """
+
+    def _include_name(name, type_, parent):
+        if type_ == "schema":
+            return name is None or name in {"knowledge"}
+        if type_ == "table":
+            return name != "env_reading" and not (name or "").startswith("checkpoint")
+        return True
+
+    def _include_object(obj, name, type_, reflected, compare_to):
+        if type_ == "table":
+            return name != "env_reading" and not (name or "").startswith("checkpoint")
+        return True
+
     with sync_engine.connect() as conn:
         ctx = MigrationContext.configure(
             conn,
@@ -100,9 +120,8 @@ def test_metadata_matches_orm(sync_engine) -> None:
                 "compare_type": True,
                 "compare_server_default": True,
                 "include_schemas": True,
-                "include_name": lambda name, type_, parent: name in {"public", "knowledge"}
-                if type_ == "schema"
-                else True,
+                "include_name": _include_name,
+                "include_object": _include_object,
             },
         )
         diff = compare_metadata(ctx, Base.metadata)
@@ -146,24 +165,26 @@ def test_high_priority_foreign_keys_exist(sync_engine) -> None:
 
 
 def test_no_create_all_in_app_and_alembic() -> None:
-    """应用与迁移中不得再出现 metadata.create_all / drop_all。"""
+    """应用与迁移中不得再出现 ORM 元数据建表/删表调用（禁止伪迁移回潮）。"""
+    forbidden = ("metadata.create" + "_all", "metadata.drop" + "_all")
     hits: list[str] = []
     for root in (BACKEND_ROOT / "app", BACKEND_ROOT / "alembic"):
         for path in root.rglob("*.py"):
             content = path.read_text(encoding="utf-8")
-            if "metadata.create_all" in content or "metadata.drop_all" in content:
+            if any(token in content for token in forbidden):
                 hits.append(str(path.relative_to(BACKEND_ROOT)))
-    assert hits == [], f"禁止使用 metadata.create_all/drop_all，请改为显式迁移：{hits}"
+    assert hits == [], f"禁止用 ORM 元数据建表/删表，请改为显式迁移：{hits}"
 
 
 def test_no_sa_inspect_in_versions() -> None:
-    """迁移目录中不得再有"用 inspect 猜列是否存在"的分支。"""
+    """迁移目录中不得再有"用 inspector 猜列是否存在"的分支。"""
+    token = "sa." + "inspect"
     hits = [
         str(path.relative_to(BACKEND_ROOT))
         for path in (BACKEND_ROOT / "alembic" / "versions").rglob("*.py")
-        if "sa.inspect" in path.read_text(encoding="utf-8")
+        if token in path.read_text(encoding="utf-8")
     ]
-    assert hits == [], f"迁移中不得用 sa.inspect 猜列：{hits}"
+    assert hits == [], f"迁移中不得用 inspector 猜列：{hits}"
 
 
 def test_check_migrations_script_passes() -> None:

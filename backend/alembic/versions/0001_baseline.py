@@ -8,8 +8,8 @@ Create Date: 2026-09-23
 之后建 11 张业务表（`public` schema），`0002_env_reading` 再在本支之后建超表。
 因此链为 0001_ext -> 0001 -> 0002_env_reading，唯一 head 是 0002_env_reading。
 
-替换掉的旧迁移：`0001_initial.py`（只有 `Base.metadata.create_all`，把 ORM 元数据
-当表结构真相）与 `0002_broadcast.py`（用 `sa.inspect` 猜列是否存在）。两者都让
+替换掉的旧迁移：`0001_initial.py`（只调用 ORM 元数据的建表方法，把 ORM 定义
+当表结构真相）与 `0002_broadcast.py`（用 inspector 猜列是否存在）。两者都让
 首次迁移必然成功，却让后续字段变更不可追溯。
 
 autogenerate 漏掉、本文件手工补齐的四类：
