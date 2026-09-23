@@ -7,16 +7,15 @@
 ## 前置依赖
 
 - T2-08 ConsultationState 与 ConsultStage 重构：提供 `process_id`、`process_locked`、`stage`、`slots`、`round`、`slot_round`、`budget` 字段与 `ProcessId`、`ConsultStage` 枚举。
-- T2-06 流程红线配置模型与完整性校验：本项只读 `state["redlines_loaded"]`，该键由 intake 节点写入。
+- T2-06 流程红线配置模型与完整性校验：本项只读 `state["redlines_loaded"]`，该键由 intake 节点写入。T2-31 轮次与成本预算守卫：路由读取 `state["budget"]` 上的计数与上限，字段名必须与 `ConsultBudget` 一致。
 - T2-09 至 T2-12 契约层：`TriageResult.object_confirmed` / `handoff_to_report`、`DiagnosisResult.out_of_scope` / `confidence_level` / `needs_more_info`、`GateResult.decision` / `process_redlines_loaded`、`ReportDecision.stop_consultation` 的字段名。
-- T2-31 轮次与成本预算守卫：路由读取 `state["budget"]` 上的计数与上限，字段名必须与 `ConsultBudget` 一致。
 - 外部环境：无数据库、无 Redis、无模型服务要求，本模块可在纯内存下跑单测。
 
 ## 参考章节
 
 - 技术方案 第六章 6.2 主管式确定性编排（`route_after_triage` 原文与四条路由约束）
 - 技术方案 第七章 7.1 主图结构（分支名称与去向）、7.3 状态机推进规则（轮次与预算）
-- 技术方案 第五章 5.3.2 分诊契约、5.3.4 判定契约（`out_of_scope`）、5.3.6 门禁契约（`decision`、`process_redlines_loaded`）、5.3.7 报告守卫契约（`stop_consultation`）
+- 技术方案 第五章 5.3.2 分诊契约、5.3.4 判定契约、5.3.6 门禁契约、5.3.7 报告守卫契约
 
 ## 改动范围
 
@@ -31,11 +30,9 @@
 
 ## 实现要点
 
-### 模块定位
+### 模块定位与四条路由约束（硬性，不可妥协）
 
 模块顶部只导入状态与枚举，不导入任何节点、服务或数据库对象：`from app.agent.state import ConsultStage, ConsultationState, ProcessId`。`UnroutedStateError` 继承 `RuntimeError`，消息带函数名与 state 关键字段快照，便于日志定位。
-
-### 四条路由约束（硬性，不可妥协）
 
 | 约束 | 落地方式 | 违反后的失败模式 |
 | --- | --- | --- |
@@ -44,9 +41,9 @@
 | 路由依据必须是枚举或布尔，不得依赖自由文本 | 只读 `ProcessId`、`ConsultStage` 等枚举与 bool；禁止对 `reply`、`summary`、`message` 做关键词匹配 | 自由文本抖动导致同一输入两次路由不一致 |
 | 红线配置未加载时直接指向 `handoff` | 每个路由函数首行检查 `state.get("redlines_loaded")`，为假即 `return "handoff"` | 用通用规则代替流程红线继续出方，突破产品说明书 9.3 |
 
-### 受理即分流的入口路由 route_after_intake
+### 入口与分诊路由
 
-intake 完成归属校验与会话装载后立即决定去向：入口带 `process_hint` 时直达流程子图（如小程序杂草防治按钮），否则进 triage 判流程。不允许先问农户再判流程。
+`route_after_intake` 是"受理即分流"的唯一入口：intake 完成归属校验与会话装载后立即决定去向，带 `process_hint` 时直达流程子图（如小程序杂草防治按钮），否则进 triage 判流程，不允许先问农户再判流程。`route_after_triage` 对应方案 6.2 原文，方案返回名是 `report_guard` / `confirm_object` / `observe`；主图里 `observe` 位于流程子图内部，因此第三个分支返回 `enter_process`，由 `subgraph_router` 落到具体子图。
 
 ```python
 ROUTE_AFTER_INTAKE = {"triage": "triage", "enter_process": "subgraph_router", "handoff": "handoff"}
@@ -59,13 +56,8 @@ def route_after_intake(state: ConsultationState) -> str:
     if state.get("process_locked") and state.get("process_id") is not None:
         return "enter_process"          # 入口直达（process_hint）已锁定流程
     return "triage"
-```
 
-### 分诊路由 route_after_triage
 
-对应方案 6.2 原文。方案返回名是 `report_guard` / `confirm_object` / `observe`；主图里 `observe` 位于流程子图内部，因此第三个分支返回 `enter_process`，由 `subgraph_router` 落到具体子图。
-
-```python
 ROUTE_AFTER_TRIAGE = {
     "confirm_object": "confirm_object",   # 对象待确认，插入一次确认交互
     "report_guard": "report_guard",       # 养猪流程先过守卫再看现场
@@ -88,10 +80,12 @@ def route_after_triage(state: ConsultationState) -> str:
     return "enter_process"
 ```
 
-### 确认回环与报告守卫旁路
+### 确认回环、报告守卫旁路与现场核查
 
 ```python
 ROUTE_AFTER_CONFIRM_OBJECT = {"triage": "triage", "enter_process": "subgraph_router", "handoff": "handoff"}
+ROUTE_AFTER_REPORT_GUARD = {"enter_process": "subgraph_router", "observe": "observe", "handoff": "handoff"}
+ROUTE_AFTER_OBSERVE = {"interview": "interview", "handoff": "handoff"}
 
 
 def route_after_confirm_object(state: ConsultationState) -> str:
@@ -105,9 +99,6 @@ def route_after_confirm_object(state: ConsultationState) -> str:
     return "enter_process"
 
 
-ROUTE_AFTER_REPORT_GUARD = {"enter_process": "subgraph_router", "observe": "observe", "handoff": "handoff"}
-
-
 def route_after_report_guard(state: ConsultationState) -> str:
     """报告守卫旁路：命中即转人工，已收集内容保留但不继续追问。"""
     if not state.get("redlines_loaded", False):
@@ -117,27 +108,29 @@ def route_after_report_guard(state: ConsultationState) -> str:
         return "handoff"
     # 主图入口处的守卫通过后进子图；子图内的守卫通过后继续 observe
     return "enter_process" if state.get("stage") == ConsultStage.TRIAGE else "observe"
-```
-
-### 现场与问诊路由
-
-```python
-ROUTE_AFTER_OBSERVE = {"interview": "interview", "handoff": "handoff"}
 
 
 def route_after_observe(state: ConsultationState) -> str:
     if not state.get("redlines_loaded", False):
         return "handoff"
     return "interview"
+```
 
+### 问诊、核查与判定路由
 
-ROUTE_AFTER_INTERVIEW = {
-    "interview": "interview",     # 未收敛且未超轮次，继续问
-    "verify": "verify",           # 关键槽位齐备
-    "panel": "panel",             # 疑似用药鉴别，先并行会诊
-    "handoff": "handoff",         # 轮次用尽仍未收敛
-}
+```python
+ROUTE_AFTER_VERIFY = {"judge": "judge", "handoff": "handoff"}
+ROUTE_AFTER_FOLLOWUP = {"end": "__end__"}
+ROUTE_AFTER_JUDGE = {"interview": "interview", "prescribe": "prescribe", "handoff": "handoff"}
 PANEL_ENABLED_PROCESSES = frozenset({ProcessId.TEA, ProcessId.CHILI, ProcessId.WEED})
+
+# 未收敛且未超轮次则继续问；关键槽位齐备则推进；疑似用药先并行会诊；轮次用尽转人工
+ROUTE_AFTER_INTERVIEW = {
+    "interview": "interview",
+    "verify": "verify",
+    "panel": "panel",
+    "handoff": "handoff",
+}
 
 
 def route_after_interview(state: ConsultationState) -> str:
@@ -152,21 +145,12 @@ def route_after_interview(state: ConsultationState) -> str:
     if budget.get("interview_rounds", 0) >= budget.get("max_interview_rounds", 4):
         return "handoff"              # 连续未收敛，输出携带已确认信息
     return "interview"
-```
-
-### 核查与判定路由
-
-```python
-ROUTE_AFTER_VERIFY = {"judge": "judge", "handoff": "handoff"}
 
 
 def route_after_verify(state: ConsultationState) -> str:
     if not state.get("redlines_loaded", False):
         return "handoff"
     return "judge"
-
-
-ROUTE_AFTER_JUDGE = {"interview": "interview", "prescribe": "prescribe", "handoff": "handoff"}
 
 
 def route_after_judge(state: ConsultationState) -> str:
@@ -203,9 +187,6 @@ def route_after_gate(state: ConsultationState) -> str:
     raise UnroutedStateError("route_after_gate", state)
 
 
-ROUTE_AFTER_FOLLOWUP = {"end": "__end__"}
-
-
 def route_after_followup(state: ConsultationState) -> str:
     return "end"
 ```
@@ -217,5 +198,4 @@ def route_after_followup(state: ConsultationState) -> str:
 - `ruff check app/agent/graph/routes.py`、`ruff format --check`、`mypy app/agent/graph/routes.py` 三条命令均返回 0。
 - `pytest tests/graph/test_routes.py` 全部通过，覆盖：`route_after_intake` 在 `process_locked=True` 时返回 `enter_process`；`route_after_triage` 在 `handoff_to_report=True` 时返回 `report_guard`；`route_after_judge` 在 `out_of_scope=True` 时返回 `handoff`。
 - 四条路由约束各有对应测试：构造 `redlines_loaded=False` 的 state，断言全部路由函数返回 `handoff`；构造不满足任何分支的 state，断言抛出 `UnroutedStateError` 且消息含函数名。
-- `tests/graph/test_routes_purity.py` 用 `ast` 扫描 `routes.py`，断言函数体内不出现 `await`、`db`、`gateway`、`httpx` 标识符。
-- 参数化断言每个路由函数的可能返回值集合与其同名 path_map 的键集合完全相等，缺一个键即失败。
+- `tests/graph/test_routes_purity.py` 用 `ast` 扫描 `routes.py`，断言函数体内不出现 `await`、`db`、`gateway`、`httpx` 标识符；并参数化断言每个路由函数的可能返回值集合与其同名 path_map 的键集合完全相等，缺一个键即失败。

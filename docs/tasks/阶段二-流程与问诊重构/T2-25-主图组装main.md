@@ -42,26 +42,11 @@
 
 ### 节点清单与归属
 
-| 节点名 | 归属 | 落点 | 是否调模型 |
-| --- | --- | --- | --- |
-| `intake` | 主图 | 归属校验、会话装载、初始化 `budget`、读红线配置写 `redlines_loaded` | 否 |
-| `triage` | 主图 | 分诊智能体，产出 `TriageResult` | 是 |
-| `confirm_object` | 主图 | 一次交互式对象确认，回写 `process_id` 并置 `process_locked` | 否（模板文案） |
-| `subgraph_router` | 主图 | 纯路由节点，把控制交给选中子图 | 否 |
-| `observe` | 子图 | 现场采集 | 是 |
-| `report_guard` | 主图（两个挂载点） | 入口处一次、observe 之后一次 | 否（规则） |
-| `interview` | 子图 | 问五情 | 是 |
-| `verify` | 子图 | 查依据 | 是 |
-| `panel` | 子图 | 受限并行会诊，仅茶/辣椒/杂草 | 是（N 路并行） |
-| `judge` | 子图 | 下判断 | 是 |
-| `prescribe` | 子图 | 开方 | 是 |
-| `gate` | 子图（`gate_graph`） | 安全闸门 | 否（规则） |
-| `followup` | 主图 | 登记回访，发 `prescription.created` 事件 | 否 |
-| `handoff` | 主图 | 转人工上下文包 | 否 |
+主图节点为 `intake`（受理，写 `budget` 与 `redlines_loaded`）、`triage`（分诊）、`confirm_object`（对象确认，模板文案）、`subgraph_router`（纯路由）、`report_guard`（两个挂载点：入口处与 observe 之后）、`followup`（登记回访）、`handoff`（转人工）。子图节点为 `observe`、`interview`、`panel`（仅茶/辣椒/杂草）、`verify`、`judge`、`prescribe`，闸门子图为 `gate`。`subgraph_router`、`followup`、`handoff`、`report_guard`、`gate` 与 `confirm_object` 均不调模型。
 
 ### 子图内节点与主图的边界
 
-方案 7.4 要求子图结构与主链路一致、差异全部来自配置，因此子图内部自带 `observe → interview → verify → judge → prescribe`。主图不重复注册这五个节点，而是通过 `subgraph_router` 把控制交给选中子图，子图执行到 `prescribe` 末尾后用 `END` 交回主图，主图的 `prescribe → gate` 边接住。`report_guard` 兜底检查插在 `observe` 之后，实现方式是子图内 `observe` 出边用条件边指向主图的 `report_guard`，再由 `route_after_report_guard` 决定回 `interview` 还是去 `handoff`，这样守卫只实现一次、被两条路径共用。
+方案 7.4 要求子图结构与主链路一致、差异全部来自配置，因此子图内部自带 `observe → interview → verify → judge → prescribe`。主图不重复注册这五个节点，而是通过 `subgraph_router` 把控制交给选中子图，子图执行到 `prescribe` 末尾后用 `END` 交回主图，主图的 `prescribe → gate` 边接住。`report_guard` 兜底检查插在 `observe` 之后，实现方式是子图内 `observe` 出边用条件边指向主图的 `report_guard`，再由 `route_after_report_guard` 决定回 `interview` 还是去 `handoff`，这样守卫只实现一次、被两条路径共用。子图必须自己实现三条边：`observe` 出边指向 `report_guard`（用 `ROUTE_AFTER_OBSERVE`）、`interview` 出边用 `ROUTE_AFTER_INTERVIEW`、`judge` 出边用 `ROUTE_AFTER_JUDGE` 且 `prescribe → END`。主图在 `subgraph_*` 节点后补一条 `graph.add_edge(f"subgraph_{p.value}", "gate")`，保证子图出口落到闸门。
 
 ### 主图组装完整代码
 
@@ -74,30 +59,17 @@ from langgraph.graph import END, START, StateGraph
 from app.agent.agents.handoff import build_handoff_node
 from app.agent.agents.report_guard import build_report_guard_node
 from app.agent.agents.triage import run_triage
+from app.agent.budget import ConsultBudget
 from app.agent.checkpointer import get_checkpointer
 from app.agent.graph.routes import (
-    ROUTE_AFTER_CONFIRM_OBJECT,
-    ROUTE_AFTER_GATE,
-    ROUTE_AFTER_INTAKE,
-    ROUTE_AFTER_INTERVIEW,
-    ROUTE_AFTER_JUDGE,
-    ROUTE_AFTER_REPORT_GUARD,
-    ROUTE_AFTER_TRIAGE,
-    ROUTE_AFTER_VERIFY,
-    UnroutedStateError,
-    route_after_confirm_object,
-    route_after_gate,
-    route_after_intake,
-    route_after_interview,
-    route_after_judge,
-    route_after_report_guard,
-    route_after_triage,
-    route_after_verify,
+    ROUTE_AFTER_CONFIRM_OBJECT, ROUTE_AFTER_GATE, ROUTE_AFTER_INTAKE,
+    ROUTE_AFTER_INTERVIEW, ROUTE_AFTER_JUDGE, ROUTE_AFTER_REPORT_GUARD,
+    ROUTE_AFTER_TRIAGE, UnroutedStateError, route_after_confirm_object,
+    route_after_gate, route_after_intake, route_after_interview,
+    route_after_judge, route_after_report_guard, route_after_triage,
 )
 from app.agent.graph.subgraphs import SUBGRAPH_BUILDERS
 from app.agent.state import ConsultStage, ConsultationState, ProcessId
-
-MAX_INTERVIEW_ROUNDS = 4
 
 
 async def intake(state: ConsultationState, config=None) -> dict:
@@ -105,25 +77,12 @@ async def intake(state: ConsultationState, config=None) -> dict:
 
     受理即分流的落点：本节点之后的第一条边就是流程路由，不再有"先问症状"。
     """
-    session_id = state.get("session_id")
     process_hint = state.get("process_hint")
-    # 入口直达：小程序按钮携带 process_hint 时直接锁定流程，跳过 triage 提问
-    locked = process_hint is not None
-    budget = {
-        "interview_rounds": 0,
-        "judge_loops": 0,
-        "questions_this_round": 0,
-        "max_interview_rounds": MAX_INTERVIEW_ROUNDS,
-        "max_judge_loops": 2,
-        "max_questions_per_round": 2,
-        "max_slot_rounds": 6,
-        "tokens_used": 0,
-        "max_tokens_per_consult": 24000,
-    }
+    locked = process_hint is not None      # 小程序按钮直达，跳过 triage 提问
     return {
-        "session_id": session_id,
+        "session_id": state.get("session_id"),
         "stage": ConsultStage.INTAKE,
-        "budget": budget,
+        "budget": ConsultBudget.initial().to_state(),
         "process_locked": locked,
         "process_id": ProcessId(process_hint) if locked else None,
         "redlines_loaded": state.get("redlines_loaded", False),  # 由 config 注入
@@ -134,8 +93,11 @@ def confirm_object(state: ConsultationState, config=None) -> dict:
     """一次性对象确认：农户答复后回写 process_id 并锁定。"""
     answer_process = state.get("confirm_object_answer")
     if answer_process is None:
-        reply = f"你问的是{state.get('object_label') or '哪一对象'}吗？确认一下我好对症下药。"
-        return {"reply": reply, "stage": ConsultStage.TRIAGE, "awaiting_object_confirm": True}
+        return {
+            "reply": f"你问的是{state.get('object_label') or '哪一对象'}吗？确认一下我好对症下药。",
+            "stage": ConsultStage.TRIAGE,
+            "awaiting_object_confirm": True,
+        }
     return {
         "process_id": ProcessId(answer_process),
         "process_locked": True,
@@ -152,6 +114,14 @@ def subgraph_router(state: ConsultationState, config=None) -> dict:
 def followup(state: ConsultationState, config=None) -> dict:
     """登记回访：处方卡通过门禁后调用回访服务，并投递 prescription.created。"""
     return {"stage": ConsultStage.FOLLOWUP}
+
+
+def route_to_subgraph(state: ConsultationState) -> str:
+    """按 process_id 选子图，未注册即抛错（不允许静默兜底）。"""
+    process_id = state.get("process_id")
+    if process_id is None or process_id not in SUBGRAPH_BUILDERS:
+        raise UnroutedStateError("route_to_subgraph", state)
+    return f"subgraph_{process_id.value}"
 
 
 def build_graph():
@@ -188,42 +158,25 @@ def build_graph():
     # 报告守卫（主图入口处，养猪流程）：命中即 handoff，否则进流程子图
     graph.add_conditional_edges("report_guard", route_after_report_guard, ROUTE_AFTER_REPORT_GUARD)
 
-    # 子图分发：subgraph_router 按 process_id 进入对应子图
+    # 子图分发：subgraph_router 按 process_id 进入对应子图；子图出口回到闸门
     graph.add_conditional_edges(
-        "subgraph_router",
-        route_to_subgraph,
+        "subgraph_router", route_to_subgraph,
         {f"subgraph_{p.value}": f"subgraph_{p.value}" for p in ProcessId},
     )
+    for process_id in SUBGRAPH_BUILDERS:
+        graph.add_edge(f"subgraph_{process_id.value}", "gate")
 
-    # 子图内部的 observe / interview / verify / judge / prescribe 已经由子图自带，
-    # 主图只负责接住子图的出口（prescribe 完成）与兜底守卫回环。
+    # 闸门出口：allow -> followup -> END；degrade/block -> handoff -> END
     graph.add_conditional_edges("gate", route_after_gate, ROUTE_AFTER_GATE)
-
-    # allow -> followup -> END；degrade/block -> handoff -> END
     graph.add_edge("followup", END)
     graph.add_edge("handoff", END)
 
     return graph.compile(checkpointer=await get_checkpointer())
-
-
-def route_to_subgraph(state: ConsultationState) -> str:
-    """按 process_id 选子图，未注册即抛错（不允许静默兜底）。"""
-    process_id = state.get("process_id")
-    if process_id is None or process_id not in SUBGRAPH_BUILDERS:
-        raise UnroutedStateError("route_to_subgraph", state)
-    return f"subgraph_{process_id.value}"
 ```
 
 ### 子图内部必须实现的三条边
 
-主图无法反向注册子图内部节点，因此子图文件（T2-27 至 T2-29）必须自己实现以下三条边，且边函数一律从 `routes.py` 取：
-
-1. `graph.add_conditional_edges("observe", route_after_observe_or_guard, ROUTE_AFTER_OBSERVE)`
-   其中 `ROUTE_AFTER_OBSERVE` 的键含 `report_guard`，把控制交回主图做兜底检查。
-2. `graph.add_conditional_edges("interview", route_after_interview, ROUTE_AFTER_INTERVIEW)`，含 `interview`（回环）、`verify`、`panel`、`handoff`。
-3. `graph.add_conditional_edges("judge", route_after_judge, ROUTE_AFTER_JUDGE)` 与 `graph.add_edge("prescribe", END)`（`END` 指子图出口，交回主图的 `gate`）。
-
-主图在 `subgraph_*` 节点后补一条边 `graph.add_edge(f"subgraph_{p.value}", "gate")`，保证子图出口落到闸门。
+主图无法反向注册子图内部节点，因此子图文件（T2-27 至 T2-29）必须自己实现以下三条边，且边函数一律从 `routes.py` 取：`graph.add_conditional_edges("observe", route_after_observe_or_guard, ROUTE_AFTER_OBSERVE)`（键含 `report_guard`，把控制交回主图做兜底检查）；`graph.add_conditional_edges("interview", route_after_interview, ROUTE_AFTER_INTERVIEW)`（含 `interview` 回环、`verify`、`panel`、`handoff`）；`graph.add_conditional_edges("judge", route_after_judge, ROUTE_AFTER_JUDGE)` 与 `graph.add_edge("prescribe", END)`（`END` 指子图出口，交回主图的 `gate`）。主图在 `subgraph_*` 节点后补一条边 `graph.add_edge(f"subgraph_{p.value}", "gate")`，保证子图出口落到闸门。
 
 ### 为什么"受理即分流"必须前移
 
