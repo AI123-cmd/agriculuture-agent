@@ -9,8 +9,8 @@ class MemorySummary(Base, TimestampMixin):
 
     __tablename__ = "memory_summary"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
-    session_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    session_id: Mapped[str] = mapped_column(String(36), nullable=False)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="会话摘要")
     key_facts: Mapped[list | None] = mapped_column(JSON, nullable=True, comment="抽取的关键事实")

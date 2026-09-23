@@ -9,8 +9,8 @@ class BroadcastLog(Base, TimestampMixin):
 
     __tablename__ = "broadcast_log"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
     date: Mapped[str] = mapped_column(String(16), index=True, nullable=False, comment="YYYY-MM-DD")
     time: Mapped[str | None] = mapped_column(String(8), nullable=True)
     title: Mapped[str] = mapped_column(String(64), nullable=False)

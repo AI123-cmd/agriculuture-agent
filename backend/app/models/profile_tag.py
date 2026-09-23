@@ -11,9 +11,9 @@ class UserProfileTag(Base, TimestampMixin):
 
     __tablename__ = "user_profile_tag"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
     tags: Mapped[list | None] = mapped_column(JSON, nullable=True, comment="画像标签")
     context: Mapped[dict | None] = mapped_column(JSON, nullable=True, comment="AI上下文快照")
-    last_chat_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_chat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     chat_count: Mapped[int] = mapped_column(Integer, default=0)
