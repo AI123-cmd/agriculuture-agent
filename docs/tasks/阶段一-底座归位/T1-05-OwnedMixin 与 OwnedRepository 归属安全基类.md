@@ -128,9 +128,11 @@ class OwnedRepository(Generic[ModelT]):
     async def delete(self, db: AsyncSession, user_id: str, obj_id: str) -> int:
         return await self.delete_all(db, user_id, id=obj_id)
 ```
-"缺少 `user_id` 参数即抛异常"的位置不在于调用方是否记得传，而在于 `_require_user` 与 `_owned_query` 是构造查询的唯一出口：每个查询方法第一步都过 `_require_user`，因此 `user_id=""`、`None`、`0` 三种"看起来像有参数"的情况都会被拒。技术方案 12.3 的原型是 `if not user_id: raise OwnershipError(...)`，本项抽成 `MissingOwnerError` 子类，让"忘记传参"（编程错误，应告警）与"归属不符"（业务结果，正常 403）在日志里可区分。`get` 返回 None 而 `get_or_raise` 才抛，是为了让列表场景能跳过、详情场景能 403；后者对"不存在"与"不属于你"返回同一错误，避免用 404/403 差异枚举他人 ID。基类不提供任何返回裸 `AsyncSession` 或 `_raw_query` 的逃生舱。
+
+"缺少 `user_id` 参数即抛异常"不在于调用方是否记得传，而在于 `_require_user` 与 `_owned_query` 是构造查询的唯一出口：每个查询方法第一步都过 `_require_user`，因此 `user_id=""`、`None`、`0` 三种"看起来像有参数"的情况都会被拒。技术方案 12.3 的原型是 `if not user_id: raise OwnershipError(...)`，本项抽成 `MissingOwnerError` 子类，让"忘记传参"（编程错误，应告警）与"归属不符"（业务结果，正常 403）在日志里可区分。`get` 返回 None 而 `get_or_raise` 才抛，是为了让列表场景能跳过、详情场景能 403；后者对"不存在"与"不属于你"返回同一错误，避免用 404/403 差异枚举他人 ID。基类不提供任何返回裸 `AsyncSession` 或 `_raw_query` 的逃生舱。
 
 ### 三、异常、模型侧改动与子表仓储
+
 ```python
 # app/core/ownership.py
 class OwnershipError(AppException):
@@ -158,6 +160,7 @@ class ConversationRepository(OwnedRepository[AIConversation]):
         super().__init__(AIConversation)
 
     async def delete_with_messages(self, db: AsyncSession, user_id: str, conv_id: str) -> int:
+        """先校验归属，再删子表，最后删父表。"""
         conv = await self.get(db, user_id, conv_id)
         if conv is None:
             raise OwnershipError("会话不存在或无权访问")

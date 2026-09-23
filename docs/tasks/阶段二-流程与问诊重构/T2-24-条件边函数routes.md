@@ -77,15 +77,14 @@ def route_after_triage(state: ConsultationState) -> str:
     return "enter_process"             # 含养猪：其子图入口守卫负责 pre-observe 检查
 ```
 
-### 确认回环与报告守卫
+### 确认回环与两类报告守卫
 
-`route_after_report_guard` 与 `route_after_subgraph_guard` 的分工必须分清：前者在主图上，命中可直接去 `handoff`；后者在子图内，命中只能返回子图出口 `end`，因为子图的边不能指向父图节点，最终由主图的 `route_after_subgraph` 统一导向 `handoff`。这条是 LangGraph 的硬约束，不是风格选择。
+`route_after_report_guard` 与 `route_after_subgraph_guard` 的分工必须分清：前者在主图上，命中可直接去 `handoff`；后者在子图内，命中只能返回子图出口 `end`，因为子图的边不能指向父图节点，最终由主图的 `route_after_subgraph` 统一导向 `handoff`。这条是 LangGraph 的硬约束，不是风格选择。子图里 `observe → report_guard` 用普通边，因此不需要额外的 observe 路由函数。
 
 ```python
 ROUTE_AFTER_CONFIRM_OBJECT = {"triage": "triage", "enter_process": "subgraph_router", "handoff": "handoff"}
 ROUTE_AFTER_REPORT_GUARD = {"enter_process": "subgraph_router", "confirm_object": "confirm_object", "handoff": "handoff"}
-ROUTE_AFTER_OBSERVE = {"report_guard": "report_guard", "end": "__end__"}
-ROUTE_AFTER_SUBGRAPH_GUARD = {"interview": "interview", "end": "__end__"}
+ROUTE_AFTER_SUBGRAPH_GUARD = {"observe": "observe", "interview": "interview", "end": "__end__"}
 ROUTE_AFTER_SUBGRAPH = {"gate": "gate", "handoff": "handoff"}
 
 
@@ -110,21 +109,16 @@ def route_after_report_guard(state: ConsultationState) -> str:
     return "confirm_object" if state.get("process_id") is None else "enter_process"
 
 
-def route_after_observe(state: ConsultationState) -> str:
-    """现场核查后一律先过子图内的报告守卫兜底检查，红线缺失则直接出子图。"""
-    if not state.get("redlines_loaded", False):
-        return "end"
-    return "report_guard"
-
-
 def route_after_subgraph_guard(state: ConsultationState) -> str:
-    """子图内守卫后的路由：命中或红线缺失都出子图，交由主图转人工。"""
+    """子图内守卫后的路由：命中或红线缺失都出子图，否则回问诊。"""
     if not state.get("redlines_loaded", False):
         return "end"
     decision = state.get("report_decision") or {}
     if decision.get("stop_consultation") or decision.get("triggered"):
         return "end"
-    return "interview"
+    if state.get("stage") in (ConsultStage.INTAKE, ConsultStage.TRIAGE):
+        return "observe"               # 养猪：入口守卫放行后才看现场
+    return "interview"                 # 其余流程：observe 之后的兜底检查
 
 
 def route_after_subgraph(state: ConsultationState) -> str:
@@ -208,7 +202,7 @@ def route_after_followup(state: ConsultationState) -> str:
 
 ## 验收标准
 
-- `ruff check app/agent/graph/routes.py`、`ruff format --check`、`mypy app/agent/graph/routes.py` 三条命令均返回 0。
+- `ruff check`、`ruff format --check`、`mypy app/agent/graph/routes.py` 三条命令均返回 0。
 - `pytest tests/graph/test_routes.py` 全部通过，覆盖：`route_after_intake` 在 `process_locked=True` 时返回 `enter_process`；`route_after_triage` 在 `handoff_to_report=True` 时返回 `report_guard`；`route_after_judge` 在 `out_of_scope=True` 时返回 `handoff`。
 - 四条路由约束各有对应测试：构造 `redlines_loaded=False` 的 state，断言全部路由函数 fail-closed（主图边返回 `handoff`，子图边返回 `end`）；构造不满足任何分支的 state，断言抛出 `UnroutedStateError` 且消息含函数名。
 - `tests/graph/test_routes_purity.py` 用 `ast` 扫描 `routes.py`，断言函数体内不出现 `await`、`db`、`gateway`、`httpx` 标识符；并参数化断言每个路由函数的可能返回值集合与其同名 path_map 的键集合完全相等，缺一个键即失败。
