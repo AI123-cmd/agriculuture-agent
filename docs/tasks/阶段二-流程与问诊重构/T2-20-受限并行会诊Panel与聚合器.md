@@ -74,56 +74,31 @@ def aggregate_panel(opinions: list[PanelOpinion], config: ProcessConfig) -> Pane
     3. 仍不唯一——标记分歧，强制 confidence_level = uncertain
     """
     if not opinions:
-        return PanelAggregate(
-            resolution="unresolved",
-            force_uncertain=True,
-            rationale="无有效视角意见",
-        )
+        return PanelAggregate(resolution="unresolved", force_uncertain=True, rationale="无有效视角意见", )
     # 1. 硬判据优先：若任一视角给出流程配置中的"决定性特征"，
     #    且该特征与另一视角冲突，则取有决定性特征的一方
     decisive = [o for o in opinions if o.decisive_feature_hit]
     decisive_candidates = {o.candidate for o in decisive if o.candidate}
     if len(decisive) == 1:
-        return PanelAggregate(
-            winner=decisive[0],
+        return PanelAggregate(winner=decisive[0],
             candidates=[decisive[0].candidate] if decisive[0].candidate else [],
-            resolution="decisive_feature",
-            excluded=_collect_excluded(opinions),
-            rationale=f"命中决定性特征：{decisive[0].decisive_feature_hit}",
-        )
+            resolution="decisive_feature", excluded=_collect_excluded(opinions),
+            rationale=f"命中决定性特征：{decisive[0].decisive_feature_hit}", )
     if len(decisive_candidates) == 1:
         winner = next(o for o in decisive if o.candidate in decisive_candidates)
-        return PanelAggregate(
-            winner=winner,
-            candidates=[winner.candidate] if winner.candidate else [],
-            resolution="decisive_feature",
-            excluded=_collect_excluded(opinions),
-            rationale=f"多视角一致命中决定性特征：{winner.decisive_feature_hit}",
-        )
+        return PanelAggregate(winner=winner, candidates=[winner.candidate] if winner.candidate else [],
+            resolution="decisive_feature", excluded=_collect_excluded(opinions),
+            rationale=f"多视角一致命中决定性特征：{winner.decisive_feature_hit}", )
     # 2. 排除项优先：排除项视角（视角C）若能明确排除某候选，
     #    该候选直接出局，不论其他视角支持度
     excluded = reduce_exclusions(opinions, config)
     remaining = [c for c in all_candidates(opinions) if c not in excluded]
     # 3. 仍不唯一 → 标记为分歧，交判定智能体在结论中显式说明不确定性
     if len(remaining) != 1:
-        return PanelAggregate(
-            candidates=remaining,
-            resolution="unresolved",
-            force_uncertain=True,
-            excluded=excluded,
-            rationale=(
-                "并行会诊未收敛"
-                if remaining
-                else "全部候选被排除，需重新收集证据"
-            ),
-        )
-    return PanelAggregate(
-        winner=_opinion_for(opinions, remaining[0]),
-        candidates=remaining,
-        resolution="elimination",
-        excluded=excluded,
-        rationale=f"经排除后唯一候选：{remaining[0]}",
-    )
+        return PanelAggregate(candidates=remaining, resolution="unresolved", force_uncertain=True,
+            excluded=excluded, rationale=("并行会诊未收敛" if remaining else "全部候选被排除，需重新收集证据" ), )
+    return PanelAggregate(winner=_opinion_for(opinions, remaining[0]), candidates=remaining,
+        resolution="elimination", excluded=excluded, rationale=f"经排除后唯一候选：{remaining[0]}", )
 ```
 
 ### 三个辅助函数
@@ -181,15 +156,13 @@ class PanelRunner:
     ) -> list[PanelOpinion]:
         if not config.panel_enabled:
             return []
-        tasks = [
-            asyncio.create_task(self._one(p, config, state, ctx))
-            for p in ("symptom", "environment", "exclusion")
-        ]
+        tasks = [asyncio.create_task(self._one(p, config, state, ctx))
+            for p in ("symptom", "environment", "exclusion") ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         opinions = [r for r in results if isinstance(r, PanelOpinion)]
         if len(opinions) < 2:
             log.warning("panel quorum not reached, fallback to single chain",
-                        extra={"trace_id": ctx.trace_id, "got": len(opinions)})
+                extra={"trace_id": ctx.trace_id, "got": len(opinions)})
         return opinions
 ```
 
@@ -209,11 +182,9 @@ class PanelRunner:
 ### 提示词按视角差异化
 
 ```python
-PERSPECTIVE_FOCUS: dict[str, str] = {
-    "symptom": "只从症状学角度分析：病斑形态、受害部位、发展速度。不要考虑天气与用药。",
+PERSPECTIVE_FOCUS: dict[str, str] = {"symptom": "只从症状学角度分析：病斑形态、受害部位、发展速度。不要考虑天气与用药。",
     "environment": "只从环境与农事角度分析：近期天气、用药史、栽培管理。不要考虑病斑形态。",
-    "exclusion": "只从排除角度分析：能否排除生理性、药害、缺素等非侵染因素。给不出候选是正常的。",
-}
+    "exclusion": "只从排除角度分析：能否排除生理性、药害、缺素等非侵染因素。给不出候选是正常的。", }
 ```
 
 三个视角的提示词必须**互不覆盖**，否则三路会给出几乎相同的意见，并行就失去意义。技术方案 6.4 的流程图里明确标注了每路的关注点，这里的提示词与之一一对应。 每个视角都必须输出结构化 JSON（`PanelOpinion`），并且要求"若认为某候选可排除，在 `excluded_candidates` 中列出"——这是第二段裁定逻辑的数据来源。

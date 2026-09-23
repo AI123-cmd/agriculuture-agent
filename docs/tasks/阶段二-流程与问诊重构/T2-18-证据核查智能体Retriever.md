@@ -6,16 +6,11 @@
 
 ## 前置依赖
 
-- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`；依赖 T2-50：必须已提供地区回退匹配与来源标注
-- 依赖 T2-10：必须已提供 `EvidenceSet`、`EvidenceQuery`、`EvidenceItem`；依赖 T2-49：必须已提供 `KnowledgeRepository` 混合检索接口（本项通过协议注入，不直接导入实现）
-- 依赖 T2-02：必须已提供流程配置的 `terminology`（检索用词要过 `internal_terms`）；外部环境：pgvector 扩展与知识条目数据由 T2-47 至 T2-52 提供
+- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`；依赖 T2-50：必须已提供地区回退匹配与来源标注；依赖 T2-10：必须已提供 `EvidenceSet`、`EvidenceQuery`、`EvidenceItem`；依赖 T2-49：必须已提供 `KnowledgeRepository` 混合检索接口（本项通过协议注入，不直接导入实现）；依赖 T2-02：必须已提供流程配置的 `terminology`（检索用词要过 `internal_terms`）；外部环境：pgvector 扩展与知识条目数据由 T2-47 至 T2-52 提供
 
 ## 参考章节
 
-- 技术方案 第5章 5.1 智能体总表（④证据核查，自治程度中，失败返回空集并标注未命中）；技术方案 第5章 5.3.3 追问候选池的构造（检索改写属模型能力范围）
-- 技术方案 第9章 9.2 知识库分层（四层知识与各自关键字段）；技术方案 第9章 9.3 检索侧的地区回退（县级到市级到省级到全国，保留实际命中级）
-- 技术方案 第9章 9.3 `process_id` 是硬过滤而非软排序（不能跨流程混用术语与判据）；技术方案 第5章 5.3.5 处方契约（`pesticide_items` 只能由代码从知识库检索结果填充）
-- 技术方案 第4章 4.4 模型分层策略（证据核查用中等模型加重排序模型）
+- 技术方案 第5章 5.1 智能体总表（④证据核查，自治程度中，失败返回空集并标注未命中）；技术方案 第5章 5.3.3 追问候选池的构造（检索改写属模型能力范围）；技术方案 第9章 9.2 知识库分层（四层知识与各自关键字段）；技术方案 第9章 9.3 检索侧的地区回退（县级到市级到省级到全国，保留实际命中级）；技术方案 第9章 9.3 `process_id` 是硬过滤而非软排序（不能跨流程混用术语与判据）；技术方案 第5章 5.3.5 处方契约（`pesticide_items` 只能由代码从知识库检索结果填充）；技术方案 第4章 4.4 模型分层策略（证据核查用中等模型加重排序模型）
 
 ## 改动范围
 
@@ -37,12 +32,7 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
     task_type = TaskType.RETRIEVE
     failure_mode = FailureMode.DEGRADE          # 返回空集并标注未命中
     max_attempts = 1                            # 检索不需要重试语义
-    def __init__(
-        self,
-        gateway: ModelGateway,
-        knowledge: KnowledgeRetriever,
-        region_matcher: RegionMatcher,
-    ) -> None:
+    def __init__( self, gateway: ModelGateway, knowledge: KnowledgeRetriever, region_matcher: RegionMatcher, ) -> None:
         super().__init__(gateway)
         self._knowledge = knowledge
         self._region = region_matcher
@@ -52,11 +42,7 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
 
 ```python
 class KnowledgeRetriever(Protocol):
-    async def search(
-        self,
-        query: EvidenceQuery,
-        region_chain: list[str],
-    ) -> list[EvidenceItem]: ...
+    async def search( self, query: EvidenceQuery, region_chain: list[str], ) -> list[EvidenceItem]: ...
 
 class RegionMatcher(Protocol):
     def build_chain(self, region_code: str | None) -> list[tuple[str, str]]:
@@ -72,14 +58,8 @@ class RegionMatcher(Protocol):
         """把槽位与流程信息压成检索请求。process_id 为硬过滤。"""
         config = ctx.process_config
         keywords = self._extract_keywords(state, config)
-        return EvidenceQuery(
-            process_id=config.process_id,
-            keywords=keywords,
-            region_code=ctx.region_code,
-            slot_snapshot=slot_summary(state),
-            kind_filter=[],
-            top_k=self._top_k_for(config),
-        )
+        return EvidenceQuery(process_id=config.process_id, keywords=keywords, region_code=ctx.region_code,
+            slot_snapshot=slot_summary(state), kind_filter=[], top_k=self._top_k_for(config), )
 ```
 
 `kind_filter` 默认空表示不限定条目类型。油菜流程是一个例外：技术方案 9.5 要求把 L3 处置知识的检索开关设为 `disabled`，通过红线 `RAPE-01` 拦截药剂推荐。因此油菜流程的 `kind_filter` 应排除 `pesticide`：
@@ -136,13 +116,8 @@ class RegionMatcher(Protocol):
 
 ```python
 def build_rewrite_prompt(keywords: list[str], config: ProcessConfig) -> list[dict]:
-    system = [
-        "你是农业检索词改写器。把农户口语改写成植保检索用词。",
-        f"本流程的标准术语：{json.dumps(config.terminology.internal_terms, ensure_ascii=False)}",
-        "只输出改写后的词，用顿号分隔。不要解释。",
-    ]
-    return [{"role": "system", "content": "\n".join(system)},
-            {"role": "user", "content": "、".join(keywords)}]
+    system = ["你是农业检索词改写器。把农户口语改写成植保检索用词。", f"本流程的标准术语：{json.dumps(config.terminology.internal_terms, ensure_ascii=False)}", "只输出改写后的词，用顿号分隔。不要解释。", ]
+    return [{"role": "system", "content": "\n".join(system)}, {"role": "user", "content": "、".join(keywords)}]
 ```
 
 改写任务用小模型即可（不改写事实，只做词汇映射），通过 `TaskType.RETRIEVE` 的路由配置指定中等档位。
@@ -175,8 +150,7 @@ def build_rewrite_prompt(keywords: list[str], config: ProcessConfig) -> list[dic
             if item.process_id == process_id.value or item.process_id == ProcessId.GENERAL.value:
                 kept.append(item)
             else:
-                log.warning("cross-process evidence dropped",
-                            extra={"knowledge_id": item.knowledge_id, "process_id": item.process_id})
+                log.warning("cross-process evidence dropped", extra={"knowledge_id": item.knowledge_id, "process_id": item.process_id})
         return kept
 ```
 
@@ -203,23 +177,11 @@ def build_rewrite_prompt(keywords: list[str], config: ProcessConfig) -> list[dic
     async def degrade(self, state: ConsultationState, ctx: AgentContext, reason: str) -> EvidenceSet:
         """降级：返回空集并标注未命中。"""
         query = self.build_query(state, ctx)
-        return EvidenceSet(
-            query=query,
-            items=[],
-            hit=False,
-            region_level_actual="none",
-            reranked=False,
-            unmatched_reason=f"证据核查服务不可用（{reason}）",
-            fallback_chain=[],
-        )
+        return EvidenceSet(query=query, items=[], hit=False, region_level_actual="none", reranked=False, unmatched_reason=f"证据核查服务不可用（{reason}）", fallback_chain=[], )
 ```
 
 降级不代表流程中断：判定智能体拿到空集后应输出 `confidence_level="uncertain"` 与观察建议，处方智能体应给出 `requires_tech_station=True`。这两条逻辑分别在 T2-19 与 T2-21 实现。 `region_level_actual="none"` 是空集的正确标注，界面据此可以说明"暂时查不到适合您当地的条目"。
 
 ## 验收标准
 
-- `pytest tests/agent/test_retriever_agent.py` 全部通过，含三类用例：混入其他流程的条目被丢弃、县级无结果时回退到市级并在 `fallback_chain` 中记录两级、检索失败时返回空集且 `unmatched_reason` 非空；断言 `EvidenceQuery.process_id` 恒等于 `ctx.process_config.process_id`
-- 断言油菜流程的 `kind_filter_for` 不包含 `pesticide`；断言关键词改写失败时返回原始关键词且不抛异常（用 mock 网关抛错验证）
-- 断言 `rewrite_keywords` 的输出包含全部原始关键词（增量而非替换）；断言同一份证据集在 `post_validate` 前后按 `knowledge_id` 去重，且条数不超过 `top_k`
-- 断言降级返回的 `hit` 为 False 且 `region_level_actual` 为 `"none"`；断言 `USE_MOCK_LLM=true` 下测试不产生真实网络请求
-- `ruff check`、`ruff format --check`、`mypy app` 三条命令返回 0
+- `pytest tests/agent/test_retriever_agent.py` 全部通过，含三类用例：混入其他流程的条目被丢弃、县级无结果时回退到市级并在 `fallback_chain` 中记录两级、检索失败时返回空集且 `unmatched_reason` 非空；断言 `EvidenceQuery.process_id` 恒等于 `ctx.process_config.process_id`；断言油菜流程的 `kind_filter_for` 不包含 `pesticide`；断言关键词改写失败时返回原始关键词且不抛异常（用 mock 网关抛错验证）；断言 `rewrite_keywords` 的输出包含全部原始关键词（增量而非替换）；断言同一份证据集在 `post_validate` 前后按 `knowledge_id` 去重，且条数不超过 `top_k`；断言降级返回的 `hit` 为 False 且 `region_level_actual` 为 `"none"`；断言 `USE_MOCK_LLM=true` 下测试不产生真实网络请求；`ruff check`、`ruff format --check`、`mypy app` 三条命令返回 0

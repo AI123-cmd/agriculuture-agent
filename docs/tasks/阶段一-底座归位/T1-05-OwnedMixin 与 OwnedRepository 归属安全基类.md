@@ -6,16 +6,14 @@
 
 ## 前置依赖
 
-- 依赖 T1-02 已提供：异步 `AsyncSession`、`async_sessionmaker`、带时区的 `TimestampMixin`。
-- 依赖 T1-04 已提供：真实迁移链路，使新增 `user_id` 索引与约束可追溯。
+- 依赖 T1-02 已提供：异步 `AsyncSession`、`async_sessionmaker`、带时区的 `TimestampMixin`；依赖 T1-04 已提供真实迁移链路，使新增 `user_id` 索引与约束可追溯。
 - 外部环境：PostgreSQL 16+。需人工确认为每张表是否需要外键到 `user`；`user` 表本身与 `process_config` / `knowledge_item` 等无归属表不继承 `OwnedMixin`。
 
 ## 参考章节
 
-- 技术方案 第12章 12.3 用户标识与归属安全（`OwnedMixin` / `OwnedRepository` 原文与"无 user_id 则抛异常"）
-- 技术方案 第15章 15.2 分层与依赖约束（第 4 条硬规则：任何模块不得直接 `db.query(Model)`）
-- 技术方案 第16章 16.2 第一步：底座归位（技术动作 4：归属校验统一）
-- 技术方案 第12章 12.1 表清单总览、12.4 问诊与处方卡、12.6 环境数据三表；产品说明书 9.2 第 1 条、9.4 外键约束
+- 技术方案 第12章 12.3 用户标识与归属安全（`OwnedMixin` / `OwnedRepository` 原文与"无 user_id 则抛异常"）、12.1 表清单总览、12.4 问诊与处方卡、12.6 环境数据三表
+- 技术方案 第15章 15.2 分层与依赖约束（第 4 条硬规则：任何模块不得直接 `db.query(Model)`）；第16章 16.2 第一步：底座归位（技术动作 4：归属校验统一）
+- 产品说明书 9.2 第 1 条、9.4 外键约束
 
 ## 改动范围
 
@@ -39,7 +37,6 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
 class OwnedMixin:
     """归属字段混入。declared_attr 让每个子类生成独立列对象。"""
-
     @declared_attr
     def user_id(cls) -> Mapped[str]:  # noqa: N805
         return mapped_column(String(36), nullable=False, index=True, comment="归属用户ID")
@@ -131,11 +128,9 @@ class OwnedRepository(Generic[ModelT]):
     async def delete(self, db: AsyncSession, user_id: str, obj_id: str) -> int:
         return await self.delete_all(db, user_id, id=obj_id)
 ```
-
 "缺少 `user_id` 参数即抛异常"的位置不在于调用方是否记得传，而在于 `_require_user` 与 `_owned_query` 是构造查询的唯一出口：每个查询方法第一步都过 `_require_user`，因此 `user_id=""`、`None`、`0` 三种"看起来像有参数"的情况都会被拒。技术方案 12.3 的原型是 `if not user_id: raise OwnershipError(...)`，本项抽成 `MissingOwnerError` 子类，让"忘记传参"（编程错误，应告警）与"归属不符"（业务结果，正常 403）在日志里可区分。`get` 返回 None 而 `get_or_raise` 才抛，是为了让列表场景能跳过、详情场景能 403；后者对"不存在"与"不属于你"返回同一错误，避免用 404/403 差异枚举他人 ID。基类不提供任何返回裸 `AsyncSession` 或 `_raw_query` 的逃生舱。
 
 ### 三、异常、模型侧改动与子表仓储
-
 ```python
 # app/core/ownership.py
 class OwnershipError(AppException):

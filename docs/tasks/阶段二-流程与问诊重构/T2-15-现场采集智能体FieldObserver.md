@@ -6,15 +6,11 @@
 
 ## 前置依赖
 
-- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`；依赖 T2-09：必须已提供 `ObservationResult`、`EnvReading`、`ImageCandidate`
-- 依赖 T2-02：必须已提供 `ProcessConfig` 与 `slot_spec`；依赖 T2-56：必须已提供多模态结构化输出能力
-- 外部环境：传感器读数来自 T5-08 的环境服务，图片识别来自垂类图像模型；二者在 T5 完成前以可注入的假实现提供；与 T2-50 的关系：地区回退匹配在知识库层，本智能体不负责
+- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`；依赖 T2-09：必须已提供 `ObservationResult`、`EnvReading`、`ImageCandidate`；依赖 T2-02：必须已提供 `ProcessConfig` 与 `slot_spec`；依赖 T2-56：必须已提供多模态结构化输出能力；外部环境：传感器读数来自 T5-08 的环境服务，图片识别来自垂类图像模型；二者在 T5 完成前以可注入的假实现提供；与 T2-50 的关系：地区回退匹配在知识库层，本智能体不负责
 
 ## 参考章节
 
-- 技术方案 第5章 5.1 智能体总表（②现场采集，输入环境读数加图片，失败标记数据不可用）；技术方案 第4章 4.4 模型分层策略（现场采集：垂类图像模型加多模态，候选域按流程限定）
-- 技术方案 第13章 13.2 问诊接口详细设计（`environmentNote` 在 `env_source` 为 none 或 sensor_stale 时必填）；技术方案 第5章 5.3.3 问诊契约（`confidence_note` 为数据缺失时的显式标注）
-- 技术方案 第9章 9.1 流程配置模型（`offline_questions` 用于无传感器时的增强追问）；产品说明书 4.2.3 功能点 6（界面必须明确标注当前没有环境数据）
+- 技术方案 第5章 5.1 智能体总表（②现场采集，输入环境读数加图片，失败标记数据不可用）；技术方案 第4章 4.4 模型分层策略（现场采集：垂类图像模型加多模态，候选域按流程限定）；技术方案 第13章 13.2 问诊接口详细设计（`environmentNote` 在 `env_source` 为 none 或 sensor_stale 时必填）；技术方案 第5章 5.3.3 问诊契约（`confidence_note` 为数据缺失时的显式标注）；技术方案 第9章 9.1 流程配置模型（`offline_questions` 用于无传感器时的增强追问）；产品说明书 4.2.3 功能点 6（界面必须明确标注当前没有环境数据）
 
 ## 改动范围
 
@@ -67,11 +63,7 @@ class FieldObserverAgent(BaseAgent[ObservationResult]):
 
 ```python
 STALE_MINUTES = 120
-SUSPECT_RANGES: dict[str, tuple[float, float]] = {
-    "air_temp": (-20.0, 55.0),
-    "air_humidity": (0.0, 100.0),
-    "soil_temp": (-10.0, 50.0),
-    "soil_moisture": (0.0, 100.0),
+SUSPECT_RANGES: dict[str, tuple[float, float]] = { "air_temp": (-20.0, 55.0), "air_humidity": (0.0, 100.0), "soil_temp": (-10.0, 50.0), "soil_moisture": (0.0, 100.0),
     "light": (0.0, 200_000.0),
     "rainfall": (0.0, 500.0),
 }
@@ -86,10 +78,7 @@ def classify_reading(raw: RawReading, now: datetime) -> EnvReading:
         quality = "suspect"
     elif raw.observed_at is None or (now - raw.observed_at) > timedelta(minutes=STALE_MINUTES):
         quality = "stale"
-    return EnvReading(
-        metric=raw.metric, value=raw.value, unit=raw.unit, source=raw.source,
-        quality=quality, observed_at=raw.observed_at, device_sn=raw.device_sn,
-    )
+    return EnvReading( metric=raw.metric, value=raw.value, unit=raw.unit, source=raw.source, quality=quality, observed_at=raw.observed_at, device_sn=raw.device_sn, )
 ```
 
 判定顺序是"缺值、越界、过期"，先判最严重的一类。`stale` 的门限取两小时，依据是 P0 传感器的上报频率为十分钟级，两小时意味着十二个周期未上报。这个门限值属于工程参数而非农技内容，可以由执行者定，但必须写在模块常量里便于后续调整。 `SUSPECT_RANGES` 用物理可能范围而不是农学适宜范围：判定的目的是识别明显错误的读数（如温度 999 度），而不是判断读数是否适宜作物生长。后者属于闸门的 `R-REGION` 职责。
@@ -150,10 +139,7 @@ def classify_reading(raw: RawReading, now: datetime) -> EnvReading:
                 continue
             for cand in candidates:
                 if cand.label in spec.options:
-                    out.append(SlotValue(
-                        key=spec.key, value=cand.label, status="filled",
-                        source="image", confidence=cand.score,
-                    ))
+                    out.append(SlotValue( key=spec.key, value=cand.label, status="filled", source="image", confidence=cand.score, ))
                     break
         return out
 ```
@@ -182,12 +168,7 @@ def classify_reading(raw: RawReading, now: datetime) -> EnvReading:
 ```python
     async def degrade(self, state: ConsultationState, ctx: AgentContext, reason: str) -> ObservationResult:
         """降级：标记数据不可用，流程继续，界面标注环境说明。"""
-        return ObservationResult(
-            readings=[], image_candidates=[],
-            data_available=False,
-            unavailable_reason=f"现场数据获取失败（{reason}）",
-            env_source="none",
-            observed_facts={},
+        return ObservationResult( readings=[], image_candidates=[], data_available=False, unavailable_reason=f"现场数据获取失败（{reason}）", env_source="none", observed_facts={},
             note="暂时拿不到环境数据，下面的判断主要根据您描述的情况。",
         )
 ```
@@ -207,7 +188,4 @@ T2-16 的问诊智能体据此决定是否把 `offline_questions` 纳入候选�
 
 ## 验收标准
 
-- `pytest tests/agent/test_field_observer.py` 全部通过，含三类用例：读数为空时 `env_source="none"` 且 `note` 非空、读数过期时 `env_source="sensor_stale"`、图片标签落在候选域外时被过滤掉；断言 `classify_reading` 对温度 999 返回 `quality="suspect"`，对 `value=None` 返回 `quality="missing"`
-- 断言环境读数异常与图片识别异常互不影响：mock 一路抛异常，另一路结果仍出现在 `ObservationResult` 中；断言降级返回的 `data_available` 为 False 且 `unavailable_reason` 非空
-- 断言 `image_to_slots` 只对 `source_hint` 含 `image` 的槽位产出写入，且写入的 `source` 恒为 `"image"`；断言 `offline_questions_needed` 仅在 `env_source="none"` 时为 True
-- 断言 `USE_MOCK_LLM=true` 下无真实网络请求；`ruff check`、`ruff format --check`、`mypy app` 三条命令返回 0
+- `pytest tests/agent/test_field_observer.py` 全部通过，含三类用例：读数为空时 `env_source="none"` 且 `note` 非空、读数过期时 `env_source="sensor_stale"`、图片标签落在候选域外时被过滤掉；断言 `classify_reading` 对温度 999 返回 `quality="suspect"`，对 `value=None` 返回 `quality="missing"`；断言环境读数异常与图片识别异常互不影响：mock 一路抛异常，另一路结果仍出现在 `ObservationResult` 中；断言降级返回的 `data_available` 为 False 且 `unavailable_reason` 非空；断言 `image_to_slots` 只对 `source_hint` 含 `image` 的槽位产出写入，且写入的 `source` 恒为 `"image"`；断言 `offline_questions_needed` 仅在 `env_source="none"` 时为 True；断言 `USE_MOCK_LLM=true` 下无真实网络请求；`ruff check`、`ruff format --check`、`mypy app` 三条命令返回 0

@@ -2,20 +2,19 @@
 
 ## 这一项要做什么
 
-把"下一个节点是谁"的全部判断集中到 `app/agent/graph/routes.py`，每个条件边都是一个只读 `ConsultationState` 的纯函数。方案第六章 6.2 明确：主管式确定性编排的核心是 Supervisor 不是模型，而是状态机本身，因此路由必须可单测、可确定性重放、可断点回溯。本项替换现有 `app/agent/graph.py` 里以 `crop_tag` 与 `round` 为中心的三个内联路由函数（`_route_after_symptoms`、`_route_after_management`、`_route_after_diagnose`）。这三个函数把"有没有症状"当成分流依据，属于"先问再分流"，必须整条废弃。
+把"下一个节点是谁"的全部判断集中到 `app/agent/graph/routes.py`，每个条件边都是只读 `ConsultationState` 的纯函数。方案第六章 6.2 明确：主管式确定性编排的核心是 Supervisor 不是模型，而是状态机本身，因此路由必须可单测、可确定性重放、可断点回溯。本项替换现有 `app/agent/graph.py` 里以 `crop_tag` 与 `round` 为中心的三个内联路由函数（`_route_after_symptoms`、`_route_after_management`、`_route_after_diagnose`）——它们把"有没有症状"当成分流依据，属于"先问再分流"，必须整条废弃。
 
 ## 前置依赖
 
 - T2-08 ConsultationState 与 ConsultStage 重构：提供 `process_id`、`process_locked`、`stage`、`slots`、`round`、`slot_round`、`budget` 字段与 `ProcessId`、`ConsultStage` 枚举。
-- T2-06 流程红线配置模型与完整性校验：本项只读 `state["redlines_loaded"]`，该键由 intake 写入。T2-31 轮次与成本预算守卫：路由读取 `state["budget"]` 上的计数与上限，字段名必须与 `ConsultBudget` 一致。
+- T2-06 流程红线配置：本项只读 `state["redlines_loaded"]`，该键由 intake 写入。T2-31 预算守卫：路由读取 `state["budget"]` 的计数与上限，字段名必须与 `ConsultBudget` 一致。
 - T2-09 至 T2-12 契约层：`TriageResult.object_confirmed` / `handoff_to_report`、`DiagnosisResult.out_of_scope` / `confidence_level` / `needs_more_info`、`GateResult.decision` / `process_redlines_loaded`、`ReportDecision.stop_consultation` 的字段名。
 - 外部环境：无数据库、无 Redis、无模型服务要求，本模块可在纯内存下跑单测。
 
 ## 参考章节
 
 - 技术方案 第六章 6.2 主管式确定性编排（`route_after_triage` 原文与四条路由约束）
-- 技术方案 第七章 7.1 主图结构（分支名称与去向）、7.3 状态机推进规则（轮次与预算）
-- 技术方案 第五章 5.3.2 分诊契约、5.3.4 判定契约、5.3.6 门禁契约、5.3.7 报告守卫契约
+- 技术方案 第七章 7.1 主图结构、7.3 状态机推进规则；第五章 5.3.2 分诊、5.3.4 判定、5.3.6 门禁、5.3.7 报告守卫契约
 
 ## 改动范围
 
@@ -32,14 +31,14 @@
 
 ### 模块定位与四条路由约束（硬性，不可妥协）
 
-模块顶部只导入状态与枚举，不导入任何节点、服务或数据库对象：`from app.agent.state import ConsultStage, ConsultationState, ProcessId`。`UnroutedStateError` 继承 `RuntimeError`，消息带函数名与 state 关键字段快照，便于日志定位。
+模块顶部只导入状态与枚举，不导入节点、服务或数据库对象：`from app.agent.state import ConsultStage, ConsultationState, ProcessId`。`UnroutedStateError` 继承 `RuntimeError`，消息带函数名与 state 关键字段快照，便于日志定位。
 
 | 约束 | 落地方式 | 违反后的失败模式 |
 | --- | --- | --- |
 | 边函数不得有 IO 与模型调用 | 函数体内只出现 `state.get(...)`、比较与布尔运算；不出现 `await`、`db`、`httpx`、`gateway` 字样 | 重放结果不确定，检查点恢复后走到不同分支 |
 | 每个分支必须在 path_map 中列出，未覆盖情形抛异常 | 每个条件边配一个 `*_MAP` dict；函数末尾 `raise UnroutedStateError(...)` 而非 `return "default"` | 新增流程后静默走默认分支，路由错误被吞掉 |
 | 路由依据必须是枚举或布尔，不得依赖自由文本 | 只读 `ProcessId`、`ConsultStage` 等枚举与 bool；禁止对 `reply`、`summary`、`message` 做关键词匹配 | 自由文本抖动导致同一输入两次路由不一致 |
-| 红线配置未加载时直接指向 `handoff` | 每个路由函数首行检查 `state.get("redlines_loaded")`，为假即 fail-closed 去 `handoff`（子图内的边函数则返回子图出口，交回主图后仍落到 `handoff`） | 用通用规则代替流程红线继续出方，突破产品说明书 9.3 |
+| 红线配置未加载时直接指向 `handoff` | 首行检查 `state.get("redlines_loaded")`，为假即 fail-closed：主图边返回 `handoff`，子图边返回出口 `end` 并由主图导向 `handoff` | 用通用规则代替流程红线继续出方，突破产品说明书 9.3 |
 
 ### 入口与分诊路由
 
@@ -78,7 +77,7 @@ def route_after_triage(state: ConsultationState) -> str:
     return "enter_process"             # 含养猪：其子图入口守卫负责 pre-observe 检查
 ```
 
-### 确认回环、报告守卫与现场核查
+### 确认回环与报告守卫
 
 `route_after_report_guard` 与 `route_after_subgraph_guard` 的分工必须分清：前者在主图上，命中可直接去 `handoff`；后者在子图内，命中只能返回子图出口 `end`，因为子图的边不能指向父图节点，最终由主图的 `route_after_subgraph` 统一导向 `handoff`。这条是 LangGraph 的硬约束，不是风格选择。
 

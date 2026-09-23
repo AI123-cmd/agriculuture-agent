@@ -6,17 +6,11 @@
 
 ## 前置依赖
 
-- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`；依赖 T2-50：必须已提供地区回退匹配（处方检索与证据检索共用）
-- 依赖 T2-11：必须已提供 `Prescription`、`PesticideItem`、`FollowupPlan`；依赖 T2-19：必须已提供 `DiagnosisResult`，处方以其结论为输入
-- 依赖 T2-18：必须已提供 `EvidenceSet`，药剂候选从其中的 `kind="pesticide"` 条目派生；依赖 T2-02：必须已提供 `ProcessConfig` 的 `output_template` 与 `followup_policy`
-- 外部条件：药剂清单、剂量区间、安全间隔期需人工确认
+- 依赖 T2-13：必须已提供 `BaseAgent`、`AgentContext`；依赖 T2-50：必须已提供地区回退匹配（处方检索与证据检索共用）；依赖 T2-11：必须已提供 `Prescription`、`PesticideItem`、`FollowupPlan`；依赖 T2-19：必须已提供 `DiagnosisResult`，处方以其结论为输入；依赖 T2-18：必须已提供 `EvidenceSet`，药剂候选从其中的 `kind="pesticide"` 条目派生；依赖 T2-02：必须已提供 `ProcessConfig` 的 `output_template` 与 `followup_policy`；外部条件：药剂清单、剂量区间、安全间隔期需人工确认
 
 ## 参考章节
 
-- 技术方案 第5章 5.3.5 处方契约 Prescription（`facts_provenance` 的核心机制）；技术方案 第5章 5.3.5 `pesticide_items` 的来源约束（只能由代码填充，候选为空时的处理）
-- 技术方案 第5章 5.1 智能体总表（⑥处方，自治程度低，失败转为求助引导）；技术方案 第4章 4.4 模型分层策略（处方用小模型，任务本质是改写）
-- 技术方案 第11章 回访（`build_followup_plan` 与药害分支的 T+0 回访）；技术方案 第8章 8.3.3 数字溯源扫描（处方文本中的数字必须全部登记来源）
-- 技术方案 第9章 9.5 油菜流程的红线处理（L3 处置知识检索开关设为 disabled）
+- 技术方案 第5章 5.3.5 处方契约 Prescription（`facts_provenance` 的核心机制）；技术方案 第5章 5.3.5 `pesticide_items` 的来源约束（只能由代码填充，候选为空时的处理）；技术方案 第5章 5.1 智能体总表（⑥处方，自治程度低，失败转为求助引导）；技术方案 第4章 4.4 模型分层策略（处方用小模型，任务本质是改写）；技术方案 第11章 回访（`build_followup_plan` 与药害分支的 T+0 回访）；技术方案 第8章 8.3.3 数字溯源扫描（处方文本中的数字必须全部登记来源）；技术方案 第9章 9.5 油菜流程的红线处理（L3 处置知识检索开关设为 disabled）
 
 ## 改动范围
 
@@ -56,10 +50,7 @@ class PrescriberAgent(BaseAgent[Prescription]):
         diagnosis = DiagnosisResult.model_validate(state["diagnosis"])
         if config.process_id is ProcessId.RAPESEED:
             return []                              # L3 检索开关 disabled
-        query = EvidenceQuery(
-            process_id=config.process_id,
-            keywords=[diagnosis.conclusion, *diagnosis.basis[:2]],
-            region_code=ctx.region_code,
+        query = EvidenceQuery( process_id=config.process_id, keywords=[diagnosis.conclusion, *diagnosis.basis[:2]], region_code=ctx.region_code,
             slot_snapshot=slot_summary(state),
             kind_filter=["pesticide"],
             top_k=6,
@@ -67,16 +58,13 @@ class PrescriberAgent(BaseAgent[Prescription]):
         chain = self._region.build_chain(ctx.region_code)
         items: list[EvidenceItem] = []
         for _, code in chain:
-            items = await self._knowledge.search(query.model_copy(update={"region_code": code}),
-                                                 region_chain=[c for _, c in chain])
+            items = await self._knowledge.search(query.model_copy(update={"region_code": code}), region_chain=[c for _, c in chain])
             if items:
                 break
         return [self._to_pesticide_item(i) for i in items if self._passes_history(i, state)]
     def _to_pesticide_item(self, item: EvidenceItem) -> PesticideItem:
         """知识条目到药剂条目的映射。数值全部照抄，不改写。"""
-        return PesticideItem(
-            knowledge_id=item.knowledge_id, name=item.title,
-            dosage_min=item.dosage_min, dosage_max=item.dosage_max, dosage_unit=item.dosage_unit,
+        return PesticideItem( knowledge_id=item.knowledge_id, name=item.title, dosage_min=item.dosage_min, dosage_max=item.dosage_max, dosage_unit=item.dosage_unit,
             safety_interval_days=item.safety_interval_days, max_uses_per_season=item.max_uses_per_season,
             registered_crops=list(item.registered_crops),
             forbidden_combinations=list(item.forbidden_combinations),
@@ -113,9 +101,7 @@ class PrescriberAgent(BaseAgent[Prescription]):
     def build_messages(self, state, ctx) -> list[dict]:
         config = ctx.process_config
         candidates = state.get("_pesticide_candidates") or []
-        system = [
-            f"你是{config.role_definition}，负责把已确定的事实组织成农户能看懂的处方。",
-            f"你必须输出符合以下 JSON Schema 的内容：{json.dumps(Prescription.model_json_schema(), ensure_ascii=False)}",
+        system = [ f"你是{config.role_definition}，负责把已确定的事实组织成农户能看懂的处方。", f"你必须输出符合以下 JSON Schema 的内容：{json.dumps(Prescription.model_json_schema(), ensure_ascii=False)}",
             "硬规则：不得新增、修改或删除任何药剂条目。",
             "硬规则：不得改动任何数字。数字只能原样使用下面给出的值。",
             f"输出段落顺序：{'、'.join(config.output_template.section_order)}。",
@@ -123,22 +109,15 @@ class PrescriberAgent(BaseAgent[Prescription]):
             f"必含内容：{'、'.join(config.output_template.required_sections) or '无'}。",
             f"面向农户的表述：{format_colloquial(config.terminology.colloquial_map)}",
         ]
-        user = [f"判定结论：{state['diagnosis']}",
-                f"可用药剂候选（不可增删）：{format_candidates(candidates)}",
-                f"已确认信息：{format_slots(state['slots'])}"]
-        return [{"role": "system", "content": "\n".join(system)},
-                {"role": "user", "content": "\n".join(user)}]
+        user = [f"判定结论：{state['diagnosis']}", f"可用药剂候选（不可增删）：{format_candidates(candidates)}", f"已确认信息：{format_slots(state['slots'])}"]
+        return [{"role": "system", "content": "\n".join(system)}, {"role": "user", "content": "\n".join(user)}]
     async def post_validate(self, result: Prescription, state, ctx) -> Prescription:
         """用代码的结果强制覆写模型可能篡改的部分。"""
         candidates: list[PesticideItem] = state.get("_pesticide_candidates") or []
         keep_ids = {item.knowledge_id for item in result.pesticide_items}
         items = [c for c in candidates if c.knowledge_id in keep_ids] or candidates
         top_interval, top_uses = self.conservative_top_level(items)
-        merged = {
-            **result.model_dump(),
-            "pesticide_items": [i.model_dump() for i in items],
-            "safety_interval_days": top_interval,
-            "max_uses_per_season": top_uses,
+        merged = { **result.model_dump(), "pesticide_items": [i.model_dump() for i in items], "safety_interval_days": top_interval, "max_uses_per_season": top_uses,
             "facts_provenance": self.build_provenance(items),
             "requires_tech_station": result.requires_tech_station or not items,
         }
@@ -173,22 +152,12 @@ class PrescriberAgent(BaseAgent[Prescription]):
 def build_followup_plan(process_id: ProcessId, branch: str | None) -> FollowupPlan:
     """回访计划：按流程取值，药害分支立即触发。"""
     if branch == "herbicide_damage":
-        return FollowupPlan(tasks=[FollowupTask(
-            due_offset_days=0, kind="preserve_scene",
-            content_rule="weed.damage_evidence_checklist",
-            ask="现在请先保护现场并拍照记录，不要清理")])
+        return FollowupPlan(tasks=[FollowupTask( due_offset_days=0, kind="preserve_scene", content_rule="weed.damage_evidence_checklist", ask="现在请先保护现场并拍照记录，不要清理")])
     policy = load_process_config(process_id).followup_policy
-    return FollowupPlan(tasks=[
-        FollowupTask(due_offset_days=t.after_days, kind=t.kind, ask=t.ask,
-                     window_based=policy.window_based)
-        for t in policy.triggers])
+    return FollowupPlan(tasks=[ FollowupTask(due_offset_days=t.after_days, kind=t.kind, ask=t.ask, window_based=policy.window_based) for t in policy.triggers])
     async def degrade(self, state, ctx, reason: str) -> Prescription:
         """降级：转为求助引导，不输出任何药剂。"""
-        return Prescription(
-            diagnosis_summary="当前无法给出完整处置建议，建议咨询当地农技站。",
-            actions=[PrescriptionAction(
-                order=1, action="到当地农技站咨询", timing="尽快",
-                method="携带症状照片与本次问诊记录",
+        return Prescription( diagnosis_summary="当前无法给出完整处置建议，建议咨询当地农技站。", actions=[PrescriptionAction( order=1, action="到当地农技站咨询", timing="尽快", method="携带症状照片与本次问诊记录",
                 cautions=["不要自行加大用药量"],
                 stop_conditions=["症状明显加重时立即联系农技人员"])],
             safety_interval_days=None, max_uses_per_season=None,
@@ -201,8 +170,4 @@ def build_followup_plan(process_id: ProcessId, branch: str | None) -> FollowupPl
 
 ## 验收标准
 
-- `pytest tests/agent/test_prescriber_agent.py` 全部通过，含三类用例：模型返回候选之外的 `knowledge_id` 时被丢弃并退回候选集、模型篡改 `dosage_max` 时实际输出仍为原值、候选为空时 `requires_tech_station=True` 且 `pesticide_items=[]`；断言油菜流程的 `fetch_pesticide_candidates` 返回空列表且不调用检索
-- 断言 `facts_provenance` 的键集合等于 `Prescription.numeric_paths()` 的结果；断言 `conservative_top_level` 在候选间隔期为 `[7, 10]` 时返回 `10`
-- 断言 `detect_tampering` 能识别出新增条目与改动数值两类情况；断言 `build_followup_plan` 在 `branch="herbicide_damage"` 时返回单任务且 `due_offset_days=0`、`kind="preserve_scene"`
-- 断言 `build_followup_plan` 对辣椒流程返回两个任务，`due_offset_days` 分别为 3 与 7；断言降级返回的处方可被 `Prescription.model_validate` 通过，且 `numeric_paths()` 为空列表
-- `ruff check`、`ruff format --check`、`mypy app` 三条命令返回 0
+- `pytest tests/agent/test_prescriber_agent.py` 全部通过，含三类用例：模型返回候选之外的 `knowledge_id` 时被丢弃并退回候选集、模型篡改 `dosage_max` 时实际输出仍为原值、候选为空时 `requires_tech_station=True` 且 `pesticide_items=[]`；断言油菜流程的 `fetch_pesticide_candidates` 返回空列表且不调用检索；断言 `facts_provenance` 的键集合等于 `Prescription.numeric_paths()` 的结果；断言 `conservative_top_level` 在候选间隔期为 `[7, 10]` 时返回 `10`；断言 `detect_tampering` 能识别出新增条目与改动数值两类情况；断言 `build_followup_plan` 在 `branch="herbicide_damage"` 时返回单任务且 `due_offset_days=0`、`kind="preserve_scene"`；断言 `build_followup_plan` 对辣椒流程返回两个任务，`due_offset_days` 分别为 3 与 7；断言降级返回的处方可被 `Prescription.model_validate` 通过，且 `numeric_paths()` 为空列表；`ruff check`、`ruff format --check`、`mypy app` 三条命令返回 0

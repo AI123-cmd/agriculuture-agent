@@ -6,14 +6,11 @@
 
 ## 前置依赖
 
-- 上游任务：无（本批次第一项）；外部环境：Python 3.11+，pydantic 2.x，与 T1-01 确定的 `requirements.txt` 一致
-- 现有代码现状：`backend/app/agent/state.py` 当前只定义 `Step`（六值）与 `AgentState`，本项用新枚举整体取代 `Step`
+- 上游任务：无（本批次第一项）；外部环境：Python 3.11+，pydantic 2.x，与 T1-01 确定的 `requirements.txt` 一致；现有代码现状：`backend/app/agent/state.py` 当前只定义 `Step`（六值）与 `AgentState`，本项用新枚举整体取代 `Step`
 
 ## 参考章节
 
-- 技术方案 第5章 5.2 契约设计总原则（枚举封闭、事实必带溯源、区分未知与缺失）；技术方案 第5章 5.3.1 共享状态 ConsultationState（`ConsultStage` 的十一个取值）
-- 技术方案 第6章 6.3 黑板式共享状态（来源优先级表）；技术方案 第8章 8.2 规则清单（`severity` 的 block 与 warn）；第9章 9.1 流程配置模型（`SlotSpec.group` 六个中文取值）
-- 技术方案 第5章 5.3.6 门禁契约 GateResult（`decision` 三值）；5.3.7 报告守卫契约（`trigger_source` 四值）；技术方案 第12章 12.2 流程类型与档案模型调整（`object_type` 三值）；第4章 4.4 模型分层策略（任务类型与模型档位）
+- 技术方案 第5章 5.2 契约设计总原则（枚举封闭、事实必带溯源、区分未知与缺失）；技术方案 第5章 5.3.1 共享状态 ConsultationState（`ConsultStage` 的十一个取值）；技术方案 第6章 6.3 黑板式共享状态（来源优先级表）；技术方案 第8章 8.2 规则清单（`severity` 的 block 与 warn）；第9章 9.1 流程配置模型（`SlotSpec.group` 六个中文取值）；技术方案 第5章 5.3.6 门禁契约 GateResult（`decision` 三值）；5.3.7 报告守卫契约（`trigger_source` 四值）；技术方案 第12章 12.2 流程类型与档案模型调整（`object_type` 三值）；第4章 4.4 模型分层策略（任务类型与模型档位）
 
 ## 改动范围
 
@@ -80,12 +77,7 @@ class SlotSource(str, Enum):
     IMAGE = "image"
     INFERRED = "inferred"
 # 数字越小优先级越高，高优先级可覆盖低优先级（技术方案 6.3）
-SOURCE_PRIORITY: dict[SlotSource, int] = {
-    SlotSource.PROFILE: 1,
-    SlotSource.SENSOR: 2,
-    SlotSource.WEATHER: 3,
-    SlotSource.USER_ANSWER: 4,
-    SlotSource.IMAGE: 5,
+SOURCE_PRIORITY: dict[SlotSource, int] = { SlotSource.PROFILE: 1, SlotSource.SENSOR: 2, SlotSource.WEATHER: 3, SlotSource.USER_ANSWER: 4, SlotSource.IMAGE: 5,
     SlotSource.INFERRED: 6,
 }
 ```
@@ -194,8 +186,4 @@ def parse_process_id(raw: str) -> ProcessId:
 
 ## 验收标准
 
-- `python -c "from app.agent.state import ProcessId, ConsultStage; print(len(ProcessId), len(ConsultStage))"` 输出 `7 11`
-- `pytest tests/contracts/test_enums.py` 全部通过，至少覆盖三条用例：`ProcessId("rice") is ProcessId.RICE` 为真、`parse_stage("unknown_stage")` 抛 `EnumParseError`、`parse_process_id("bees")` 抛 `EnumParseError`
-- `python -c "from app.agent.state import SOURCE_PRIORITY, SlotSource; assert SOURCE_PRIORITY[SlotSource.PROFILE] < SOURCE_PRIORITY[SlotSource.INFERRED]"` 返回 0
-- `grep -rn "Step\." backend/app/` 无结果，旧 `Step` 枚举的引用已全部清除
-- `ruff check`、`ruff format --check`、`mypy app` 三条命令对改动文件返回 0
+- `python -c "from app.agent.state import ProcessId, ConsultStage; print(len(ProcessId), len(ConsultStage))"` 输出 `7 11`；`pytest tests/contracts/test_enums.py` 全部通过，至少覆盖三条用例：`ProcessId("rice") is ProcessId.RICE` 为真、`parse_stage("unknown_stage")` 抛 `EnumParseError`、`parse_process_id("bees")` 抛 `EnumParseError`；`python -c "from app.agent.state import SOURCE_PRIORITY, SlotSource; assert SOURCE_PRIORITY[SlotSource.PROFILE] < SOURCE_PRIORITY[SlotSource.INFERRED]"` 返回 0；`grep -rn "Step\." backend/app/` 无结果，旧 `Step` 枚举的引用已全部清除；`ruff check`、`ruff format --check`、`mypy app` 三条命令对改动文件返回 0
