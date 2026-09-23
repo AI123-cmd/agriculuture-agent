@@ -12,7 +12,10 @@ from app.db.base import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # `disable_existing_loggers=False` 不能省：fileConfig 默认会把"已经存在的 logger"
+    # 全部置为 disabled。测试与脚本里 alembic 与应用同进程，默认行为会让 `app.*`
+    # 的日志从此静默（连 pytest 的 caplog 也抓不到），告警与审计形同虚设。
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # 用应用配置覆盖连接串（从 .env / 环境变量读取）。
 # 应用侧的 DATABASE_URL 是 asyncpg 驱动，而 Alembic 走同步 engine，需换成 psycopg。

@@ -42,6 +42,39 @@ class NotFound(AppException):
         super().__init__(404, message)
 
 
+class BadRequest(AppException):
+    """请求参数或上传内容不合规。
+
+    `code` 取 400：责任在调用方，改请求即可修正。上传校验失败走这一类，
+    使"图片不合法"与"服务端故障"在日志里可区分。
+    """
+
+    def __init__(self, message: str = "请求参数错误"):
+        super().__init__(400, message)
+
+
+class ConflictError(AppException):
+    """唯一约束冲突或乐观锁失败。
+
+    取 409 而不是 500：这是"重试即可"的并发结果，不是服务端故障。消息刻意不包含
+    原始 SQL 与表名——那属于实现细节，泄露给调用方既无用又给了探测表结构的机会。
+    """
+
+    def __init__(self, message: str = "数据已被并发修改，请重试"):
+        super().__init__(409, message)
+
+
+class TransactionError(AppException):
+    """事务执行失败。
+
+    取 500：事务失败属服务端问题，调用方无法通过改请求修正。单独成类是给后续
+    降级判断留出口——T2 阶段可按异常类型分流，而不必解析数据库原始错误。
+    """
+
+    def __init__(self, message: str = "数据处理失败，请稍后重试"):
+        super().__init__(500, message)
+
+
 class ServerError(AppException):
     def __init__(self, message: str = "服务器内部错误"):
         super().__init__(500, message)

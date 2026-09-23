@@ -26,7 +26,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.core.response import error_response
-from app.core.startup_check import verify_checkpoint_schema, verify_schema_revision
+from app.core.startup_check import run_startup_checks, verify_checkpoint_schema, verify_schema_revision
 from app.db.session import engine
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,8 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # 配置自检必须排在最前：配置不安全时不应先建连接再退出
+    await run_startup_checks()
     # 迁移版本校验必须在预热之前：结构漂移时不应先建连接再退出
     await verify_schema_revision(engine)
     # 预热：初始化 checkpointer 与诊断图单例（顺带由 setup() 建出检查点表）
@@ -58,10 +60,17 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # 白名单而非 `*`：`Access-Control-Allow-Origin: *` 与 `allow_credentials=True`
+    # 按 CORS 规范不能同时生效，浏览器会拒绝带凭据的响应——原来的组合是"宽松且失效"。
+    # 空列表时中间件不放行任何跨域来源，同源请求不受影响。
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # 不用 `*`：本项目没有 PATCH，HEAD 由框架处理；显式列出能让"新增了方法却忘了加
+    # CORS"在预检阶段暴露，而不是等到线上才发现。
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-Id"],
+    expose_headers=["X-Request-Id"],
+    max_age=600,
 )
 
 

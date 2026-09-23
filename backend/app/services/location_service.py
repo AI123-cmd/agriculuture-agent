@@ -2,6 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.uow import unit_of_work
 from app.integrations.geocoding import reverse_geocode
 from app.integrations.weather import get_weather_summary
 from app.repositories import location_repo
@@ -12,11 +13,11 @@ class LocationService:
     async def set_location(self, db: AsyncSession, user_id: str, req: SetLocationRequest) -> dict:
         loc = await location_repo.get_or_create(db, user_id)
 
-        loc.location_name = req.locationName
-        loc.latitude = req.latitude
-        loc.longitude = req.longitude
-        loc.source = req.source
-        await db.commit()
+        async with unit_of_work(db, name="location.set_location"):
+            loc.location_name = req.locationName
+            loc.latitude = req.latitude
+            loc.longitude = req.longitude
+            loc.source = req.source
 
         return {
             "locationName": req.locationName,

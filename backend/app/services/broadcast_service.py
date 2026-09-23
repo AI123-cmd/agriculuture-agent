@@ -5,6 +5,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import new_id
+from app.db.uow import unit_of_work
 from app.models import BroadcastLog
 from app.repositories import Repositories, broadcast_repo
 
@@ -19,31 +20,32 @@ class BroadcastService:
 
     async def mark_done(self, db: AsyncSession, user_id: str, item_id: str) -> None:
         """标记完成。归属不符时影响 0 行、不抛异常：重复点击不该报错。"""
-        await broadcast_repo.mark_done(db, user_id, item_id)
-        await db.commit()
+        async with unit_of_work(db, name="broadcast.mark_done"):
+            await broadcast_repo.mark_done(db, user_id, item_id)
 
     async def _generate(self, db: AsyncSession, user_id: str, today: str) -> list[BroadcastLog]:
+        """生成当日播报。批量写入收在一个事务里：部分成功会让农户看到半份播报。"""
         from app.broadcast import generate_broadcast  # 延迟导入，避免包间循环依赖
 
         results = await generate_broadcast(Repositories(db), user_id)
 
-        items = []
-        for idx, r in enumerate(results):
-            item = BroadcastLog(
-                id=new_id("bc"),
-                date=today,
-                time=f"{9 + idx * 2:02d}:00",
-                title=r.title[:64],
-                content=r.content[:500],
-                type=r.type[:32],
-                level=r.level or "normal",
-                source=r.source or "sensor",
-                meta=r.meta,
-                done=0,
-            )
-            await broadcast_repo.add(db, user_id, item)
-            items.append(item)
-        await db.commit()
+        items: list[BroadcastLog] = []
+        async with unit_of_work(db, name="broadcast.generate"):
+            for idx, r in enumerate(results):
+                item = BroadcastLog(
+                    id=new_id("bc"),
+                    date=today,
+                    time=f"{9 + idx * 2:02d}:00",
+                    title=r.title[:64],
+                    content=r.content[:500],
+                    type=r.type[:32],
+                    level=r.level or "normal",
+                    source=r.source or "sensor",
+                    meta=r.meta,
+                    done=0,
+                )
+                await broadcast_repo.add(db, user_id, item)
+                items.append(item)
         return items
 
     def _to_item(self, item: BroadcastLog) -> dict:

@@ -12,6 +12,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.uow import unit_of_work
 from app.models import AIConversation, AIMessage
 from app.repositories import conversation_repo, crop_repo, message_repo, profile_repo, tag_repo
 from app.schemas import ChatRequest
@@ -45,7 +46,12 @@ class AIService:
         reply = result.get("reply") or ""
         related = result.get("related_suggestions") or ["追肥建议", "排水建议", "3天后复查"]
 
-        await self._persist(db, user_id, session_id, req, reply)
+        # 图执行（秒级）刻意放在事务之外：把它包进事务会长时间持锁，且检查点写入
+        # 由 AsyncPostgresSaver 自己的连接池管理，与业务事务本就不是同一连接
+        # （技术方案 7.5 的连接池 autocommit=True 也印证这点）。一致性靠顺序保证：
+        # 业务事务成功后才有业务记录，检查点先行不会造成业务数据的部分写入。
+        async with unit_of_work(db, name="ai.chat"):
+            await self._persist(db, user_id, session_id, req, reply)
 
         tags_added = [req.cropTag] if req.cropTag else []
         return {
@@ -56,7 +62,8 @@ class AIService:
         }
 
     async def _persist(self, db: AsyncSession, user_id: str, session_id: str, req: ChatRequest, reply: str) -> None:
-        """落库本轮对话。`session_id` 由 `chat` 判定归属后传入，这里不再按 id 直查。
+        """落库本轮对话（不提交，事务边界由 `chat` 的 `unit_of_work` 统一收口）。
+        `session_id` 由 `chat` 判定归属后传入，这里不再按 id 直查。
 
         `flush` 不能省：会话工厂是 `autoflush=False`，新建的会话行若未下推，
         `message_repo.add_many` 的归属校验会查不到父会话而误报越权。
@@ -83,8 +90,6 @@ class AIService:
         tags_added = [req.cropTag] if req.cropTag else []
         await ProfileService().add_tags(db, user_id, tags_added)
         await MemoryService().remember(db, user_id, session_id, req.message, reply)
-
-        await db.commit()
 
     async def build_context(self, db: AsyncSession, user_id: str, crop_tag: str | None) -> dict:
         """组装诊断上下文。
@@ -137,10 +142,11 @@ class AIService:
         """删除会话及其消息：归属校验在仓储内完成，不属于当前用户抛 403。
 
         原实现先按 `id + user_id` 查会话、只在命中时删消息，看起来安全；但子表删除
-        只按 `conversation_id`，一旦调用方漏判就成孤儿。现在两步都带归属条件。
+        只按 `conversation_id`，一旦调用方漏判就成孤儿。现在两步都带归属条件，
+        且同处一个事务——"删了消息但删会话失败"不再可能。
         """
-        await conversation_repo.delete_with_messages(db, user_id, session_id)
-        await db.commit()
+        async with unit_of_work(db, name="ai.delete_history"):
+            await conversation_repo.delete_with_messages(db, user_id, session_id)
 
 
 __all__ = ["AIService"]

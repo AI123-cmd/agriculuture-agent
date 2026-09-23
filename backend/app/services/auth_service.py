@@ -16,6 +16,7 @@ from app.core.exceptions import ConfigError, TokenRevokedError, Unauthorized
 from app.core.security import create_token, decode_token, remaining_ttl
 from app.core.token_revoker import token_revoker
 from app.db.base import new_id
+from app.db.uow import unit_of_work
 from app.integrations.wechat import code2session
 from app.models import User
 from app.repositories import user_repo
@@ -44,16 +45,19 @@ class AuthService:
         openid = session_data["openid"]
         user = await user_repo.get_by_openid(db, openid)
         is_new_user = user is None
-        if user is None:
-            user = User(id=new_id("user"), openid=openid)
-            await user_repo.add(db, user)
-            # 要拿到 user.id 签令牌，且后续字段赋值都在同一事务内，故先 flush
-            await db.flush()
 
-        self._apply_user_info(user, user_info)
+        async with unit_of_work(db, name="auth.login"):
+            if user is None:
+                user = User(id=new_id("user"), openid=openid)
+                await user_repo.add(db, user)
+                # 要拿到 user.id 签令牌，且后续字段赋值都在同一事务内，故先 flush
+                await db.flush()
+            self._apply_user_info(user, user_info)
 
-        token = create_token(user.id)
-        await db.commit()
+            # 令牌在事务内签发但只在提交成功后才返回：若提交失败会抛异常，
+            # 调用方拿不到这个令牌，不会出现"令牌指向不存在的用户"
+            token = create_token(user.id)
+
         return {"token": token, "userId": user.id, "isNewUser": is_new_user}
 
     async def logout(self, db: AsyncSession, user_id: str, token: str) -> None:
