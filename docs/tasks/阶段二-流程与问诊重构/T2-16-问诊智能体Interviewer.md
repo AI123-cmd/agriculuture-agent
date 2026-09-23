@@ -42,8 +42,11 @@ class InterviewerAgent(BaseAgent[InterviewBatch]):
 按技术方案 9.4 的结构逐段拼装，各段来源明确：
 
 ```python
-def build_interviewer_prompt( config: ProcessConfig, state: ConsultationState, ctx: AgentContext, candidates: CandidatePool, ) -> list[dict]:
-    system = [ f"你是{config.role_definition}。",                                        # 1 角色定位（按流程）
+def build_interviewer_prompt(
+    config: ProcessConfig, state: ConsultationState, ctx: AgentContext, candidates: CandidatePool,
+) -> list[dict]:
+    system = [
+        f"你是{config.role_definition}。",                                        # 1 角色定位（按流程）
         f"你必须输出符合以下 JSON Schema 的内容：{json.dumps(InterviewBatch.model_json_schema(), ensure_ascii=False)}",
         "每轮最多问 2 个问题。每个问题必须说明为什么问。",                            # 3 硬规则（共用）
         "不得询问已经知道答案的信息。",

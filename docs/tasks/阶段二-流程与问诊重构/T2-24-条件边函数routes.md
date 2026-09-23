@@ -13,8 +13,7 @@
 
 ## 参考章节
 
-- 技术方案 第六章 6.2 主管式确定性编排（`route_after_triage` 原文与四条路由约束）
-- 技术方案 第七章 7.1 主图结构、7.3 状态机推进规则；第五章 5.3.2 分诊、5.3.4 判定、5.3.6 门禁、5.3.7 报告守卫契约
+- 技术方案 第六章 6.2 主管式确定性编排（`route_after_triage` 原文与四条路由约束）；第七章 7.1 主图结构、7.3 状态机推进规则；第五章 5.3.2 分诊、5.3.4 判定、5.3.6 门禁、5.3.7 报告守卫契约
 
 ## 改动范围
 
@@ -47,7 +46,6 @@
 ```python
 ROUTE_AFTER_INTAKE = {"triage": "triage", "enter_process": "subgraph_router", "handoff": "handoff"}
 
-
 def route_after_intake(state: ConsultationState) -> str:
     """受理后的第一条路由：受理即分流，先定流程再问问题。"""
     if not state.get("redlines_loaded", False):
@@ -56,14 +54,12 @@ def route_after_intake(state: ConsultationState) -> str:
         return "enter_process"          # 入口直达（process_hint）已锁定流程
     return "triage"
 
-
 ROUTE_AFTER_TRIAGE = {
     "confirm_object": "confirm_object",   # 对象待确认，插入一次确认交互
     "report_guard": "report_guard",       # 信号命中，先过主图入口守卫
     "enter_process": "subgraph_router",   # 已确认，落到具体流程子图
     "handoff": "handoff",
 }
-
 
 def route_after_triage(state: ConsultationState) -> str:
     """分诊后的路由：纯函数，无 IO，无模型调用。"""
@@ -87,7 +83,6 @@ ROUTE_AFTER_REPORT_GUARD = {"enter_process": "subgraph_router", "confirm_object"
 ROUTE_AFTER_SUBGRAPH_GUARD = {"observe": "observe", "interview": "interview", "end": "__end__"}
 ROUTE_AFTER_SUBGRAPH = {"gate": "gate", "handoff": "handoff"}
 
-
 def route_after_confirm_object(state: ConsultationState) -> str:
     """确认对象后的路由：农户未确认或与档案冲突则回分诊重判。"""
     if not state.get("redlines_loaded", False):
@@ -98,7 +93,6 @@ def route_after_confirm_object(state: ConsultationState) -> str:
         raise UnroutedStateError("route_after_confirm_object", state)
     return "enter_process"
 
-
 def route_after_report_guard(state: ConsultationState) -> str:
     """主图入口守卫后的路由：命中即转人工，否则进流程子图。"""
     if not state.get("redlines_loaded", False):
@@ -107,7 +101,6 @@ def route_after_report_guard(state: ConsultationState) -> str:
     if decision.get("stop_consultation") or decision.get("triggered"):
         return "handoff"
     return "confirm_object" if state.get("process_id") is None else "enter_process"
-
 
 def route_after_subgraph_guard(state: ConsultationState) -> str:
     """子图内守卫后的路由：命中或红线缺失都出子图，否则回问诊。"""
@@ -119,7 +112,6 @@ def route_after_subgraph_guard(state: ConsultationState) -> str:
     if state.get("stage") in (ConsultStage.INTAKE, ConsultStage.TRIAGE):
         return "observe"               # 养猪：入口守卫放行后才看现场
     return "interview"                 # 其余流程：observe 之后的兜底检查
-
 
 def route_after_subgraph(state: ConsultationState) -> str:
     """子图出口检查：守卫命中或红线缺失走 handoff，否则进闸门。"""
@@ -140,11 +132,13 @@ ROUTE_AFTER_JUDGE = {"interview": "interview", "prescribe": "prescribe", "handof
 PANEL_ENABLED_PROCESSES = frozenset({ProcessId.TEA, ProcessId.CHILI, ProcessId.WEED})
 ROUTE_AFTER_INTERVIEW = {"interview": "interview", "verify": "verify", "panel": "panel", "handoff": "handoff"}
 
-
 def route_after_interview(state: ConsultationState) -> str:
-    """问诊后路由：疑似用药先会诊；槽位齐备则推进；未齐备且轮次用尽则转人工。"""
+    """问诊后路由：命中报告信号先转人工；疑似用药先会诊；槽位齐备推进。"""
     if not state.get("redlines_loaded", False):
         return "handoff"
+    decision = state.get("report_decision") or {}
+    if decision.get("stop_consultation") or decision.get("triggered"):
+        return "handoff"              # 5.3.7：问诊之后的第二次守卫检查
     budget = state.get("budget") or {}
     if slots_ready(state):
         if state.get("process_id") in PANEL_ENABLED_PROCESSES and state.get("panel_needed"):
@@ -154,11 +148,9 @@ def route_after_interview(state: ConsultationState) -> str:
         return "handoff"              # 连续未收敛，输出携带已确认信息
     return "interview"
 
-
 def route_after_verify(state: ConsultationState) -> str:
     """核查后的路由：唯一出口是 judge，红线未加载则 fail-closed 去 handoff。"""
     return "handoff" if not state.get("redlines_loaded", False) else "judge"
-
 
 def route_after_judge(state: ConsultationState) -> str:
     """判定后的路由：超边界或回环用尽则转人工，否则可开方。"""
@@ -177,9 +169,7 @@ def route_after_judge(state: ConsultationState) -> str:
         return "prescribe"
     raise UnroutedStateError("route_after_judge", state)
 
-
 ROUTE_AFTER_GATE = {"followup": "followup", "handoff": "handoff"}
-
 
 def route_after_gate(state: ConsultationState) -> str:
     """门禁后的路由：allow 去登记回访，degrade/block 一律转人工。"""
@@ -192,7 +182,6 @@ def route_after_gate(state: ConsultationState) -> str:
     if decision in ("degrade", "block"):
         return "handoff"
     raise UnroutedStateError("route_after_gate", state)
-
 
 def route_after_followup(state: ConsultationState) -> str:
     return "end"

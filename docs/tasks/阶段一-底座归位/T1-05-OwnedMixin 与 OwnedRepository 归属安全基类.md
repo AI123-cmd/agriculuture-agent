@@ -47,7 +47,6 @@ class OwnedModel(Protocol):
     id: Mapped[str]
     user_id: Mapped[str]
 ```
-
 三个设计取舍。第一，`user_id` 取 `String(36)` 与全局约定主键长度一致（现状用 `String(32)`，T1-04 已在基线统一为 36，混入不能在长度上开倒车）。第二，用 `declared_attr` 而非普通 `mapped_column`，否则多个子类继承同一混入时 SQLAlchemy 会复用同一 `Column` 对象并报 "Column object already assigned to Table"。第三，`index=True` 写进混入，因为全局约定要求"所有业务表带 `user_id`，索引必建"——放在混入里新增表自动带上，不依赖执行者记得加。
 
 ### 二、OwnedRepository 完整骨架（`app/repositories/base.py`）
@@ -62,8 +61,6 @@ from app.core.ownership import MissingOwnerError, OwnershipError
 from app.db.owned import OwnedModel
 
 ModelT = TypeVar("ModelT", bound=OwnedModel)
-
-
 class OwnedRepository(Generic[ModelT]):
     """铁律：任何查询方法都必须显式接收 user_id；缺失即抛异常，不做降级。"""
     model: type[ModelT]

@@ -32,7 +32,8 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
     task_type = TaskType.RETRIEVE
     failure_mode = FailureMode.DEGRADE          # 返回空集并标注未命中
     max_attempts = 1                            # 检索不需要重试语义
-    def __init__( self, gateway: ModelGateway, knowledge: KnowledgeRetriever, region_matcher: RegionMatcher, ) -> None:
+    def __init__(self, gateway: ModelGateway, knowledge: KnowledgeRetriever,
+                 region_matcher: RegionMatcher) -> None:
         super().__init__(gateway)
         self._knowledge = knowledge
         self._region = region_matcher
@@ -42,7 +43,8 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
 
 ```python
 class KnowledgeRetriever(Protocol):
-    async def search( self, query: EvidenceQuery, region_chain: list[str], ) -> list[EvidenceItem]: ...
+    async def search(self, query: EvidenceQuery,
+                     region_chain: list[str]) -> list[EvidenceItem]: ...
 
 class RegionMatcher(Protocol):
     def build_chain(self, region_code: str | None) -> list[tuple[str, str]]:

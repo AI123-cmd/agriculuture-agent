@@ -44,7 +44,6 @@ class FailureMode(str, Enum):
 
 ```python
 @dataclass(slots=True)
-
 class AgentContext:
     """一次智能体调用的环境依赖。全部为只读视图。"""
     process_config: ProcessConfig
