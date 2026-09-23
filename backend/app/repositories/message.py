@@ -8,12 +8,17 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import ColumnElement, Select, delete, select
+from sqlalchemy import ColumnElement, Select, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.selectable import Subquery
 
 from app.core.ownership import OwnershipError
 from app.models import AIConversation, AIMessage
 from app.repositories.base import execute_write, require_user_id
+
+# 历史列表的预览长度。截断放在 SQL 侧：`content` 是 Text 列，整段取回只为渲染
+# 一行摘要，正是产品说明书 9.2 第 7 条说的浪费。
+_PREVIEW_CHARS = 30
 
 
 class ConversationScopedRepository:
@@ -41,6 +46,35 @@ class ConversationScopedRepository:
             .order_by(AIMessage.id)
         )
         return (await db.execute(stmt)).scalars().all()
+
+    def preview_expr(self) -> ColumnElement[str]:
+        """最后一条消息的预览片段（在 SQL 侧截断，见 `_PREVIEW_CHARS`）。"""
+        return func.left(AIMessage.content, _PREVIEW_CHARS)
+
+    def last_contents_by_conversation(self) -> Subquery:
+        """每条会话的"消息数 + 最后一条消息预览"，供历史列表一次取回。
+
+        `COUNT(*) OVER (PARTITION BY ...)` 与 `ROW_NUMBER() ... = 1` 共用同一遍扫描：
+        前者顺带算出消息数，后者取每组最后一条，因此不需要第二条聚合查询。
+
+        预览用 `left(content, 30)` 在库侧截断：`content` 是 Text，整段取回只为渲染
+        一行摘要，正是产品说明书 9.2 第 7 条指出的浪费。
+
+        返回的是子查询而非结果：调用方要与 `ai_conversation` 做 `LEFT JOIN` 分页，
+        必须留在同一条 SQL 里才不产生第二条查询。归属过滤由调用方的 JOIN 条件完成
+        ——子查询只按 `conversation_id` 分组，不引入额外的跨用户读取。
+        """
+        ranked = select(
+            AIMessage.conversation_id.label("conversation_id"),
+            self.preview_expr().label("content"),
+            func.count().over(partition_by=AIMessage.conversation_id).label("msg_count"),
+            func.row_number().over(partition_by=AIMessage.conversation_id, order_by=AIMessage.id.desc()).label("rn"),
+        ).subquery("ranked")
+        return (
+            select(ranked.c.conversation_id, ranked.c.content, ranked.c.msg_count)
+            .where(ranked.c.rn == 1)
+            .subquery("agg")
+        )
 
     async def add_many(
         self, db: AsyncSession, user_id: str, conv_id: str, messages: Sequence[AIMessage]

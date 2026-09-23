@@ -19,18 +19,19 @@ class ChatResponse(BaseModel):
     tagsAdded: list[str] = []
 
 
-class HistoryMessage(BaseModel):
-    id: int
-    role: str
-    content: str
-
-
 class HistoryItem(BaseModel):
+    """历史列表的一行。
+
+    T1-11 起不再带 `messages`：列表页只需要标题、预览、时间，完整会话走
+    `GET /api/v1/ai/consult/{id}`。原实现把每条会话的全部消息塞进列表响应，
+    一页 20 条会话可能要传上千条消息，只为渲染 20 行摘要。
+    """
+
     id: str
     title: str
     preview: str
+    messageCount: int
     updatedAt: int
-    messages: list[HistoryMessage] = []
 
 
 class HistoryResponse(BaseModel):

@@ -12,6 +12,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.db.uow import unit_of_work
 from app.models import AIConversation, AIMessage
 from app.repositories import conversation_repo, crop_repo, message_repo, profile_repo, tag_repo
@@ -119,24 +120,42 @@ class AIService:
         }
 
     async def history(self, db: AsyncSession, user_id: str, page: int = 1, size: int = 20) -> dict:
-        total = await conversation_repo.count(db, user_id)
-        convs = await conversation_repo.list_for_history(db, user_id, page=page, size=size)
+        """历史列表：固定 2 次查询（COUNT + 分页带预览）。
 
-        result = []
-        for conv in convs:
-            msgs = await message_repo.list_by_conversation(db, user_id, conv.id)
-            messages = [{"id": m.id, "role": m.role, "content": m.content} for m in msgs]
-            preview = msgs[-1].content[:30] if msgs else ""
-            result.append(
+        改前是 N+1：先查一页会话，再对每条会话单独查一次消息，最后在 Python 里
+        取 `msgs[-1].content[:30]`。`size=20` 时要 22 次查询，且每次把整段对话
+        读回内存只为 30 个字符（产品说明书 9.2 第 7 条）。现在预览与消息数都由
+        同一条 SQL 的窗口函数带出。
+
+        `messages` 从响应里移除：列表页只需要标题、预览、时间，完整会话走
+        `GET /api/v1/ai/consult/{id}`（技术方案 13.1）。把 messages 塞进列表是
+        "一次请求返回全部数据"的反模式，既慢又让前端被迫处理大数据包。
+        """
+        settings = get_settings()
+        # 上限保护：前端传 size=1000 时不应真去拉 1000 条会话
+        size = max(1, min(size, settings.HISTORY_MAX_PAGE_SIZE))
+        total = await conversation_repo.count(db, user_id)
+
+        fetch = (
+            conversation_repo.paginate_with_preview_lateral
+            if settings.HISTORY_QUERY_STRATEGY == "lateral"
+            else conversation_repo.paginate_with_preview
+        )
+        rows = await fetch(db, user_id, page=max(1, page), size=size)
+
+        return {
+            "list": [
                 {
                     "id": conv.id,
                     "title": conv.title or "新对话",
-                    "preview": preview,
+                    "preview": preview or "",
+                    "messageCount": msg_count,
                     "updatedAt": int(conv.update_time.timestamp() * 1000) if conv.update_time else 0,
-                    "messages": messages,
                 }
-            )
-        return {"list": result, "total": total}
+                for conv, msg_count, preview in rows
+            ],
+            "total": total,
+        }
 
     async def delete_history(self, db: AsyncSession, user_id: str, session_id: str) -> None:
         """删除会话及其消息：归属校验在仓储内完成，不属于当前用户抛 403。

@@ -306,13 +306,13 @@ def test_chat_with_foreign_session_id_does_not_take_over(client) -> None:
     assert a_after["total"] == a_before + 1
     assert all(item["id"] != b_session for item in a_after["list"])
 
-    # B 的会话条数、内容与标题都必须原样保留
+    # B 的会话条数、预览与标题都必须原样保留
+    # （T1-11 后列表不再带 `messages`，改用 `messageCount` 与 `preview` 核对未被改动）
     b_after = client.get("/api/ai/history", headers=b_headers).json()["data"]
     assert b_after["total"] == b_before["total"]
     b_items_before = {item["id"]: item for item in b_before["list"]}
     b_items_after = {item["id"]: item for item in b_after["list"]}
     assert b_items_after[b_session]["title"] == b_items_before[b_session]["title"]
-    assert [m["content"] for m in b_items_after[b_session]["messages"]] == [
-        m["content"] for m in b_items_before[b_session]["messages"]
-    ]
+    assert b_items_after[b_session]["messageCount"] == b_items_before[b_session]["messageCount"]
+    assert b_items_after[b_session]["preview"] == b_items_before[b_session]["preview"]
     assert all("稻飞虱" not in item["preview"] for item in b_after["list"])

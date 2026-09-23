@@ -1,4 +1,4 @@
-from .ai import ChatRequest, ChatResponse, HistoryItem, HistoryMessage, HistoryResponse
+from .ai import ChatRequest, ChatResponse, HistoryItem, HistoryResponse
 from .broadcast import BroadcastItem, BroadcastTodayResponse, MarkDoneRequest
 from .environment import (
     DeviceItem,
@@ -31,6 +31,5 @@ __all__ = [
     "ChatRequest",
     "ChatResponse",
     "HistoryItem",
-    "HistoryMessage",
     "HistoryResponse",
 ]

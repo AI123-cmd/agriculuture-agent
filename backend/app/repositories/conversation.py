@@ -5,13 +5,14 @@
 """
 
 from collections.abc import Sequence
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Select, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.ownership import OwnershipError
 from app.db.base import new_id
-from app.models import AIConversation
+from app.models import AIConversation, AIMessage
 from app.models.crop import Crop
 from app.repositories.base import OwnedRepository, require_user_id
 from app.repositories.message import message_repo
@@ -52,13 +53,77 @@ class ConversationRepository(OwnedRepository[AIConversation]):
         stmt = select(AIConversation.id).where(AIConversation.id == conv_id).limit(1)
         return (await db.execute(stmt)).first() is not None
 
-    async def list_for_history(
-        self, db: AsyncSession, user_id: str, *, page: int, size: int
-    ) -> Sequence[AIConversation]:
-        """历史列表分页：按 update_time 倒序（走 T1-05 建的索引）。"""
-        return await self.list(
-            db, user_id, limit=size, offset=(page - 1) * size, order_by=AIConversation.update_time.desc()
+    def preview_stmt(self, user_id: str, *, page: int, size: int) -> Select[Any]:
+        """窗口函数版的分页语句（不执行，供 `EXPLAIN` 与单测核对 SQL 形态）。"""
+        uid = self._require_user(user_id)
+        agg = message_repo.last_contents_by_conversation()
+        return (
+            select(AIConversation, func.coalesce(agg.c.msg_count, 0), agg.c.content)
+            .outerjoin(agg, agg.c.conversation_id == AIConversation.id)
+            .where(AIConversation.user_id == uid)
+            .order_by(AIConversation.update_time.desc())
+            .limit(size)
+            .offset((page - 1) * size)
         )
+
+    def preview_lateral_stmt(self, user_id: str, *, page: int, size: int) -> Select[Any]:
+        """`LATERAL` 版的分页语句（不执行，供 `EXPLAIN` 与单测核对 SQL 形态）。"""
+        uid = self._require_user(user_id)
+        # 消息数用侧查询内部的窗口函数算，而不是再套一个相关子查询：
+        # 侧查询的 FROM 也是 `ai_message`，SQLAlchemy 的自动关联会把嵌套子查询的
+        # `FROM ai_message` 消掉、转而关联到侧查询的 `ai_message` 上，语义就变成
+        # `count(*) where conversation_id = m.id`（恒为 0/1）。窗口函数在同一遍里
+        # 按分区计数，`LIMIT 1` 之前就已算好，结果就是该会话的消息总数。
+        latest = (
+            select(
+                message_repo.preview_expr().label("content"),
+                func.count().over(partition_by=AIMessage.conversation_id).label("msg_count"),
+            )
+            .where(AIMessage.conversation_id == AIConversation.id)
+            .order_by(AIMessage.id.desc())
+            .limit(1)
+            .lateral("latest")
+        )
+        return (
+            select(AIConversation, func.coalesce(latest.c.msg_count, 0), latest.c.content)
+            .outerjoin(latest, true())
+            .where(AIConversation.user_id == uid)
+            .order_by(AIConversation.update_time.desc())
+            .limit(size)
+            .offset((page - 1) * size)
+        )
+
+    async def paginate_with_preview(
+        self, db: AsyncSession, user_id: str, *, page: int, size: int
+    ) -> list[tuple[AIConversation, int, str | None]]:
+        """一次查询取会话 + 消息数 + 最后一条消息的预览（窗口函数版）。
+
+        改前是 N+1：每条会话单独查一次消息、把整段对话读进内存只为取 30 个字符。
+        这里把"每条会话的最后一条消息 + 消息数"做成一个子查询，与分页合进同一条
+        SQL，整个历史列表固定 1 次查询（`count` 另计）。
+
+        `LEFT JOIN` 不能改成 `JOIN`：没有消息的会话仍要出现在列表里
+        （`messageCount=0`、`preview=""`），内连接会静默丢行。
+        """
+        result = await db.execute(self.preview_stmt(user_id, page=page, size=size))
+        return [(row[0], row[1], row[2]) for row in result.all()]
+
+    async def paginate_with_preview_lateral(
+        self, db: AsyncSession, user_id: str, *, page: int, size: int
+    ) -> list[tuple[AIConversation, int, str | None]]:
+        """`LATERAL` 版本：只对被翻页选中的会话各取一次，不扫全表。
+
+        与窗口函数版二选一，由 `Settings.HISTORY_QUERY_STRATEGY` 决定。两者的差别
+        不在写法而在**扫描范围**：窗口函数版的子查询没有 `conversation_id` 上的
+        过滤条件，只能整表参与分区（全表扫描 + WindowAgg），多租户下会扫到所有用户
+        的消息；`LATERAL` 版带 `WHERE m.conversation_id = c.id`，可走
+        `ix_ai_message_conversation_id`，代价与页大小成正比、与表大小无关。
+        故消息表变大后应切到 `lateral`，切换只改配置、不动调用方。
+
+        外层用 `outerjoin(latest, true())` 表达 `LEFT JOIN LATERAL ... ON true`。
+        """
+        result = await db.execute(self.preview_lateral_stmt(user_id, page=page, size=size))
+        return [(row[0], row[1], row[2]) for row in result.all()]
 
     async def delete_with_messages(self, db: AsyncSession, user_id: str, conv_id: str) -> int:
         """先校验归属，再删子表，最后删父表。
