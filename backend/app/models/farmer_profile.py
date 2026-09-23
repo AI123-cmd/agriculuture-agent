@@ -9,8 +9,8 @@ class FarmerProfile(Base, TimestampMixin):
 
     __tablename__ = "farmer_profile"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
     real_name: Mapped[str] = mapped_column(String(32), nullable=False, comment="真实姓名")
     age: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     gender: Mapped[int] = mapped_column(SmallInteger, default=0, comment="1男2女")

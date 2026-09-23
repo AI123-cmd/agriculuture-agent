@@ -3,7 +3,7 @@
 from typing import Any
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg import AsyncConnection
+from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
@@ -23,6 +23,7 @@ async def get_checkpointer() -> AsyncPostgresSaver:
     global _saver, _pool
     if _saver is None:
         settings = get_settings()
+        schema = settings.CHECKPOINT_SCHEMA
         _pool = AsyncConnectionPool[AsyncConnection[dict[str, Any]]](
             settings.CHECKPOINT_DB_URL,
             min_size=2,
@@ -30,11 +31,16 @@ async def get_checkpointer() -> AsyncPostgresSaver:
             kwargs={
                 "autocommit": True,
                 "row_factory": dict_row,
-                "options": f"-c search_path={settings.CHECKPOINT_SCHEMA},public",
+                # search_path 里 schema 若不存在会被静默忽略，表就落到 public，
+                # 与"检查点独立 schema"的要求不符，故下面显式先建 schema。
+                "options": f"-c search_path={schema},public",
             },
             open=False,
         )
         await _pool.open()
+        # AsyncPostgresSaver.setup() 只建表不建 schema，schema 必须由调用方保证存在
+        async with _pool.connection() as conn:
+            await conn.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema)))
         _saver = AsyncPostgresSaver(_pool)
         await _saver.setup()
     return _saver

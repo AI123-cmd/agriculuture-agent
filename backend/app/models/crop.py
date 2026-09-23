@@ -11,9 +11,9 @@ class Crop(Base, TimestampMixin):
 
     __tablename__ = "crop"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
-    field_id: Mapped[str | None] = mapped_column(String(32), nullable=True, comment="关联地块ID")
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    field_id: Mapped[str | None] = mapped_column(String(36), nullable=True, comment="关联地块ID")
     crop_name: Mapped[str] = mapped_column(String(32), nullable=False, comment="作物名称(用户自由输入)")
     crop_variety: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="品种")
     sowing_date: Mapped[date | None] = mapped_column(Date, nullable=True)

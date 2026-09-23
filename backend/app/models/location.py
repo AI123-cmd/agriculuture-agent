@@ -9,8 +9,8 @@ class Location(Base, TimestampMixin):
 
     __tablename__ = "location"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
     location_name: Mapped[str] = mapped_column(String(128), nullable=False, comment="地点名称")
     latitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)

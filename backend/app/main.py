@@ -1,9 +1,19 @@
 """FastAPI 应用入口：装配配置、CORS、异常处理器、路由与静态资源。"""
 
+import asyncio
 import logging
 import os
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+
+# psycopg 的异步连接池不支持 Windows 默认的 ProactorEventLoop，会直接抛
+# "Psycopg cannot use the 'ProactorEventLoop' to run in async mode"。
+# 检查点器依赖 psycopg，故必须在事件循环创建之前切到 SelectorEventLoop。
+# uvicorn 在 asyncio.run() 之前导入本模块，因此这里设置是生效的。
+# 生产按全局约定跑 Linux 容器，该分支不会执行。
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

@@ -134,8 +134,17 @@ def run_async():
 
 @pytest.fixture()
 def client(engine):
-    """TestClient 不进入上下文管理器：避免每个用例都去建检查点连接池。"""
-    return TestClient(fastapi_app)
+    """TestClient 作为上下文管理器使用：整个 fixture 共享一个事件循环。
+
+    这一点是必须的：Starlette 的 TestClient 若只做 `TestClient(app)` 而不进入
+    上下文管理器，每次请求都会新建一个 anyio portal（即新事件循环）。而
+    `app.db.session.engine` 是模块级连接池，连接一旦建立在循环 A，被循环 B
+    复用时就会抛 `AttributeError: 'NoneType' object has no attribute 'send'`。
+    进入上下文管理器后 lifespan 也一并执行，检查点连接池与业务引擎同循环，
+    收尾时由 lifespan 统一关闭。
+    """
+    with TestClient(fastapi_app) as test_client:
+        yield test_client
 
 
 @pytest.fixture()

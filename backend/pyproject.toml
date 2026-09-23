@@ -60,6 +60,9 @@ ignore = ["E501"]
 # app/agent/nodes/__init__.py 必须先定义 _db_from_config 再导入各节点子模块，
 # 否则各节点 `from app.agent.nodes import _db_from_config` 会触发包初始化期循环导入。
 "app/agent/nodes/__init__.py" = ["E402"]
+# app/main.py 在 win32 上必须在导入 FastAPI 之前设置事件循环策略（psycopg 异步
+# 连接池不支持 ProactorEventLoop），因此业务导入必须排在该语句之后。
+"app/main.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -68,13 +68,29 @@ def test_uuid_primary_key_mixin_uses_string_36() -> None:
 
 
 def test_engine_can_connect(requires_postgres) -> None:
-    """真实建连：不出现 pymysql/驱动缺失一类错误。"""
+    """真实建连：不出现 pymysql/驱动缺失一类错误。
+
+    用 `engine` 之外的独立引擎建连，不碰 `app.db.session.engine`：后者是带连接池的
+    模块级单例，若在这里用 `asyncio.run` 建了连接，连接就会绑定到这个临时事件循环，
+    后续 `client` fixture 在另一个循环里复用时必然报 "attached to a different loop"。
+    """
     import asyncio
 
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.core.config import get_settings
+
+    fresh = create_async_engine(get_settings().DATABASE_URL, poolclass=NullPool)
+
     async def _connect() -> str:
-        async with engine.connect() as conn:
-            result = await conn.execute(text("SELECT 1"))
-            return str(result.scalar_one())
+        try:
+            async with fresh.connect() as conn:
+                result = await conn.execute(text("SELECT 1"))
+                return str(result.scalar_one())
+        finally:
+            await fresh.dispose()
 
     assert asyncio.run(_connect()) == "1"
 

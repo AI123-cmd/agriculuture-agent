@@ -9,7 +9,7 @@ class User(Base, TimestampMixin):
 
     __tablename__ = "user"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, comment="用户ID")
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment="用户ID")
     openid: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False, comment="微信openid")
     unionid: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="微信unionid")
     nick_name: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="昵称")
