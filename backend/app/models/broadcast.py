@@ -1,4 +1,5 @@
-from sqlalchemy import JSON, SmallInteger, String
+from sqlalchemy import SmallInteger, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
@@ -20,5 +21,5 @@ class BroadcastLog(Base, TimestampMixin):
     source: Mapped[str] = mapped_column(
         String(20), default="sensor", nullable=False, comment="sensor/weather/calendar/ai"
     )
-    meta: Mapped[dict | None] = mapped_column(JSON, nullable=True, comment="触发该条播报的环境快照")
+    meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True, comment="触发该条播报的环境快照")
     done: Mapped[int] = mapped_column(SmallInteger, default=0, comment="0未完成1已完成")

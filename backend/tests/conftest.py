@@ -3,6 +3,9 @@
 SQLite 内存库在本项目已不可用：`Vector` 列、`TIMESTAMPTZ` 默认值与
 `create_hypertable` 都不是 SQLite 能力范围内的对象。测试库连接串由
 `TEST_DATABASE_URL` 覆盖，默认指向本地 `huanong_test`。
+
+建库走 `alembic upgrade head`（T1-04）：只有真实迁移链路才能暴露
+"迁移漏建索引/漏加外键"这类问题，`Base.metadata.create_all` 会把这些掩盖掉。
 """
 
 import asyncio
@@ -21,14 +24,16 @@ os.environ.setdefault("REDIS_URL", "")
 os.environ.setdefault("JWT_SECRET", "pytest-only-secret-key-at-least-32-bytes")
 
 import pytest  # noqa: E402
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
 
-from app.db.base import Base  # noqa: E402
-import app.models  # noqa: E402, F401  注册全部 ORM 模型
 from app.main import app as fastapi_app  # noqa: E402
+
+BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 清空顺序：子表在前，避免外键阻塞
 _TABLES = (
@@ -49,6 +54,13 @@ _TABLES = (
 def _make_engine():
     """NullPool：测试进程内跨事件循环复用同一引擎不会串连接。"""
     return create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+
+
+def _alembic_config() -> Config:
+    """构造指向测试库的 Alembic 配置（env.py 会再读 DATABASE_URL，已指向测试库）。"""
+    cfg = Config(os.path.join(BACKEND_ROOT, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(BACKEND_ROOT, "alembic"))
+    return cfg
 
 
 def postgres_reachable() -> bool:
@@ -79,22 +91,21 @@ def requires_postgres() -> None:
 
 
 @pytest.fixture(scope="session")
-def engine(requires_postgres):
-    """会话级引擎：建表一次，整轮测试结束后删表。"""
+def migrated_db(requires_postgres):
+    """会话级：用迁移把测试库建到 head，整轮结束后回退到 base。"""
+    cfg = _alembic_config()
+    command.downgrade(cfg, "base")
+    command.upgrade(cfg, "head")
+    yield cfg
+    command.downgrade(cfg, "base")
+
+
+@pytest.fixture(scope="session")
+def engine(migrated_db):
+    """会话级引擎：库表由迁移建出，整轮测试共用。"""
     eng = _make_engine()
-
-    async def _create() -> None:
-        async with eng.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    async def _drop() -> None:
-        async with eng.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-        await eng.dispose()
-
-    asyncio.run(_create())
     yield eng
-    asyncio.run(_drop())
+    asyncio.run(eng.dispose())
 
 
 @pytest.fixture(autouse=True)

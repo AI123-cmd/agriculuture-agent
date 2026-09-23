@@ -26,6 +26,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.core.response import error_response
+from app.core.startup_check import verify_checkpoint_schema, verify_schema_revision
 from app.db.session import engine
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,9 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # 结构校验必须在预热之前：表结构漂移时不应先建连接再退出
+    await verify_schema_revision(engine)
+    await verify_checkpoint_schema(engine)
     # 预热：初始化 checkpointer 与诊断图单例
     await get_agent()
     yield
