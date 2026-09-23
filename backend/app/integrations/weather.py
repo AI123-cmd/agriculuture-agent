@@ -1,4 +1,5 @@
 """天气数据集成，无配置时返回静态兜底。"""
+
 import httpx
 
 from app.core.config import get_settings

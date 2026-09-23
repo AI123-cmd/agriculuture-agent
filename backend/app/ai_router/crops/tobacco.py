@@ -1,4 +1,5 @@
 """烟草专家模型。"""
+
 from ..base import CropModel
 from ..registry import register
 

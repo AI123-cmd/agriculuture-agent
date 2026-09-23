@@ -1,20 +1,27 @@
 """记忆服务：会话摘要与关键事实读写。"""
+
 import re
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import new_id
 from app.models import MemorySummary, UserProfileTag
 
 
 class MemoryService:
-    def recall(self, db: Session, user_id: str, query: str) -> dict:
+    async def recall(self, db: AsyncSession, user_id: str, query: str) -> dict:
         """回答前组装中期（摘要）+ 长期（事实/画像）记忆上下文。"""
-        tag = db.query(UserProfileTag).filter(UserProfileTag.user_id == user_id).first()
+        tag = (await db.execute(select(UserProfileTag).where(UserProfileTag.user_id == user_id))).scalars().first()
         summaries = (
-            db.query(MemorySummary)
-            .filter(MemorySummary.user_id == user_id)
-            .order_by(MemorySummary.update_time.desc())
+            (
+                await db.execute(
+                    select(MemorySummary)
+                    .where(MemorySummary.user_id == user_id)
+                    .order_by(MemorySummary.update_time.desc())
+                )
+            )
+            .scalars()
             .all()
         )
 
@@ -31,14 +38,20 @@ class MemoryService:
             "relevant_facts": facts[-5:],
         }
 
-    def remember(self, db: Session, user_id: str, session_id: str, user_message: str, ai_reply: str) -> None:
+    async def remember(self, db: AsyncSession, user_id: str, session_id: str, user_message: str, ai_reply: str) -> None:
         """回答后记录摘要与关键事实（不提交），同一会话复用一条记录。"""
         facts = self._extract_facts(user_message)
         summary = (ai_reply or "")[:200]
 
         existing = (
-            db.query(MemorySummary)
-            .filter(MemorySummary.user_id == user_id, MemorySummary.session_id == session_id)
+            (
+                await db.execute(
+                    select(MemorySummary).where(
+                        MemorySummary.user_id == user_id, MemorySummary.session_id == session_id
+                    )
+                )
+            )
+            .scalars()
             .first()
         )
         if existing:

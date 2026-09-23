@@ -1,8 +1,11 @@
 """症状采集节点：整理症状描述与照片证据。"""
+
+from langchain_core.runnables import RunnableConfig
+
 from app.agent.state import AgentState, Step
 
 
-def collect_symptoms(state: AgentState, config=None) -> dict:
+def collect_symptoms(state: AgentState, config: RunnableConfig | None = None) -> dict:
     symptoms = (state.get("symptoms") or "").strip()
     message = (state.get("user_message") or "").strip()
     image_url = state.get("image_url")

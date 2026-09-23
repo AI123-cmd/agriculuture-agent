@@ -1,4 +1,5 @@
 """播报规则引擎基类与注册表（沿用 ai_router 的装饰器注册模式）。"""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -13,10 +14,10 @@ class RuleResult:
     """单条播报提醒的结构化结果。"""
 
     type: str
-    level: str          # danger / warning / normal
+    level: str  # danger / warning / normal
     title: str
     content: str
-    source: str         # sensor / weather / calendar / ai
+    source: str  # sensor / weather / calendar / ai
     action: str = ""
     meta: dict | None = None
 
@@ -27,14 +28,13 @@ class BaseRule(ABC):
     name: str = ""
 
     @abstractmethod
-    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
-        ...
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None: ...
 
 
 _registry: dict[str, BaseRule] = {}
 
 
-def register(cls):
+def register(cls: type[BaseRule]) -> type[BaseRule]:
     """装饰器：将规则类按 name 注册并实例化。"""
     _registry[cls.name] = cls()
     return cls

@@ -1,4 +1,5 @@
 """农户档案相关模型。"""
+
 from pydantic import BaseModel
 
 

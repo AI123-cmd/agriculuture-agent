@@ -1,4 +1,5 @@
 """Redis 连接（可选）。未配置或连接失败时返回 None，由上层降级处理。"""
+
 import redis
 
 from app.core.config import get_settings

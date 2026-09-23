@@ -1,61 +1,141 @@
-"""pytest 全局配置：用 SQLite 内存库替代 MySQL，隔离环境跑测试。"""
+"""pytest 全局配置：真实 PostgreSQL 测试库 + 异步会话隔离。
+
+SQLite 内存库在本项目已不可用：`Vector` 列、`TIMESTAMPTZ` 默认值与
+`create_hypertable` 都不是 SQLite 能力范围内的对象。测试库连接串由
+`TEST_DATABASE_URL` 覆盖，默认指向本地 `huanong_test`。
+"""
+
+import asyncio
 import os
 
-# 必须在导入 app 之前覆盖配置，避免连接真实 MySQL
-os.environ["DATABASE_URL"] = "sqlite://"
-os.environ["USE_MOCK_LLM"] = "true"
-os.environ["REDIS_URL"] = ""
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL", "postgresql+asyncpg://huanong:huanong@localhost:5432/huanong_test"
+)
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+# 必须在导入 app 之前覆盖配置，避免连到开发库
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+# 检查点走 psycopg 的裸 postgresql 前缀，与 DATABASE_URL 的 driver 不同
+os.environ["CHECKPOINT_DB_URL"] = TEST_DATABASE_URL.replace("+asyncpg", "")
+os.environ.setdefault("USE_MOCK_LLM", "true")
+os.environ.setdefault("REDIS_URL", "")
+os.environ.setdefault("JWT_SECRET", "pytest-only-secret-key-at-least-32-bytes")
 
-from app.db.base import Base
-from app.db.session import get_db
-import app.models  # noqa: F401  注册全部 ORM 模型
-from app.main import app as fastapi_app
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
+from sqlalchemy.pool import NullPool  # noqa: E402
+
+from app.db.base import Base  # noqa: E402
+import app.models  # noqa: E402, F401  注册全部 ORM 模型
+from app.main import app as fastapi_app  # noqa: E402
+
+# 清空顺序：子表在前，避免外键阻塞
+_TABLES = (
+    "ai_message",
+    "ai_conversation",
+    "memory_summary",
+    "user_profile_tag",
+    "broadcast_log",
+    "location",
+    "device",
+    "field",
+    "crop",
+    "farmer_profile",
+    "user",
+)
 
 
-@pytest.fixture()
-def engine():
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
+def _make_engine():
+    """NullPool：测试进程内跨事件循环复用同一引擎不会串连接。"""
+    return create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 
 
-@pytest.fixture()
-def db(engine):
-    TestingSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-    session = TestingSessionLocal()
+def postgres_reachable() -> bool:
+    """探测测试库是否可用，供需要真实 PG 的用例做前置判断。"""
+
+    async def _probe() -> bool:
+        eng = _make_engine()
+        try:
+            async with eng.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            return True
+        except Exception:  # noqa: BLE001  探测失败原因不重要，一律视为不可用
+            return False
+        finally:
+            await eng.dispose()
+
     try:
-        yield session
-    finally:
-        session.close()
+        return asyncio.run(_probe())
+    except Exception:  # noqa: BLE001  连接串本身非法也视为不可用
+        return False
+
+
+@pytest.fixture(scope="session")
+def requires_postgres() -> None:
+    """需要真实 PostgreSQL 的用例统一用它做前置：不可用时跳过而非失败。"""
+    if not postgres_reachable():
+        pytest.skip(f"测试库不可用，跳过需要 PostgreSQL 的用例：{TEST_DATABASE_URL}")
+
+
+@pytest.fixture(scope="session")
+def engine(requires_postgres):
+    """会话级引擎：建表一次，整轮测试结束后删表。"""
+    eng = _make_engine()
+
+    async def _create() -> None:
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+    async def _drop() -> None:
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await eng.dispose()
+
+    asyncio.run(_create())
+    yield eng
+    asyncio.run(_drop())
+
+
+@pytest.fixture(autouse=True)
+def clean_tables(request):
+    """用例之间清空业务表，保证互不污染。
+
+    只在用例真的用到数据库（声明了 `engine`，或声明了依赖它的
+    `client` / `session_factory`）时才清表：否则一个 autouse fixture 会把
+    "需要 PostgreSQL" 强加到纯静态用例上，让它们被整体跳过。
+    """
+    if "engine" not in request.fixturenames:
+        yield
+        return
+
+    eng = request.getfixturevalue("engine")
+
+    async def _truncate() -> None:
+        async with eng.begin() as conn:
+            for table in _TABLES:
+                await conn.execute(text(f'TRUNCATE TABLE "{table}" RESTART IDENTITY CASCADE'))
+
+    asyncio.run(_truncate())
+    yield
+
+
+@pytest.fixture()
+def session_factory(engine):
+    """异步会话工厂，供仓储级用例自行开事务。"""
+    return async_sessionmaker(bind=engine, expire_on_commit=False)
+
+
+@pytest.fixture()
+def run_async():
+    """把协程放到独立事件循环执行的便捷入口，供同步用例做库断言。"""
+    return asyncio.run
 
 
 @pytest.fixture()
 def client(engine):
-    TestingSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    fastapi_app.dependency_overrides[get_db] = override_get_db
-    with TestClient(fastapi_app) as client:
-        yield client
-    fastapi_app.dependency_overrides.clear()
+    """TestClient 不进入上下文管理器：避免每个用例都去建检查点连接池。"""
+    return TestClient(fastapi_app)
 
 
 @pytest.fixture()

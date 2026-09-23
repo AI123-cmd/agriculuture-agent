@@ -1,5 +1,12 @@
 """病虫害气象风险规则：温湿组合判断，比单阈值更准确。"""
+
+from typing import TYPE_CHECKING
+
 from .base import BaseRule, RuleResult, register
+
+if TYPE_CHECKING:
+    from app.broadcast.snapshot import EnvSnapshot
+    from app.core.config import Settings
 
 
 @register
@@ -8,7 +15,7 @@ class PestRiskRule(BaseRule):
 
     name = "pest_risk"
 
-    def match(self, snapshot, settings):
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
         if snapshot.temp is None or snapshot.humidity is None:
             return None
         # 高湿适温（如玉米大斑病 20~25℃ + 湿度≥90% 等组合）

@@ -1,4 +1,5 @@
 """地点相关模型。"""
+
 from pydantic import BaseModel
 
 

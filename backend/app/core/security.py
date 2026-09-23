@@ -1,4 +1,5 @@
 """安全工具：token 生成 / 校验（对接 Redis Session，无 Redis 时降级进程内内存）。"""
+
 import time
 import uuid
 
@@ -25,7 +26,9 @@ def get_user_id(token: str) -> str | None:
         return None
     r = get_redis()
     if r is not None:
-        return r.get(f"token:{token}")
+        # 同步 redis 客户端（decode_responses=True）返回 str；stub 的联合返回需显式收敛
+        cached = r.get(f"token:{token}")
+        return cached if isinstance(cached, str) else None
     item = _memory.get(token)
     if item is None:
         return None

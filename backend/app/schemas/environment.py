@@ -1,4 +1,5 @@
 """环境监测相关模型。"""
+
 from pydantic import BaseModel
 
 

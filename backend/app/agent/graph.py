@@ -1,5 +1,7 @@
 """组装诊断状态机：节点 + 条件边 + 回环。"""
+
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.checkpointer import get_checkpointer
 from app.agent.nodes import (
@@ -34,8 +36,8 @@ def _route_after_diagnose(state: AgentState) -> str:
     return "prescribe"
 
 
-async def build_graph():
-    """构建并编译诊断图（含 SQLite checkpointer）。"""
+async def build_graph() -> CompiledStateGraph:
+    """构建并编译诊断图（含 PostgreSQL checkpointer）。"""
     graph = StateGraph(AgentState)
 
     graph.add_node("intake", intake)

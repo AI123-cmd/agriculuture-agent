@@ -1,4 +1,5 @@
 """农业垂类大模型抽象基类。"""
+
 import json
 
 import httpx
@@ -52,9 +53,7 @@ class CropModel:
                     resp.raise_for_status()
                     data = resp.json()
                 content = (
-                    data.get("answer")
-                    or (data.get("choices") or [{}])[0].get("message", {}).get("content")
-                    or ""
+                    data.get("answer") or (data.get("choices") or [{}])[0].get("message", {}).get("content") or ""
                 ).strip()
                 if content:
                     return content

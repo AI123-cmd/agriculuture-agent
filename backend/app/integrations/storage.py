@@ -1,4 +1,5 @@
 """对象存储抽象 + 本地实现（可替换为 OSS/COS）。"""
+
 import os
 import uuid
 from abc import ABC, abstractmethod

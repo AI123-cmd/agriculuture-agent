@@ -1,15 +1,16 @@
 """业务服务层入口，暴露各服务单例。"""
+
 from functools import lru_cache
 
+from .ai_service import AIService
 from .auth_service import AuthService
-from .farmer_service import FarmerService
-from .location_service import LocationService
 from .broadcast_service import BroadcastService
 from .environment_service import EnvironmentService
-from .ai_service import AIService
+from .farmer_service import FarmerService
+from .location_service import LocationService
 from .memory_service import MemoryService
-from .user_service import UserService
 from .profile_service import ProfileService
+from .user_service import UserService
 
 
 @lru_cache

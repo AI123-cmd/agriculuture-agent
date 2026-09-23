@@ -1,5 +1,6 @@
 """AI 对话相关模型。"""
-from typing import List
+
+import builtins
 
 from pydantic import BaseModel, Field
 
@@ -33,5 +34,6 @@ class HistoryItem(BaseModel):
 
 
 class HistoryResponse(BaseModel):
-    list: List[HistoryItem] = Field(default_factory=list)
+    # 字段名 `list` 是接口契约，必须保留；用 builtins.list 避免与字段名相互遮蔽
+    list: builtins.list[HistoryItem] = Field(default_factory=list)
     total: int = 0

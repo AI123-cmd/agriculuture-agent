@@ -1,4 +1,5 @@
 """认证相关模型。"""
+
 from pydantic import BaseModel, Field
 
 

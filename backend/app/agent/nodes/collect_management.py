@@ -1,4 +1,7 @@
 """管理追问节点：六问（施肥/打药/浇水/天气）证据采集。"""
+
+from langchain_core.runnables import RunnableConfig
+
 from app.agent.state import MANAGEMENT_KEYS, AgentState, Step
 
 _FERTILIZE = ("施肥", "追肥", "尿素", "复合肥", "有机肥", "氮肥", "磷", "钾", "底肥", "叶面肥")
@@ -28,7 +31,7 @@ def _extract_management(message: str) -> dict:
     return result
 
 
-def collect_management(state: AgentState, config=None) -> dict:
+def collect_management(state: AgentState, config: RunnableConfig | None = None) -> dict:
     management = dict(state.get("management") or {})
     message = (state.get("user_message") or "").strip()
 

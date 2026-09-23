@@ -1,4 +1,5 @@
 """置信度分级：规则化、确定性、可单测。"""
+
 from app.agent.state import MANAGEMENT_KEYS, AgentState
 from app.core.config import get_settings
 
@@ -15,12 +16,14 @@ def assess(state: AgentState) -> tuple[int, str]:
     management_complete = all(k in management for k in MANAGEMENT_KEYS)
     environment_consistent = not state.get("evidence_conflict", False)
 
-    score = sum((
-        1 if has_image else 0,
-        1 if symptoms_complete else 0,
-        1 if management_complete else 0,
-        1 if environment_consistent else 0,
-    ))
+    score = sum(
+        (
+            1 if has_image else 0,
+            1 if symptoms_complete else 0,
+            1 if management_complete else 0,
+            1 if environment_consistent else 0,
+        )
+    )
 
     if score >= settings.CONFIDENCE_HIGH_THRESHOLD and has_image:
         level = "high"

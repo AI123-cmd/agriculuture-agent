@@ -1,4 +1,5 @@
 """播报相关模型。"""
+
 from pydantic import BaseModel
 
 

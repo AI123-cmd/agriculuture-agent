@@ -1,7 +1,9 @@
 """环境监测服务：数据源统一走 tools.sensors，无设备时自动降级为静态兜底。"""
+
 from datetime import datetime
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models import Device
@@ -9,24 +11,22 @@ from app.tools import sensors
 
 
 class EnvironmentService:
-    def summary(self, db: Session, user_id: str) -> dict:
-        s = self._sensor(db, user_id)
+    async def summary(self, db: AsyncSession, user_id: str) -> dict:
+        s = await self._sensor(db, user_id)
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         return {
             "temperature": s["air_temperature"],
             "humidity": s["air_humidity"],
             "soilStatus": self._soil_status(s["soil_moisture"]),
-            "soilDetail": (
-                f"土壤温度{s['soil_temperature']}℃，含水率{s['soil_moisture']}%，pH {s['soil_ph']}"
-            ),
+            "soilDetail": (f"土壤温度{s['soil_temperature']}℃，含水率{s['soil_moisture']}%，pH {s['soil_ph']}"),
             "lightStatus": "良好" if s["light_lux"] >= 30000 else "一般",
             "lightDetail": f"光照强度{s['light_lux']} lux",
             "lastUpdateAt": now,
         }
 
-    def detail(self, db: Session, user_id: str) -> dict:
-        s = self._sensor(db, user_id)
-        devices = db.query(Device).filter(Device.user_id == user_id).all()
+    async def detail(self, db: AsyncSession, user_id: str) -> dict:
+        s = await self._sensor(db, user_id)
+        devices = (await db.execute(select(Device).where(Device.user_id == user_id))).scalars().all()
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         return {
             "metrics": [
@@ -66,10 +66,10 @@ class EnvironmentService:
             "lastUpdateAt": now,
         }
 
-    def _sensor(self, db: Session, user_id: str) -> dict:
-        return sensors.query_sensors(db, user_id)
+    async def _sensor(self, db: AsyncSession, user_id: str) -> dict:
+        return await sensors.query_sensors(db, user_id)
 
-    def _soil_status(self, moisture) -> str:
+    def _soil_status(self, moisture: float | None) -> str:
         if moisture is None:
             return "未知"
         if moisture < get_settings().BROADCAST_SOIL_DRY:

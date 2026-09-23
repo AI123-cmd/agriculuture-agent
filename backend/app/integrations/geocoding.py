@@ -1,4 +1,5 @@
 """逆地理编码集成（GPS 坐标 -> 省市县），无配置时返回坐标兜底。"""
+
 import httpx
 
 from app.core.config import get_settings

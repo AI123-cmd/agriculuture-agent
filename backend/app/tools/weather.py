@@ -1,4 +1,5 @@
 """天气工具（MCP）：查询当前/预报天气。"""
+
 from app.integrations.weather import get_weather_summary
 
 

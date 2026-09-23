@@ -1,4 +1,7 @@
 """综合诊断节点：路由垂类模型 + 置信度分级 + 注入记忆。"""
+
+from langchain_core.runnables import RunnableConfig
+
 from app.agent.confidence import assess
 from app.agent.nodes import _db_from_config
 from app.agent.state import AgentState, Step
@@ -6,7 +9,7 @@ from app.ai_router.registry import resolve
 from app.services.memory_service import MemoryService
 
 
-async def diagnose(state: AgentState, config=None) -> dict:
+async def diagnose(state: AgentState, config: RunnableConfig | None = None) -> dict:
     db = _db_from_config(config)
     crop_tag = state.get("crop_tag")
     symptoms = (state.get("symptoms") or "").strip()
@@ -20,7 +23,7 @@ async def diagnose(state: AgentState, config=None) -> dict:
 
     # 注入中期（摘要）/长期（事实/画像）记忆
     if db is not None:
-        context.update(MemoryService().recall(db, state.get("user_id", ""), symptoms))
+        context.update(await MemoryService().recall(db, state.get("user_id", ""), symptoms))
 
     model = resolve(crop_tag)
     text = await model.chat(symptoms, context)

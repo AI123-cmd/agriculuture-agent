@@ -1,12 +1,14 @@
 """AI 兜底：规则均未命中时，用通用农业模型生成当日农事简报。"""
+
 from app.ai_router.registry import resolve
 from app.broadcast.rules.base import RuleResult
+from app.broadcast.snapshot import EnvSnapshot
 
 
 class BroadcastSkill:
     """复用通用农业模型生成简报，逻辑与诊断垂类隔离。"""
 
-    async def brief(self, snapshot, profile: dict | None = None) -> RuleResult:
+    async def brief(self, snapshot: EnvSnapshot, profile: dict | None = None) -> RuleResult:
         model = resolve("通用农业")
         env = {
             "crop": snapshot.crop_name,

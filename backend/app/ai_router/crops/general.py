@@ -1,4 +1,5 @@
 """通用农业模型（兜底）。"""
+
 from ..base import CropModel
 from ..registry import register
 

@@ -1,4 +1,5 @@
 """微信 jscode2session 集成。"""
+
 import httpx
 
 from app.core.config import get_settings

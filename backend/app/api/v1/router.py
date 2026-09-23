@@ -1,4 +1,5 @@
 """聚合注册所有 v1 子路由。"""
+
 from fastapi import APIRouter
 
 from .ai import router as ai_router

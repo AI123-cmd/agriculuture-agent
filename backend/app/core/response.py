@@ -1,5 +1,6 @@
 """统一响应包装：{code, message, data}。"""
-from typing import Any, Optional
+
+from typing import Any
 
 from fastapi.responses import JSONResponse
 
@@ -17,7 +18,7 @@ def fail(code: int = BAD_REQUEST, message: str = "请求参数错误", data: Any
     return {"code": code, "message": message, "data": data}
 
 
-def error_response(code: int, message: str, status_code: Optional[int] = None) -> JSONResponse:
+def error_response(code: int, message: str, status_code: int | None = None) -> JSONResponse:
     """构建错误 JSONResponse（用于异常 handler）。"""
     body = fail(code, message)
     return JSONResponse(status_code=status_code or code, content=body)

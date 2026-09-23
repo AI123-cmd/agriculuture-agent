@@ -1,11 +1,14 @@
 """环境取证节点：调用 MCP 工具拉取传感器/天气/档案/知识库快照。"""
+
+from langchain_core.runnables import RunnableConfig
+
 from app.agent.nodes import _db_from_config
 from app.agent.state import AgentState, Step
 from app.core.config import get_settings
 from app.tools import knowledge, profile, sensors, weather
 
 
-def fetch_environment(state: AgentState, config=None) -> dict:
+async def fetch_environment(state: AgentState, config: RunnableConfig | None = None) -> dict:
     settings = get_settings()
     if not settings.MCP_ENABLED:
         return {"step": Step.FETCH_ENVIRONMENT.value, "environment": {}}
@@ -17,9 +20,9 @@ def fetch_environment(state: AgentState, config=None) -> dict:
     symptoms = (state.get("symptoms") or "").strip()
 
     environment = {
-        "sensors": sensors.query_sensors(db, user_id),
+        "sensors": await sensors.query_sensors(db, user_id),
         "weather": weather.query_weather(location),
-        "profile": profile.query_profile(db, user_id),
+        "profile": await profile.query_profile(db, user_id),
     }
     if symptoms:
         environment["knowledge"] = knowledge.search_knowledge(symptoms)

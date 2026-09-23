@@ -1,16 +1,19 @@
 """LangGraph 编排层入口：暴露 build_graph / get_agent。"""
+
 import asyncio
+
+from langgraph.graph.state import CompiledStateGraph
 
 from .graph import build_graph
 
 __all__ = ["build_graph", "get_agent"]
 
-_agent = None
+_agent: CompiledStateGraph | None = None
 _agent_loop: asyncio.AbstractEventLoop | None = None
 
 
-async def get_agent():
-    """返回编译后的诊断图单例（含 SQLite checkpointer）。
+async def get_agent() -> CompiledStateGraph:
+    """返回编译后的诊断图单例（含 PostgreSQL checkpointer）。
 
     图绑定创建时的事件循环；跨循环（如测试隔离）自动重建。
     """

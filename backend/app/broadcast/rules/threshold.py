@@ -1,5 +1,12 @@
 """阈值规则集：数据驱动，命中即产出播报提醒。"""
+
+from typing import TYPE_CHECKING
+
 from .base import BaseRule, RuleResult, register
+
+if TYPE_CHECKING:
+    from app.broadcast.snapshot import EnvSnapshot
+    from app.core.config import Settings
 
 
 @register
@@ -8,7 +15,7 @@ class HighTempRule(BaseRule):
 
     name = "high_temp"
 
-    def match(self, snapshot, settings):
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
         if snapshot.temp is None or snapshot.temp < settings.BROADCAST_TEMP_HIGH:
             return None
         return RuleResult(
@@ -21,7 +28,7 @@ class HighTempRule(BaseRule):
         )
 
     @staticmethod
-    def _source(snapshot) -> str:
+    def _source(snapshot: "EnvSnapshot") -> str:
         return "weather" if snapshot.source == "mock" else "sensor"
 
 
@@ -31,7 +38,7 @@ class LowTempRule(BaseRule):
 
     name = "low_temp"
 
-    def match(self, snapshot, settings):
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
         if snapshot.temp is None or snapshot.temp > settings.BROADCAST_TEMP_LOW:
             return None
         return RuleResult(
@@ -44,7 +51,7 @@ class LowTempRule(BaseRule):
         )
 
     @staticmethod
-    def _source(snapshot) -> str:
+    def _source(snapshot: "EnvSnapshot") -> str:
         return "weather" if snapshot.source == "mock" else "sensor"
 
 
@@ -54,7 +61,7 @@ class SoilDryRule(BaseRule):
 
     name = "soil_dry"
 
-    def match(self, snapshot, settings):
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
         if snapshot.soil_moisture is None or snapshot.soil_moisture >= settings.BROADCAST_SOIL_DRY:
             return None
         return RuleResult(
@@ -73,7 +80,7 @@ class HighHumidityRule(BaseRule):
 
     name = "high_humidity"
 
-    def match(self, snapshot, settings):
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
         if snapshot.humidity is None or snapshot.humidity < settings.BROADCAST_HUMIDITY_HIGH:
             return None
         return RuleResult(
@@ -92,7 +99,7 @@ class RainfallRule(BaseRule):
 
     name = "rainfall"
 
-    def match(self, snapshot, settings):
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
         rainfall = snapshot.forecast.get("rainfall") if snapshot.forecast else None
         if rainfall is None or rainfall <= settings.BROADCAST_RAINFALL_MM:
             return None
@@ -112,7 +119,7 @@ class StrongWindRule(BaseRule):
 
     name = "strong_wind"
 
-    def match(self, snapshot, settings):
+    def match(self, snapshot: "EnvSnapshot", settings: "Settings") -> RuleResult | None:
         if snapshot.wind_speed is None or snapshot.wind_speed < settings.BROADCAST_WIND_MS:
             return None
         return RuleResult(

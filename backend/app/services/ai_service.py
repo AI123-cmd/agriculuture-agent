@@ -1,5 +1,10 @@
 """AI 对话编排服务：喂入 LangGraph 诊断图，落库并返回纯文本。"""
-from sqlalchemy.orm import Session
+
+from typing import Any
+
+from langchain_core.runnables import RunnableConfig
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AIConversation, AIMessage, Crop, FarmerProfile, UserProfileTag
 from app.schemas import ChatRequest
@@ -8,13 +13,14 @@ from app.services.profile_service import ProfileService
 
 
 class AIService:
-    async def chat(self, db: Session, user_id: str, req: ChatRequest) -> dict:
+    async def chat(self, db: AsyncSession, user_id: str, req: ChatRequest) -> dict:
         context = await self.build_context(db, user_id, req.cropTag)
 
         from app.agent import get_agent  # 延迟导入，避免与 services 包形成循环依赖
 
         graph = await get_agent()
-        initial_state = {
+        # 状态是异构字典，交给 LangGraph 以 Any 输入处理，避免 mypy 对重载的过度收敛
+        initial_state: dict[str, Any] = {
             "session_id": req.sessionId,
             "user_id": user_id,
             "crop_tag": req.cropTag,
@@ -23,13 +29,13 @@ class AIService:
             "context": context,
             "messages": [{"role": "user", "content": req.message}],
         }
-        config = {"configurable": {"thread_id": req.sessionId, "db": db}}
+        config: RunnableConfig = {"configurable": {"thread_id": req.sessionId, "db": db}}
         result = await graph.ainvoke(initial_state, config=config)
 
         reply = result.get("reply") or ""
         related = result.get("related_suggestions") or ["追肥建议", "排水建议", "3天后复查"]
 
-        self._persist(db, user_id, req, reply)
+        await self._persist(db, user_id, req, reply)
 
         tags_added = [req.cropTag] if req.cropTag else []
         return {
@@ -39,8 +45,8 @@ class AIService:
             "tagsAdded": tags_added,
         }
 
-    def _persist(self, db: Session, user_id: str, req: ChatRequest, reply: str) -> None:
-        conv = db.query(AIConversation).filter(AIConversation.id == req.sessionId).first()
+    async def _persist(self, db: AsyncSession, user_id: str, req: ChatRequest, reply: str) -> None:
+        conv = (await db.execute(select(AIConversation).where(AIConversation.id == req.sessionId))).scalars().first()
         if conv is None:
             conv = AIConversation(id=req.sessionId, user_id=user_id, title=req.message[:15], crop_tag=req.cropTag)
             db.add(conv)
@@ -51,16 +57,16 @@ class AIService:
         db.add(AIMessage(conversation_id=req.sessionId, role="ai", content=reply))
 
         tags_added = [req.cropTag] if req.cropTag else []
-        ProfileService().add_tags(db, user_id, tags_added)
-        MemoryService().remember(db, user_id, req.sessionId, req.message, reply)
+        await ProfileService().add_tags(db, user_id, tags_added)
+        await MemoryService().remember(db, user_id, req.sessionId, req.message, reply)
 
-        db.commit()
+        await db.commit()
 
-    async def build_context(self, db: Session, user_id: str, crop_tag: str | None) -> dict:
-        profile = db.query(FarmerProfile).filter(FarmerProfile.user_id == user_id).first()
-        crops = db.query(Crop).filter(Crop.user_id == user_id).all()
+    async def build_context(self, db: AsyncSession, user_id: str, crop_tag: str | None) -> dict:
+        profile = (await db.execute(select(FarmerProfile).where(FarmerProfile.user_id == user_id))).scalars().first()
+        crops = (await db.execute(select(Crop).where(Crop.user_id == user_id))).scalars().all()
         crop = next((c for c in crops if c.crop_name == crop_tag), crops[0] if crops else None)
-        tag = db.query(UserProfileTag).filter(UserProfileTag.user_id == user_id).first()
+        tag = (await db.execute(select(UserProfileTag).where(UserProfileTag.user_id == user_id))).scalars().first()
 
         def mask(name: str) -> str:
             return (name[0] + "**") if name else "农户"
@@ -78,17 +84,29 @@ class AIService:
             "profile_tags": tag.tags if tag and tag.tags else [],
         }
 
-    def history(self, db: Session, user_id: str, page: int = 1, size: int = 20) -> dict:
-        q = db.query(AIConversation).filter(AIConversation.user_id == user_id).order_by(AIConversation.update_time.desc())
-        total = q.count()
-        convs = q.offset((page - 1) * size).limit(size).all()
+    async def history(self, db: AsyncSession, user_id: str, page: int = 1, size: int = 20) -> dict:
+        total = (
+            await db.execute(select(func.count()).select_from(AIConversation).where(AIConversation.user_id == user_id))
+        ).scalar_one()
+        convs = (
+            (
+                await db.execute(
+                    select(AIConversation)
+                    .where(AIConversation.user_id == user_id)
+                    .order_by(AIConversation.update_time.desc())
+                    .offset((page - 1) * size)
+                    .limit(size)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         result = []
         for conv in convs:
             msgs = (
-                db.query(AIMessage)
-                .filter(AIMessage.conversation_id == conv.id)
-                .order_by(AIMessage.id)
+                (await db.execute(select(AIMessage).where(AIMessage.conversation_id == conv.id).order_by(AIMessage.id)))
+                .scalars()
                 .all()
             )
             messages = [{"id": m.id, "role": m.role, "content": m.content} for m in msgs]
@@ -104,9 +122,17 @@ class AIService:
             )
         return {"list": result, "total": total}
 
-    def delete_history(self, db: Session, user_id: str, session_id: str) -> None:
-        conv = db.query(AIConversation).filter(AIConversation.id == session_id, AIConversation.user_id == user_id).first()
+    async def delete_history(self, db: AsyncSession, user_id: str, session_id: str) -> None:
+        conv = (
+            (
+                await db.execute(
+                    select(AIConversation).where(AIConversation.id == session_id, AIConversation.user_id == user_id)
+                )
+            )
+            .scalars()
+            .first()
+        )
         if conv:
-            db.query(AIMessage).filter(AIMessage.conversation_id == session_id).delete(synchronize_session=False)
-            db.delete(conv)
-            db.commit()
+            await db.execute(delete(AIMessage).where(AIMessage.conversation_id == session_id))
+            await db.delete(conv)
+            await db.commit()

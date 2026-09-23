@@ -1,6 +1,6 @@
 [project]
 name = "huanong-backend"
-version = "1.1.0"
+version = "2.0.0"
 description = "话农点金 - AI 农事助手后端服务"
 requires-python = ">=3.11"
 dependencies = [
@@ -9,24 +9,67 @@ dependencies = [
     "pydantic>=2.6.0",
     "pydantic-settings>=2.1.0",
     "python-dotenv>=1.0.0",
-    "sqlalchemy>=2.0.25",
-    "pymysql>=1.1.0",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29.0",
+    "psycopg[binary]>=3.1.18",
+    "psycopg-pool>=3.2.0",
     "alembic>=1.13.0",
+    "pgvector>=0.3.0",
     "cryptography>=42.0.0",
     "redis>=5.0.0",
+    "arq>=0.26.0",
+    "pyjwt>=2.8.0",
     "httpx>=0.27.0,<0.28.0",
     "python-multipart>=0.0.9",
-    "langgraph>=0.2.0",
-    "langgraph-checkpoint-sqlite>=2.0.0",
+    "langgraph>=0.2.60",
+    "langgraph-checkpoint-postgres>=2.0.10",
     "mcp>=1.0.0",
     "langchain-mcp-adapters>=0.1.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "coverage>=7.4.0",
+    "respx>=0.21.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+]
 
 [tool.setuptools]
 packages = ["app"]
 
 [tool.ruff]
 line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# ASYNC 规则集拦住"在 async 函数里用同步库"这类问题（误用 requests、同步 Session）
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# 迁移脚本是同步的一次性工具，允许同步 IO 与子进程调用
+"alembic/versions/*.py" = ["E", "F", "I", "UP", "B", "ASYNC"]
+"scripts/*.py" = ["ASYNC", "B", "E", "F", "I", "UP"]
+"tests/*.py" = ["B", "E", "F", "I", "UP", "ASYNC"]
+# 路由层的 Depends/File 写在默认值是 FastAPI 的官方写法（依赖注入靠默认值声明），
+# 不构成 B008 想拦的"每次调用都重建可变默认值"问题，在此显式登记豁免。
+"app/api/**/*.py" = ["B008"]
+# app/agent/nodes/__init__.py 必须先定义 _db_from_config 再导入各节点子模块，
+# 否则各节点 `from app.agent.nodes import _db_from_config` 会触发包初始化期循环导入。
+"app/agent/nodes/__init__.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["app"]
+strict = false
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+exclude = ["^alembic/", "^scripts/", "^tests/"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

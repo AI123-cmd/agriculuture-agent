@@ -1,4 +1,5 @@
 """FastAPI 依赖注入：从 Authorization header 解析 token 并提取当前用户。"""
+
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
