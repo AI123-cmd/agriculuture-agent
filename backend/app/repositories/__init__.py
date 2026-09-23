@@ -4,10 +4,17 @@
 """
 
 from app.repositories.base import OwnedRepository
-from app.repositories.conversation import ConversationRepository, conversation_repo
+from app.repositories.conversation import (
+    ConversationRepository,
+    ConversationScopedRepository,
+    conversation_repo,
+    message_repo,
+)
 
 __all__ = [
     "OwnedRepository",
     "ConversationRepository",
+    "ConversationScopedRepository",
     "conversation_repo",
+    "message_repo",
 ]

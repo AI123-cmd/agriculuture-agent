@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.ownership import OwnershipError
 from app.models import AIConversation, AIMessage
+from app.repositories.base import execute_write, require_user_id
 from app.repositories.base import OwnedRepository
 
 
@@ -58,7 +59,7 @@ class ConversationScopedRepository:
     async def delete_by_conversation(self, db: AsyncSession, user_id: str, conv_id: str) -> int:
         await self._require_owned_conversation(db, user_id, conv_id)
         stmt = delete(AIMessage).where(AIMessage.conversation_id == conv_id)
-        return (await db.execute(stmt)).rowcount
+        return await execute_write(db, stmt)
 
     async def delete_by_user(self, db: AsyncSession, user_id: str) -> int:
         """按归属删除本人全部消息（注销账号用）。
@@ -66,10 +67,10 @@ class ConversationScopedRepository:
         不依赖"先查会话 id 列表再删"的两步形态：那一步在并发下可能拿到空列表
         而漏删已存在的消息，留下孤儿。这里把归属条件直接写进 IN 子查询。
         """
-        uid = self.conversations._require_user(user_id)
+        uid = require_user_id(self.model.__name__, user_id)
         owned_ids = select(AIConversation.id).where(AIConversation.user_id == uid)
         stmt = delete(AIMessage).where(AIMessage.conversation_id.in_(owned_ids))
-        return (await db.execute(stmt)).rowcount
+        return await execute_write(db, stmt)
 
 
 conversation_repo = ConversationRepository()

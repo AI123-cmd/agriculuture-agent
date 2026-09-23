@@ -7,15 +7,37 @@
 """
 
 from collections.abc import Sequence
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 
-from sqlalchemy import ColumnElement, Select, delete, func, select, update
+from sqlalchemy import ColumnElement, CursorResult, Select, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.ownership import MissingOwnerError, OwnershipError
 from app.db.owned import OwnedModel
 
 ModelT = TypeVar("ModelT", bound=OwnedModel)
+
+
+def require_user_id(model_name: str, user_id: str | None) -> str:
+    """空串、None、非字符串一律拒绝，不做降级。
+
+    做成模块级函数而非仅基类方法，是为了让"模型不带 user_id"的仓储
+    （如 `app/repositories/conversation.py` 里管 `ai_message` 的子表仓储）
+    也能复用同一套判定，避免各写一份而出现口径漂移。
+    """
+    if not user_id or not isinstance(user_id, str):
+        raise MissingOwnerError(f"{model_name} 缺少归属参数 user_id，已拒绝执行")
+    return user_id
+
+
+async def execute_write(db: AsyncSession, stmt: Any) -> int:
+    """执行 DML 并取受影响行数。
+
+    `AsyncSession.execute` 的类型标注返回 `Result[Any]`，而实际对象是
+    `CursorResult`（`rowcount` 只在后者上）。这里的 cast 是补标注，不是绕过检查。
+    """
+    result = cast(CursorResult[Any], await db.execute(stmt))
+    return result.rowcount
 
 
 class OwnedRepository(Generic[ModelT]):
@@ -27,10 +49,7 @@ class OwnedRepository(Generic[ModelT]):
         self.model = model
 
     def _require_user(self, user_id: str | None) -> str:
-        """空串、None、非字符串一律拒绝，不做降级。"""
-        if not user_id or not isinstance(user_id, str):
-            raise MissingOwnerError(f"{self.model.__name__} 缺少归属参数 user_id，已拒绝执行")
-        return user_id
+        return require_user_id(self.model.__name__, user_id)
 
     def _owned_query(self, user_id: str) -> Select[tuple[ModelT]]:
         """构造带归属条件的 SELECT，禁止调用方自行拼 where。"""
@@ -88,13 +107,13 @@ class OwnedRepository(Generic[ModelT]):
     async def update_fields(self, db: AsyncSession, user_id: str, obj_id: str, **fields: Any) -> int:
         uid = self._require_user(user_id)
         stmt = update(self.model).where(self.model.id == obj_id, self.model.user_id == uid).values(**fields)
-        return (await db.execute(stmt)).rowcount
+        return await execute_write(db, stmt)
 
     async def delete_all(self, db: AsyncSession, user_id: str, **conditions: Any) -> int:
         stmt = delete(self.model).where(self.model.user_id == self._require_user(user_id))
         for field, value in conditions.items():
             stmt = stmt.where(getattr(self.model, field) == value)
-        return (await db.execute(stmt)).rowcount
+        return await execute_write(db, stmt)
 
     async def delete(self, db: AsyncSession, user_id: str, obj_id: str) -> int:
         return await self.delete_all(db, user_id, id=obj_id)

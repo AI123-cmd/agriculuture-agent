@@ -24,7 +24,13 @@ class OwnedMixin:
 
 
 class OwnedModel(Protocol):
-    """供 OwnedRepository 做类型约束的最小协议。"""
+    """供 OwnedRepository 做类型约束的最小协议。
 
-    id: Mapped[str]
-    user_id: Mapped[str]
+    属性标注用 `str` 而非 `Mapped[str]`：协议描述的是**实例**的可用接口，
+    实例上 `user_id` 就是 `str`。用 `Mapped[str]` 会让 `AIConversation` 这类
+    声明式模型无法满足协议（mypy 会报 type-var 不匹配），还会让仓储里的
+    `obj.user_id = uid` 被判成"给 Mapped 赋 str"。
+    """
+
+    id: str
+    user_id: str
