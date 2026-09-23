@@ -12,23 +12,28 @@ PNG 用 `zlib` 现场拼出真实字节而非硬编码 base64，这样"合法图
 不是为了通过校验而伪造的头部。
 """
 
+import asyncio
+import hashlib
 import struct
 import zlib
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.core.validators import ImageCheck, sniff_mime, validate_image
 from app.integrations.storage import LocalStorage
+from app.models import User
 
 _ALLOWED = {"image/jpeg", "image/png", "image/webp"}
 _MAX = 5 * 1024 * 1024
 
 
 def _png_chunk(tag: bytes, payload: bytes) -> bytes:
-    return (
-        struct.pack(">I", len(payload)) + tag + payload + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF)
-    )
+    return struct.pack(">I", len(payload)) + tag + payload + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF)
 
 
 def make_png(width: int = 1, height: int = 1) -> bytes:
@@ -114,7 +119,7 @@ def test_oversized_file_is_rejected() -> None:
     """大小校验排在类型校验之前：先拒大文件，避免把它读进内存。"""
     result = _check(make_png() + b"\x00" * 1024, max_bytes=100)
     assert result.ok is False
-    assert result.reason == "文件超过上限 0MB"
+    assert result.reason == "文件超过上限 0.0MB"
 
 
 def test_type_outside_allowlist_is_rejected() -> None:
@@ -141,16 +146,16 @@ def test_extension_in_filename_does_not_influence_result() -> None:
 
 
 def test_save_image_names_by_content_hash(tmp_path: Path) -> None:
-    """文件名是内容哈希，且落在前 2 位哈希命名的子目录里。"""
+    """文件名是内容的 SHA-256，且落在前 2 位哈希命名的子目录里。"""
     url = LocalStorage(str(tmp_path)).save_image(make_png(), "image/png")
 
     assert url.startswith("/static/")
-    key = url.removeprefix("/static/")
-    shard, name = key.split("/")
-    assert len(shard) == 2
-    assert name == f"{shard}{name[2:-4]}.png"[2 - 2 :] or name.endswith(".png")
-    assert name[:2] == shard
-    assert (tmp_path / key).exists()
+    shard, name = url.removeprefix("/static/").split("/")
+    digest = hashlib.sha256(make_png()).hexdigest()
+
+    assert shard == digest[:2]
+    assert name == f"{digest}.png"
+    assert (tmp_path / shard / name).read_bytes() == make_png()
 
 
 def test_save_image_deduplicates_same_content(tmp_path: Path) -> None:
@@ -184,6 +189,20 @@ def upload_dir(tmp_path: Path, monkeypatch) -> Path:
     """把存储根换到临时目录，避免测试往仓库里的 `uploads/` 写文件。"""
     monkeypatch.setattr("app.services.user_service.get_storage", lambda: LocalStorage(str(tmp_path)))
     return tmp_path
+
+
+@pytest.fixture()
+def static_view(upload_dir: Path) -> TestClient:
+    """按 `app.main` 的方式把存储根挂到 `/static`，用来验证返回的 URL 真能取到内容。
+
+    不直接用真实应用取：真实应用的 `/static` 在模块导入时就绑定了 `STORAGE_LOCAL_DIR`，
+    而这里的文件写在临时目录里，两者不是同一路径。挂载方式与 `app.main` 一致，
+    因此"URL 前缀 + 目录结构"这一约定仍被完整覆盖。
+    """
+    app = FastAPI()
+    app.mount("/static", StaticFiles(directory=str(upload_dir)), name="static")
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def _files(root: Path) -> list[Path]:
@@ -228,7 +247,7 @@ def test_declared_png_but_jpeg_content_returns_400(client, auth_headers, upload_
     assert _files(upload_dir) == []
 
 
-def test_valid_png_upload_returns_hashed_url(client, auth_headers, upload_dir: Path) -> None:
+def test_valid_png_upload_returns_hashed_url(client, auth_headers, upload_dir: Path, static_view: TestClient) -> None:
     """合法 PNG：URL 形如 `/static/ab/ab12...png`，文件确实落盘且可访问。"""
     resp = _upload(client, auth_headers, make_png(), "头像.png", "image/png")
 
@@ -240,9 +259,10 @@ def test_valid_png_upload_returns_hashed_url(client, auth_headers, upload_dir: P
     assert len(shard) == 2 and name.endswith(".png")
     assert (upload_dir / key).read_bytes() == make_png()
 
-    # 静态目录已由 app.main 挂载在 /static，URL 直接取得到内容
-    fetched = client.get(url)
+    # 静态目录按 app.main 的方式挂载后，返回的 URL 直接取得到内容
+    fetched = static_view.get(url)
     assert fetched.status_code == 200
+    assert fetched.content == make_png()
 
 
 def test_uploading_same_image_twice_stores_one_file(client, auth_headers, upload_dir: Path) -> None:
@@ -263,9 +283,19 @@ def test_php_filename_does_not_produce_php_extension(client, auth_headers, uploa
     assert not list(upload_dir.rglob("*.php"))
 
 
-def test_failed_upload_does_not_touch_user_record(client, auth_headers, upload_dir: Path) -> None:
-    """校验失败时连数据库都不碰：头像地址保持原值（登录用户初始为空）。"""
-    resp = _upload(client, auth_headers, b"MZ\x90\x00", "v.jpg", "image/jpeg")
+def test_failed_upload_does_not_touch_user_record(client, auth_headers, upload_dir: Path, session_factory) -> None:
+    """校验失败时连数据库都不碰：用户记录的头像地址仍为空。
 
+    登录响应不带头像地址，故直接查库核对——校验在写库之前就该拦住请求，
+    若未来有人把 `validate_image` 挪到 `unit_of_work` 之内，这条会失败。
+    """
+    resp = _upload(client, auth_headers, b"MZ\x90\x00", "v.jpg", "image/jpeg")
     assert resp.status_code == 400
     assert _files(upload_dir) == []
+
+    async def _avatar_urls() -> list[str | None]:
+        async with session_factory() as db:
+            return list((await db.execute(select(User.avatar_url))).scalars().all())
+
+    # 清表后只剩登录创建的那个用户，它的头像地址不应被失败的请求改动
+    assert asyncio.run(_avatar_urls()) == [None]
