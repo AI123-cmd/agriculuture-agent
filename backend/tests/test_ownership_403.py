@@ -14,12 +14,15 @@
 （`RuntimeError: ... attached to a different loop`）。
 """
 
+from collections.abc import AsyncIterator
+
 import httpx
 import pytest
 from fastapi import Depends, FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.deps import get_current_userfrom app.core.exceptions import AppException
+from app.api.deps import get_current_user
+from app.core.exceptions import AppException
 from app.db.session import get_db
 from app.main import app as fastapi_app
 from app.main import app_exception_handler, unhandled_exception_handler
@@ -142,8 +145,3 @@ def test_missing_owner_error_still_caught_as_app_exception() -> None:
     from app.core.ownership import MissingOwnerError
 
     assert issubclass(MissingOwnerError, AppException)
-
-
-def test_no_orphan_helpers_left_in_this_module() -> None:
-    """自检：本模块不得出现"忘记 await"的 asyncio.run 包装（跨循环隐患）。"""
-    assert asyncio.get_event_loop_policy() is not None

@@ -12,8 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.ownership import OwnershipError
 from app.models import AIConversation, AIMessage
-from app.repositories.base import execute_write, require_user_id
-from app.repositories.base import OwnedRepository
+from app.repositories.base import OwnedRepository, execute_write, require_user_id
 
 
 class ConversationRepository(OwnedRepository[AIConversation]):

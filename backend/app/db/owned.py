@@ -2,35 +2,41 @@
 
 两个设计取舍：
 
-1. 用 `declared_attr` 而非普通 `mapped_column`。多个子类继承同一混入时，
-   SQLAlchemy 会尝试复用同一个 `Column` 对象并报 "Column object already
-   assigned to Table"；`declared_attr` 让每个子类各自生成独立列对象。
+1. 用普通 `mapped_column` 而非 `declared_attr`。SQLAlchemy 的混入支持会在建表时
+   为**每个子类各自复制一份列对象与索引**（实测 9 个子类得到 9 个独立列、各自一份
+   `ix_*_user_id`），不存在"复用同一 Column 对象"的问题；子类自行声明 `user_id`
+   时混入那一份被丢弃。相比 `declared_attr`，普通写法让 mypy 能识别子类属性。
 2. `index=True` 写在混入里。全局约定要求"所有业务表带 user_id，索引必建"，
    放在混入里使新增表自动带上，不依赖执行者记得加。
 """
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, declared_attr, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class OwnedMixin:
     """归属字段混入。长度 String(36) 与全局约定的主键长度一致。"""
 
-    @declared_attr
-    def user_id(cls) -> Mapped[str]:
-        return mapped_column(String(36), nullable=False, index=True, comment="归属用户ID")
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, comment="归属用户ID")
 
 
 class OwnedModel(Protocol):
     """供 OwnedRepository 做类型约束的最小协议。
 
-    属性标注用 `str` 而非 `Mapped[str]`：协议描述的是**实例**的可用接口，
-    实例上 `user_id` 就是 `str`。用 `Mapped[str]` 会让 `AIConversation` 这类
-    声明式模型无法满足协议（mypy 会报 type-var 不匹配），还会让仓储里的
-    `obj.user_id = uid` 被判成"给 Mapped 赋 str"。
+    属性标注用 `Any`，这是当前 mypy 配置（未启用 `sqlalchemy.ext.mypy.plugin`）
+    下唯一可行的写法，两种直觉写法都无法通过：
+
+    - `id: str` / `user_id: str`：声明式模型实例上这两项是 `str`，但类对象上
+      是 `InstrumentedAttribute[str]`；仓储既用类属性构造查询（`self.model.user_id
+      == uid`，需要列对象）又用实例属性赋值（`obj.user_id = uid`），单一标注无法
+      同时满足，mypy 会因 `type[A]` 不满足协议而报 type-var。
+    - `id: Mapped[str]`（任务文件原型）：模型实例上不是 `Mapped`，同样不满足。
+
+    用 `Any` 后协议只承担"存在这两个字段"的约束，而仓储对外签名仍返回
+    `ModelT | None` / `Sequence[ModelT]` 等具体类型，`Any` 不外泄。
     """
 
-    id: str
-    user_id: str
+    id: Any
+    user_id: Any

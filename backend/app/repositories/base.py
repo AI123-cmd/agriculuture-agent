@@ -88,11 +88,7 @@ class OwnedRepository(Generic[ModelT]):
         return (await db.execute(stmt)).scalars().all()
 
     async def count(self, db: AsyncSession, user_id: str) -> int:
-        stmt = (
-            select(func.count())
-            .select_from(self.model)
-            .where(self.model.user_id == self._require_user(user_id))
-        )
+        stmt = select(func.count()).select_from(self.model).where(self.model.user_id == self._require_user(user_id))
         return (await db.execute(stmt)).scalar_one()
 
     async def add(self, db: AsyncSession, user_id: str, obj: ModelT) -> ModelT:
