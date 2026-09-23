@@ -4,15 +4,17 @@ from sqlalchemy import DateTime, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
+from app.db.owned import OwnedMixin
 
 
-class Device(Base, TimestampMixin):
+class Device(Base, TimestampMixin, OwnedMixin):
     """设备/传感器表。"""
 
     __tablename__ = "device"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    user_id: Mapped[str | None] = mapped_column(String(36), index=True, nullable=True, comment="未绑定为null")
+    # user_id 由 OwnedMixin 提供。原设计允许"未绑定为 null"，T1-05 收紧为
+    # NOT NULL：解绑走软删除（T5-09 的 unbound_at），归属永远可判定。
     field_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     device_sn: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False, comment="设备序列号")
     device_type: Mapped[str] = mapped_column(String(32), nullable=False, comment="soil/weather/camera")

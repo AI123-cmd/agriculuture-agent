@@ -19,6 +19,9 @@ autogenerate 漏掉、本文件手工补齐的四类：
 3. 高优先级外键：`ai_message -> ai_conversation`、`farmer_profile -> user`。
 4. T1-06 / T1-11 的性能前提索引：`ai_conversation.update_time`、
    `ai_message.conversation_id`、各表 `user_id`。
+
+各业务表的 `user_id` 列由 T1-05 的 `OwnedMixin` 统一定义（String(36)、NOT NULL、
+带索引、注释"归属用户ID"），本文件按该定义建列，保证与 ORM 元数据零差异。
 """
 
 import sqlalchemy as sa
@@ -29,6 +32,9 @@ revision = "0001"
 down_revision = "0001_ext"
 branch_labels = None
 depends_on = None
+
+# OwnedMixin 生成的归属列定义（长度、可空性、注释）
+_OWNED_COMMENT = "归属用户ID"
 
 
 def _timestamps() -> list[sa.Column]:
@@ -70,7 +76,7 @@ def upgrade() -> None:
     op.create_table(
         "farmer_profile",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("real_name", sa.String(32), nullable=False, comment="真实姓名"),
         sa.Column("age", sa.SmallInteger(), nullable=True),
         sa.Column("gender", sa.SmallInteger(), nullable=False, comment="1男2女"),
@@ -91,7 +97,7 @@ def upgrade() -> None:
     op.create_table(
         "crop",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("field_id", sa.String(36), nullable=True, comment="关联地块ID"),
         sa.Column("crop_name", sa.String(32), nullable=False, comment="作物名称(用户自由输入)"),
         sa.Column("crop_variety", sa.String(64), nullable=True, comment="品种"),
@@ -108,7 +114,7 @@ def upgrade() -> None:
     op.create_table(
         "field",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("field_name", sa.String(64), nullable=False, comment="地块名称"),
         sa.Column("mu", sa.Numeric(8, 2), nullable=False, comment="面积(亩)"),
         sa.Column("soil_type", sa.String(32), nullable=True, comment="土壤类型"),
@@ -122,7 +128,9 @@ def upgrade() -> None:
     op.create_table(
         "device",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=True, comment="未绑定为null"),
+        # 原设计为"未绑定时 user_id 为 null"，T1-05 收紧为 NOT NULL：
+        # 解绑走软删除（T5-09 的 unbound_at），归属永远可判定
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("field_id", sa.String(36), nullable=True),
         sa.Column("device_sn", sa.String(64), nullable=False, comment="设备序列号"),
         sa.Column("device_type", sa.String(32), nullable=False, comment="soil/weather/camera"),
@@ -138,7 +146,7 @@ def upgrade() -> None:
     op.create_table(
         "location",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("location_name", sa.String(128), nullable=False, comment="地点名称"),
         sa.Column("latitude", sa.Numeric(10, 6), nullable=True),
         sa.Column("longitude", sa.Numeric(10, 6), nullable=True),
@@ -150,7 +158,7 @@ def upgrade() -> None:
     op.create_table(
         "broadcast_log",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("date", sa.String(16), nullable=False, comment="YYYY-MM-DD"),
         sa.Column("time", sa.String(8), nullable=True),
         sa.Column("title", sa.String(64), nullable=False),
@@ -168,7 +176,7 @@ def upgrade() -> None:
     op.create_table(
         "ai_conversation",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("title", sa.String(128), nullable=False, comment="对话标题"),
         sa.Column("crop_tag", sa.String(32), nullable=True, comment="作物标签"),
         *_timestamps(),
@@ -192,7 +200,7 @@ def upgrade() -> None:
     op.create_table(
         "memory_summary",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("session_id", sa.String(36), nullable=False),
         sa.Column("summary", sa.Text(), nullable=True, comment="会话摘要"),
         sa.Column("key_facts", postgresql.JSONB(), nullable=True, comment="抽取的关键事实"),
@@ -203,7 +211,7 @@ def upgrade() -> None:
     op.create_table(
         "user_profile_tag",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False, comment=_OWNED_COMMENT),
         sa.Column("tags", postgresql.JSONB(), nullable=True, comment="画像标签"),
         sa.Column("context", postgresql.JSONB(), nullable=True, comment="AI上下文快照"),
         sa.Column("last_chat_at", sa.DateTime(timezone=True), nullable=True),
