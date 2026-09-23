@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC','Hiragino Sans GB',sans-serif">
+  <defs>
+    <linearGradient id="bgd" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbf8"/>
+      <stop offset="100%" stop-color="#eff6f0"/>
+    </linearGradient>
+    <linearGradient id="accd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2e7d32"/>
+      <stop offset="100%" stop-color="#1b5e20"/>
+    </linearGradient>
+    <filter id="shd" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#2e7d32" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" fill="#a8c4ac"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="360" fill="url(#bgd)"/>
+
+  <text x="24" y="34" font-size="17" font-weight="700" fill="#1b5e20">AI 农技诊断 · LangGraph 状态机</text>
+  <text x="24" y="54" font-size="11" fill="#8ba394" font-family="Consolas,monospace">backend/app/agent/graph.py</text>
+  <text x="1176" y="34" font-size="11" fill="#8ba394" text-anchor="end">「证据采集 → 诊断 → 开方 → 回访」闭环</text>
+
+  <!-- ============ 主链路 ============ -->
+  <g>
+    <!-- START -->
+    <rect x="24" y="82" width="74" height="46" rx="10" fill="url(#accd)"/>
+    <text x="61" y="110" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">START</text>
+
+    <line x1="98" y1="105" x2="126" y2="105" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- 接诊 -->
+    <rect x="134" y="74" width="128" height="62" rx="10" fill="#fbfdfb" stroke="#d9e8db"/>
+    <text x="198" y="98" font-size="13.5" font-weight="700" fill="#1b5e20" text-anchor="middle">接诊</text>
+    <text x="198" y="115" font-size="9.5" fill="#8ba394" text-anchor="middle" font-family="Consolas,monospace">intake</text>
+    <text x="198" y="129" font-size="9.5" fill="#8ba394" text-anchor="middle">确认作物与阶段</text>
+
+    <line x1="262" y1="105" x2="290" y2="105" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- 症状采集 -->
+    <rect x="298" y="74" width="136" height="62" rx="10" fill="#eef6ef" stroke="#2e7d32" stroke-width="1.4"/>
+    <text x="366" y="98" font-size="13.5" font-weight="700" fill="#1b5e20" text-anchor="middle">症状采集</text>
+    <text x="366" y="115" font-size="9.5" fill="#7d9683" text-anchor="middle" font-family="Consolas,monospace">collect_symptoms</text>
+    <text x="366" y="129" font-size="9.5" fill="#7d9683" text-anchor="middle">症状描述 + 现场图片</text>
+
+    <line x1="434" y1="105" x2="462" y2="105" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- 管理追问 -->
+    <rect x="470" y="74" width="136" height="62" rx="10" fill="#eef6ef" stroke="#2e7d32" stroke-width="1.4"/>
+    <text x="538" y="98" font-size="13.5" font-weight="700" fill="#1b5e20" text-anchor="middle">管理追问</text>
+    <text x="538" y="115" font-size="9.5" fill="#7d9683" text-anchor="middle" font-family="Consolas,monospace">collect_management</text>
+    <text x="538" y="129" font-size="9.5" fill="#7d9683" text-anchor="middle">六问：施肥 / 打药 / 水 / 天气</text>
+
+    <line x1="606" y1="105" x2="634" y2="105" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- 环境取证 -->
+    <rect x="642" y="74" width="136" height="62" rx="10" fill="#eef6ef" stroke="#2e7d32" stroke-width="1.4"/>
+    <text x="710" y="98" font-size="13.5" font-weight="700" fill="#1b5e20" text-anchor="middle">环境取证</text>
+    <text x="710" y="115" font-size="9.5" fill="#7d9683" text-anchor="middle" font-family="Consolas,monospace">fetch_environment</text>
+    <text x="710" y="129" font-size="9.5" fill="#7d9683" text-anchor="middle">MCP 工具层取传感器 / 天气</text>
+
+    <line x1="778" y1="105" x2="806" y2="105" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- 综合诊断 -->
+    <rect x="814" y="74" width="136" height="62" rx="10" fill="#fbfdfb" stroke="#d9e8db"/>
+    <text x="882" y="98" font-size="13.5" font-weight="700" fill="#1b5e20" text-anchor="middle">综合诊断</text>
+    <text x="882" y="115" font-size="9.5" fill="#8ba394" text-anchor="middle" font-family="Consolas,monospace">diagnose</text>
+    <text x="882" y="129" font-size="9.5" fill="#8ba394" text-anchor="middle">垂类模型 + 置信度分级</text>
+
+    <line x1="950" y1="105" x2="978" y2="105" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- 开方 -->
+    <rect x="986" y="74" width="110" height="62" rx="10" fill="#fbfdfb" stroke="#d9e8db"/>
+    <text x="1041" y="98" font-size="13.5" font-weight="700" fill="#1b5e20" text-anchor="middle">开方</text>
+    <text x="1041" y="115" font-size="9.5" fill="#8ba394" text-anchor="middle" font-family="Consolas,monospace">prescribe</text>
+    <text x="1041" y="129" font-size="9.5" fill="#8ba394" text-anchor="middle">输出方案</text>
+
+    <line x1="1096" y1="105" x2="1124" y2="105" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- END -->
+    <rect x="1132" y="82" width="44" height="46" rx="22" fill="#eceff1" stroke="#cfd8dc"/>
+    <text x="1154" y="110" font-size="11" font-weight="700" fill="#5d7166" text-anchor="middle">END</text>
+  </g>
+
+  <!-- 条件标注 -->
+  <g font-size="9.5" fill="#6b8a71">
+    <text x="366" y="64" text-anchor="middle">有症状或图片</text>
+    <text x="538" y="64" text-anchor="middle">六问齐备</text>
+    <text x="882" y="64" text-anchor="middle">非 low</text>
+  </g>
+
+  <!-- ============ 回环 ============ -->
+  <path d="M882,144 L882,190 L366,190 L366,144" fill="none" stroke="#d98324" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+  <rect x="470" y="172" width="308" height="36" rx="9" fill="#fffaf3" stroke="#f0dcbe"/>
+  <text x="624" y="188" font-size="11.5" font-weight="700" fill="#a65d00" text-anchor="middle">低置信度回环补证据</text>
+  <text x="624" y="202" font-size="10" fill="#a8834a" text-anchor="middle">level = low 且 round &lt; MAX_COLLECT_ROUNDS（默认 3）</text>
+
+  <!-- ============ 置信度分级 ============ -->
+  <rect x="24" y="234" width="1152" height="102" rx="12" fill="#ffffff" stroke="#e2ebe3" filter="url(#shd)"/>
+  <rect x="42" y="252" width="3.5" height="15" rx="1.75" fill="#2e7d32"/>
+  <text x="53" y="264" font-size="13" font-weight="700" fill="#2e7d32">置信度分级</text>
+  <text x="53" y="284" font-size="10" fill="#8ba394" font-family="Consolas,monospace">confidence.py</text>
+  <text x="53" y="300" font-size="10" fill="#8ba394">规则化 · 确定性 · 可单测</text>
+
+  <g font-size="11.5">
+    <rect x="180" y="250" width="196" height="34" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <circle cx="198" cy="267" r="3.5" fill="#66a86c"/>
+    <text x="210" y="271" fill="#3c5344">现场图片 image_url</text>
+    <text x="362" y="271" fill="#1b5e20" font-weight="700" text-anchor="end">+1</text>
+
+    <rect x="388" y="250" width="196" height="34" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <circle cx="406" cy="267" r="3.5" fill="#66a86c"/>
+    <text x="418" y="271" fill="#3c5344">症状完整 symptoms</text>
+    <text x="570" y="271" fill="#1b5e20" font-weight="700" text-anchor="end">+1</text>
+
+    <rect x="596" y="250" width="196" height="34" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <circle cx="614" cy="267" r="3.5" fill="#66a86c"/>
+    <text x="626" y="271" fill="#3c5344">六问齐备 management</text>
+    <text x="778" y="271" fill="#1b5e20" font-weight="700" text-anchor="end">+1</text>
+
+    <rect x="804" y="250" width="212" height="34" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <circle cx="822" cy="267" r="3.5" fill="#66a86c"/>
+    <text x="834" y="271" fill="#3c5344">环境无冲突 evidence</text>
+    <text x="1002" y="271" fill="#1b5e20" font-weight="700" text-anchor="end">+1</text>
+  </g>
+
+  <text x="180" y="306" font-size="11" fill="#6b7d70">总分</text>
+  <text x="210" y="306" font-size="11" font-weight="700" fill="#1b5e20" font-family="Consolas,monospace">score = 0 ~ 4</text>
+
+  <g font-size="11" text-anchor="middle">
+    <rect x="1028" y="250" width="62" height="30" rx="7" fill="#e3f2e4"/>
+    <text x="1059" y="270" font-weight="700" fill="#1b5e20">high</text>
+    <text x="1059" y="296" font-size="9.5" fill="#6b7d70">≥3 且含图片</text>
+
+    <rect x="1102" y="250" width="62" height="30" rx="7" fill="#fff3e0"/>
+    <text x="1133" y="270" font-weight="700" fill="#b26a00">medium</text>
+    <text x="1133" y="296" font-size="9.5" fill="#6b7d70">≥2</text>
+  </g>
+</svg>

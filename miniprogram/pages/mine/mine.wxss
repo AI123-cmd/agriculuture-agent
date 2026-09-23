@@ -1,0 +1,344 @@
+/* pages/mine/mine.wxss */
+page {
+  background: #eef5ec;
+}
+
+.mine-page {
+  min-height: 100vh;
+  background: #eef5ec;
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+/* —— 顶部用户区域 —— */
+.header {
+  background: #2e7d32;
+  padding-top: calc(110rpx + env(safe-area-inset-top));
+  padding-bottom: 32rpx;
+  padding-left: 30rpx;
+  padding-right: 30rpx;
+  min-height: calc(230rpx + env(safe-area-inset-top));
+  box-sizing: border-box;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #fff;
+  flex-shrink: 0;
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.user-info {
+  flex: 1;
+  margin-left: 28rpx;
+}
+
+.nickname {
+  font-size: 38rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+.farmer-tag {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 8rpx;
+}
+
+/* —— 菜单组 —— */
+.menu-section {
+  margin: 24rpx 30rpx 0;
+  background: #fff;
+  border-radius: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+  position: relative;
+}
+
+.menu-item:active {
+  background: #f5f5f5;
+}
+
+/* 菜单图标公共 */
+.menu-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+
+/* 农户档案图标 */
+.profile-icon {
+  background: #e8f5e9;
+}
+
+.icon-body {
+  width: 20rpx;
+  height: 14rpx;
+  background: #2e7d32;
+  border-radius: 4rpx 4rpx 2rpx 2rpx;
+}
+
+.icon-head {
+  position: absolute;
+  top: 16rpx;
+  width: 12rpx;
+  height: 12rpx;
+  background: #2e7d32;
+  border-radius: 50%;
+  margin-left: 22rpx;
+}
+
+/* 历史图标 */
+.history-icon {
+  background: #fff3e0;
+}
+
+.icon-clock {
+  width: 28rpx;
+  height: 28rpx;
+  border: 3rpx solid #ef6c00;
+  border-radius: 50%;
+  position: relative;
+}
+
+.clock-hand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2rpx;
+  height: 10rpx;
+  background: #ef6c00;
+  transform-origin: bottom center;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* 关于图标 */
+.about-icon {
+  background: #f3e5f5;
+}
+
+.icon-info {
+  width: 28rpx;
+  height: 28rpx;
+  border: 3rpx solid #7b1fa2;
+  border-radius: 50%;
+  position: relative;
+}
+
+.icon-info::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 6rpx;
+  transform: translateX(-50%);
+  width: 4rpx;
+  height: 4rpx;
+  background: #7b1fa2;
+  border-radius: 50%;
+}
+
+.icon-info::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 14rpx;
+  transform: translateX(-50%);
+  width: 4rpx;
+  height: 10rpx;
+  background: #7b1fa2;
+  border-radius: 1rpx;
+}
+
+/* 文档图标 */
+.doc-icon {
+  background: #fce4ec;
+}
+
+.icon-lines {
+  width: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  align-items: flex-start;
+}
+
+.line {
+  height: 3rpx;
+  background: #c62828;
+  border-radius: 1rpx;
+}
+
+.line:nth-child(1) { width: 24rpx; }
+.line:nth-child(2) { width: 18rpx; }
+.line:nth-child(3) { width: 20rpx; }
+
+.menu-text {
+  flex: 1;
+  font-size: 32rpx;
+  color: #333;
+}
+
+.menu-arrow {
+  font-size: 40rpx;
+  color: #ccc;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.menu-divider {
+  height: 1rpx;
+  background: #f0f0f0;
+  margin-left: 112rpx;
+}
+
+/* —— 退出登录 —— */
+.logout-section {
+  margin: 48rpx 30rpx 0;
+}
+
+.logout-btn {
+  height: 96rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  color: #d32f2f;
+  font-weight: 500;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.logout-btn:active {
+  background: #fef5f5;
+}
+
+.cancel-account-btn {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #999;
+  padding: 16rpx 0;
+}
+
+.cancel-account-btn:active {
+  color: #d32f2f;
+}
+
+/* —— 修改头像/昵称弹层 —— */
+.profile-edit-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.profile-edit-sheet {
+  width: 100%;
+  max-width: 750rpx;
+  max-height: calc(100vh - 20rpx);
+  background: #f7f7f7;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 36rpx 30rpx calc(200rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.edit-title {
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 28rpx;
+}
+
+.avatar-preview-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28rpx;
+}
+
+.avatar-preview {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  border: 4rpx solid #e8e8e8;
+  background: #fff;
+}
+
+.edit-row {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.edit-avatar-btn {
+  background: #2e7d32;
+  color: #fff;
+  font-size: 28rpx;
+  border-radius: 12rpx;
+  padding: 18rpx 0;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.edit-avatar-btn::after {
+  border: none;
+}
+
+.edit-nick-input {
+  font-size: 28rpx;
+  color: #1a1a1a;
+  padding: 12rpx 8rpx;
+  line-height: 1.6;
+}
+
+.edit-submit-btn {
+  background: #2e7d32;
+  color: #fff;
+  text-align: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  padding: 22rpx 0;
+  border-radius: 16rpx;
+}
+
+.edit-submit-btn:active {
+  background: #256428;
+}
+
+.edit-cancel-btn {
+  background: #fff;
+  color: #666;
+  text-align: center;
+  font-size: 28rpx;
+  padding: 22rpx 0;
+  border-radius: 16rpx;
+  margin-top: 20rpx;
+}
+
+.edit-cancel-btn:active {
+  background: #f0f0f0;
+}

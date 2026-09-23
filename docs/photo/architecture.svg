@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC','Hiragino Sans GB',sans-serif">
+  <defs>
+    <linearGradient id="bgg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbf8"/>
+      <stop offset="100%" stop-color="#eff6f0"/>
+    </linearGradient>
+    <linearGradient id="accg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2e7d32"/>
+      <stop offset="100%" stop-color="#1b5e20"/>
+    </linearGradient>
+    <filter id="shg" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#2e7d32" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="500" fill="url(#bgg)"/>
+
+  <!-- ================= 小程序端 ================= -->
+  <rect x="20" y="20" width="1160" height="86" rx="13" fill="#ffffff" stroke="#e2ebe3" filter="url(#shg)"/>
+  <rect x="34" y="40" width="3.5" height="15" rx="1.75" fill="#2e7d32"/>
+  <text x="45" y="52" font-size="13.5" font-weight="700" fill="#2e7d32">小程序端</text>
+  <text x="45" y="72" font-size="10.5" fill="#8ba394" font-family="Consolas,monospace">miniprogram</text>
+  <text x="45" y="88" font-size="10.5" fill="#8ba394">原生 + TS</text>
+
+  <g font-size="13" font-weight="600" fill="#23572a" text-anchor="middle">
+    <rect x="164" y="40" width="133" height="46" rx="9" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="230" y="60">登录</text>
+    <rect x="307" y="40" width="133" height="46" rx="9" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="373" y="60">农户档案</text>
+    <rect x="450" y="40" width="133" height="46" rx="9" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="516" y="60">首页播报</text>
+    <rect x="593" y="40" width="133" height="46" rx="9" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="659" y="60">AI 咨询</text>
+    <rect x="736" y="40" width="133" height="46" rx="9" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="802" y="60">历史对话</text>
+    <rect x="879" y="40" width="133" height="46" rx="9" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="945" y="60">我的</text>
+    <rect x="1022" y="40" width="134" height="46" rx="9" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="1089" y="60">环境监测</text>
+  </g>
+  <g font-size="9.5" fill="#8ba394" text-anchor="middle" font-family="Consolas,monospace">
+    <text x="230" y="77">login</text>
+    <text x="373" y="77">profile</text>
+    <text x="516" y="77">index</text>
+    <text x="659" y="77">ai</text>
+    <text x="802" y="77">history</text>
+    <text x="945" y="77">mine</text>
+    <text x="1089" y="77">env</text>
+  </g>
+
+  <!-- 连接 -->
+  <line x1="600" y1="106" x2="600" y2="118" stroke="#b6cdb9" stroke-width="2"/>
+  <rect x="392" y="116" width="416" height="26" rx="13" fill="#e8f1e9" stroke="#cfe4d2"/>
+  <text x="600" y="134" font-size="12" fill="#4c6b53" text-anchor="middle">HTTPS · Authorization: Bearer &lt;token&gt;</text>
+  <line x1="600" y1="142" x2="600" y2="154" stroke="#b6cdb9" stroke-width="2"/>
+  <path d="M600,163 L593,154 L607,154 z" fill="#b6cdb9"/>
+
+  <!-- ================= 后端分层 ================= -->
+  <rect x="20" y="172" width="1160" height="104" rx="13" fill="#ffffff" stroke="#e2ebe3" filter="url(#shg)"/>
+  <rect x="34" y="192" width="3.5" height="15" rx="1.75" fill="#2e7d32"/>
+  <text x="45" y="204" font-size="13.5" font-weight="700" fill="#2e7d32">后端分层</text>
+  <text x="45" y="224" font-size="10.5" fill="#8ba394" font-family="Consolas,monospace">backend/app</text>
+  <text x="45" y="240" font-size="10.5" fill="#8ba394">FastAPI</text>
+
+  <rect x="164" y="190" width="300" height="68" rx="10" fill="#f7faf7" stroke="#dfe9e0"/>
+  <text x="182" y="214" font-size="13.5" font-weight="700" fill="#1b5e20">接口层</text>
+  <text x="182" y="234" font-size="11.5" fill="#5d7a63">api/v1 · 鉴权依赖 · 统一响应</text>
+  <text x="182" y="249" font-size="11.5" fill="#5d7a63">auth · farmer · broadcast · ai…</text>
+
+  <text x="482" y="228" font-size="17" fill="#b6cdb9" text-anchor="middle">››</text>
+
+  <rect x="500" y="190" width="340" height="68" rx="10" fill="#f7faf7" stroke="#dfe9e0"/>
+  <text x="518" y="214" font-size="13.5" font-weight="700" fill="#1b5e20">业务服务层</text>
+  <text x="518" y="234" font-size="11.5" fill="#5d7a63">ai · broadcast · farmer · memory</text>
+  <text x="518" y="249" font-size="11.5" fill="#5d7a63">environment · profile · auth…</text>
+
+  <text x="858" y="228" font-size="17" fill="#b6cdb9" text-anchor="middle">››</text>
+
+  <rect x="876" y="190" width="300" height="68" rx="10" fill="#f7faf7" stroke="#dfe9e0"/>
+  <text x="894" y="214" font-size="13.5" font-weight="700" fill="#1b5e20">数据与集成</text>
+  <text x="894" y="234" font-size="11.5" fill="#5d7a63">models · SQLAlchemy 2.0</text>
+  <text x="894" y="249" font-size="11.5" fill="#5d7a63">integrations · 微信 / 天气 / 存储</text>
+
+  <!-- ================= 核心引擎 ================= -->
+  <rect x="20" y="288" width="1160" height="146" rx="13" fill="#ffffff" stroke="#e2ebe3" filter="url(#shg)"/>
+  <rect x="34" y="308" width="3.5" height="15" rx="1.75" fill="#2e7d32"/>
+  <text x="45" y="320" font-size="13.5" font-weight="700" fill="#2e7d32">核心引擎</text>
+  <text x="45" y="340" font-size="10.5" fill="#8ba394" font-family="Consolas,monospace">agent</text>
+  <text x="45" y="355" font-size="10.5" fill="#8ba394" font-family="Consolas,monospace">broadcast</text>
+  <text x="45" y="374" font-size="10.5" fill="#8ba394">双引擎驱动</text>
+
+  <!-- 左：AI 诊断 -->
+  <rect x="164" y="302" width="490" height="118" rx="10" fill="#fbfdfb" stroke="#d9e8db"/>
+  <rect x="164" y="302" width="490" height="30" rx="10" fill="#eef6ef"/>
+  <rect x="164" y="320" width="490" height="12" fill="#eef6ef"/>
+  <text x="182" y="322" font-size="13.5" font-weight="700" fill="#1b5e20">AI 农技诊断引擎</text>
+  <text x="636" y="322" font-size="10.5" fill="#8ba394" text-anchor="end" font-family="Consolas,monospace">app/agent</text>
+
+  <g font-size="11.5" fill="#3c5344">
+    <text x="182" y="352">· LangGraph 状态机编排（六节点 + 条件边）</text>
+    <text x="182" y="372">· 置信度分级：图片 / 症状 / 管理 / 环境 四信号</text>
+    <text x="182" y="392">· 垂类模型路由：水稻 · 烟草 · 通用农业</text>
+    <text x="182" y="412">· MCP 工具层 + 短期断点 / 长期记忆</text>
+  </g>
+
+  <!-- 右：播报 -->
+  <rect x="686" y="302" width="490" height="118" rx="10" fill="#fbfdfb" stroke="#d9e8db"/>
+  <rect x="686" y="302" width="490" height="30" rx="10" fill="#eef6ef"/>
+  <rect x="686" y="320" width="490" height="12" fill="#eef6ef"/>
+  <text x="704" y="322" font-size="13.5" font-weight="700" fill="#1b5e20">农事播报引擎</text>
+  <text x="1158" y="322" font-size="10.5" fill="#8ba394" text-anchor="end" font-family="Consolas,monospace">app/broadcast</text>
+
+  <g font-size="11.5" fill="#3c5344">
+    <text x="704" y="352">· 环境快照：设备 → 天气 → mock 三级兜底</text>
+    <text x="704" y="372">· 阈值规则：高温 · 低温 · 墒情 · 高湿 · 降雨 · 大风</text>
+    <text x="704" y="392">· 病虫害气象风险：温湿组合判断</text>
+    <text x="704" y="412" fill="#8a5000">· 物候期农事历 + 规则未命中时 AI 简报兜底</text>
+  </g>
+
+  <!-- ================= 存储 ================= -->
+  <rect x="20" y="450" width="1160" height="34" rx="12" fill="#ffffff" stroke="#e2ebe3"/>
+  <text x="45" y="472" font-size="12" font-weight="700" fill="#2e7d32">存储依赖</text>
+
+  <g font-size="12" text-anchor="middle">
+    <rect x="150" y="455" width="146" height="24" rx="12" fill="url(#accg)"/>
+    <text x="223" y="471" font-weight="700" fill="#ffffff">MySQL 8.0</text>
+
+    <rect x="306" y="455" width="132" height="24" rx="12" fill="url(#accg)"/>
+    <text x="372" y="471" font-weight="700" fill="#ffffff">Redis（可选）</text>
+
+    <rect x="448" y="455" width="186" height="24" rx="12" fill="url(#accg)"/>
+    <text x="541" y="471" font-weight="700" fill="#ffffff">SQLite Checkpointer</text>
+
+    <rect x="644" y="455" width="176" height="24" rx="12" fill="#f5faf6" stroke="#dfe9e0"/>
+    <text x="732" y="471" fill="#22352a">DeepSeek 大模型 API</text>
+
+    <rect x="830" y="455" width="160" height="24" rx="12" fill="#f5faf6" stroke="#dfe9e0"/>
+    <text x="910" y="471" fill="#22352a">微信登录 / 头像</text>
+
+    <rect x="1000" y="455" width="166" height="24" rx="12" fill="#f5faf6" stroke="#dfe9e0"/>
+    <text x="1083" y="471" fill="#22352a">天气 · 逆地理编码</text>
+  </g>
+</svg>

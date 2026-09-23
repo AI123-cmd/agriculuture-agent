@@ -1,0 +1,37 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/profile/farmer-profile",
+    "pages/index/index",
+    "pages/ai/chat",
+    "pages/history/list",
+    "pages/mine/mine",
+    "pages/env/env"
+  ],
+  "requiredPrivateInfos": ["getLocation", "chooseLocation"],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "获取您的位置，提供本地化农事播报与监测建议"
+    }
+  },
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "话农点金",
+    "navigationBarBackgroundColor": "#2e7d32"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#999999",
+    "selectedColor": "#2e7d32",
+    "backgroundColor": "#ffffff",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页" },
+      { "pagePath": "pages/ai/chat", "text": "咨询" },
+      { "pagePath": "pages/history/list", "text": "历史" },
+      { "pagePath": "pages/mine/mine", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "componentFramework": "glass-easel",
+  "lazyCodeLoading": "requiredComponents"
+}

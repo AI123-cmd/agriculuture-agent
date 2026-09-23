@@ -1,0 +1,203 @@
+<view class="page">
+  <view class="header">
+    <view class="back-btn" bindtap="goBack">‹</view>
+    <view class="header-title">完善农户档案</view>
+    <view class="header-sub">填写基础信息，获取精准农事建议</view>
+  </view>
+
+  <scroll-view scroll-y class="scroll-area" enable-flex>
+    <!-- 基础信息 -->
+    <view class="card item-block">
+      <view class="card-title">基础信息</view>
+
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>真实姓名</view>
+        <input class="form-input"
+               placeholder="请输入您的真实姓名"
+               maxlength="20"
+               value="{{form.realName}}"
+               bindinput="onInput"
+               data-key="realName" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>性别</view>
+        <view class="radio-group">
+          <view class="radio-item {{form.gender === 1 ? 'active' : ''}}" bindtap="selectGender" data-value="1">男</view>
+          <view class="radio-item {{form.gender === 2 ? 'active' : ''}}" bindtap="selectGender" data-value="2">女</view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">年龄</view>
+        <input class="form-input"
+               type="number"
+               placeholder="请输入年龄（选填）"
+               maxlength="3"
+               value="{{form.age}}"
+               bindinput="onInput"
+               data-key="age" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>联系电话</view>
+        <input class="form-input"
+               type="number"
+               placeholder="请输入手机号码"
+               maxlength="11"
+               value="{{form.phone}}"
+               bindinput="onInput"
+               data-key="phone" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>种植经验</view>
+        <picker range="{{experienceOptions}}" range-key="label" bindchange="onExperienceChange">
+          <view class="form-picker {{form.experienceYearText ? '' : 'placeholder'}}">
+            {{form.experienceYearText || '请选择种植经验年限'}}
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 地区信息 -->
+    <view class="card item-block">
+      <view class="card-title">地区信息</view>
+
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>所在地区</view>
+        <picker mode="region" bindchange="onRegionChange">
+          <view class="form-picker {{form.province ? '' : 'placeholder'}}">
+            <block wx:if="{{form.province}}">
+              {{form.province}} / {{form.city}} / {{form.district}}
+            </block>
+            <block wx:else>请选择省 / 市 / 区（县）</block>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">详细地址</view>
+        <input class="form-input"
+               placeholder="村庄、组、门牌号（选填）"
+               maxlength="100"
+               value="{{form.address}}"
+               bindinput="onInput"
+               data-key="address" />
+      </view>
+    </view>
+
+    <!-- 种植信息 -->
+    <view class="card item-block">
+      <view class="card-title">种植信息</view>
+
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>总种植面积（亩）</view>
+        <input class="form-input"
+               type="digit"
+               placeholder="请输入总种植亩数，如 86.5"
+               maxlength="8"
+               value="{{form.totalMu}}"
+               bindinput="onInput"
+               data-key="totalMu" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>种植类型</view>
+        <view class="radio-group three">
+          <view class="radio-item {{form.cultivationType === 1 ? 'active' : ''}}" bindtap="selectCultivation" data-value="1">露地</view>
+          <view class="radio-item {{form.cultivationType === 2 ? 'active' : ''}}" bindtap="selectCultivation" data-value="2">大棚</view>
+          <view class="radio-item {{form.cultivationType === 3 ? 'active' : ''}}" bindtap="selectCultivation" data-value="3">混合</view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">灌溉水源</view>
+        <picker range="{{waterOptions}}" bindchange="onWaterChange">
+          <view class="form-picker {{form.waterSource ? '' : 'placeholder'}}">
+            {{form.waterSource || '请选择灌溉水源（选填）'}}
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">备注</view>
+        <textarea class="form-textarea"
+                  placeholder="特殊地形、习惯品种、排灌情况等（选填）"
+                  maxlength="200"
+                  value="{{form.remark}}"
+                  bindinput="onInput"
+                  data-key="remark"
+                  auto-height></textarea>
+        <view class="count-hint">{{remarkLength}}/200</view>
+      </view>
+    </view>
+
+    <!-- 种植作物品类 -->
+    <view class="card item-block">
+      <view class="card-title">种植作物<text class="card-hint">添加您种植的品类，系统将匹配对应专家模型</text></view>
+
+      <!-- 手动输入作物名称 -->
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>作物名称</view>
+        <view class="crop-input-row">
+          <input class="form-input crop-input"
+                 placeholder="输入作物名称，如水稻、辣椒、烟草..."
+                 maxlength="20"
+                 value="{{cropInput}}"
+                 bindinput="onCropInputText"
+                 bindconfirm="addCrop" />
+          <view class="add-btn" bindtap="addCrop">添加</view>
+        </view>
+      </view>
+
+      <!-- 快捷选择 -->
+      <view class="quick-crops">
+        <text class="quick-crops-label">常用：</text>
+        <view class="quick-crop-tag" wx:for="{{cropList}}" wx:key="*this" bindtap="quickAddCrop" data-name="{{item}}">{{item}}</view>
+      </view>
+
+      <!-- 已添加作物列表 -->
+      <view class="selected-crop-list" wx:if="{{selectedCrops.length > 0}}">
+        <view class="selected-crop-item" wx:for="{{selectedCrops}}" wx:key="name" wx:for-item="crop" wx:for-index="idx">
+          <view class="selected-crop-header">
+            <text class="selected-crop-name">{{crop.name}}</text>
+            <text class="selected-crop-remove" bindtap="removeCrop" data-index="{{idx}}">删除</text>
+          </view>
+          <view class="selected-crop-body">
+            <view class="crop-field">
+              <text class="crop-field-label">面积（亩）</text>
+              <input class="crop-field-input"
+                     type="digit"
+                     placeholder="亩数"
+                     maxlength="8"
+                     value="{{crop.plantMu}}"
+                     bindinput="onCropDetailInput"
+                     data-index="{{idx}}"
+                     data-key="plantMu" />
+            </view>
+            <view class="crop-field">
+              <text class="crop-field-label">生长阶段</text>
+              <picker range="{{growthStages}}" bindchange="onStageChange" data-index="{{idx}}">
+                <view class="crop-field-picker {{crop.growthStage ? '' : 'placeholder'}}">
+                  {{crop.growthStage || '请选择'}}
+                </view>
+              </picker>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="footer-placeholder"></view>
+  </scroll-view>
+
+  <view class="tab-bar">
+    <view class="submit-btn" bindtap="submitProfile">
+      {{loading ? '保存中...' : '保存档案'}}
+    </view>
+  </view>
+</view>

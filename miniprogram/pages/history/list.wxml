@@ -1,0 +1,35 @@
+<!--pages/history/list.wxml-->
+<view class="history-page">
+  <view class="header">
+    <view class="header-title">历史对话</view>
+    <view class="new-chat-btn" bindtap="startNewChat">
+      <text class="plus-icon">+</text>
+      <text class="new-chat-text">新对话</text>
+    </view>
+  </view>
+
+  <scroll-view class="history-scroll" scroll-y>
+    <view class="history-list">
+      <block wx:for="{{conversations}}" wx:key="id">
+        <view class="conversation-item" bindtap="enterChat" data-id="{{item.id}}">
+          <view class="conv-icon">
+            <text class="icon-emoji">🌾</text>
+          </view>
+          <view class="conv-content">
+            <view class="conv-title">{{item.title}}</view>
+            <view class="conv-preview">{{item.preview}}</view>
+          </view>
+          <view class="conv-delete" catchtap="deleteConv" data-id="{{item.id}}">
+            <text class="delete-icon">✕</text>
+          </view>
+        </view>
+        <view class="conv-divider"></view>
+      </block>
+
+      <view wx:if="{{conversations.length === 0}}" class="empty-state">
+        <text class="empty-text">暂无历史对话</text>
+      </view>
+    </view>
+  </scroll-view>
+
+</view>

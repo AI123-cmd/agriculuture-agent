@@ -1,0 +1,61 @@
+<!--index.wxml-->
+<view class="page">
+  <!-- 固定顶部用户栏 -->
+  <view class="header">
+    <view class="user-info">
+      <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
+      <view class="user-detail">
+        <view class="crop-name">当前作物：{{currentCrop}}</view>
+        <view class="farmer-name">农户：{{farmerName}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 滚动内容区域，统一左右 padding，预留顶部头部和底部导航高度 -->
+  <view class="page-content">
+    <!-- 地点信息 -->
+    <view class="location-row item-block" bindtap="chooseLocation">
+      <view class="location-left">
+        <view class="location-pin"></view>
+        <text class="location-name">{{locationName}}</text>
+      </view>
+      <text class="location-set">设置 ›</text>
+    </view>
+
+    <!-- 今日农事播报 -->
+    <view class="card item-block">
+      <view class="card-title">今日农事播报</view>
+      <view class="broadcast-list">
+        <view class="broadcast-item" wx:for="{{broadcasts}}" wx:key="id">
+          <view class="broadcast-dot"></view>
+          <view class="broadcast-body">
+            <view class="broadcast-title">{{item.time}} · {{item.title}}</view>
+            <view class="broadcast-text">{{item.content}}</view>
+          </view>
+          <view class="broadcast-check {{item.done ? 'done' : ''}}" bindtap="onBroadcastDone" data-id="{{item.id}}">
+            <text class="check-icon">{{item.done ? '✓' : ''}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 快捷入口 -->
+    <view class="quick-wrap item-block">
+      <view class="quick-item" wx:for="{{functions}}" wx:key="id" bindtap="onFuncTap" data-id="{{item.id}}">
+        <text class="quick-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <!-- 环境摘要 -->
+    <view class="card item-block">
+      <view class="card-title">环境摘要</view>
+      <view class="env-grid">
+        <view class="env-item" wx:for="{{envData}}" wx:key="id">
+          <view class="env-value">{{item.value}}</view>
+          <view class="env-label">{{item.label}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+</view>

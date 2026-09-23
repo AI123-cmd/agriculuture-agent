@@ -1,0 +1,152 @@
+/* pages/history/list.wxss */
+page {
+  background: #eef5ec;
+}
+
+.history-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #eef5ec;
+}
+
+/* 头部 —— 和首页面积完全一致 */
+.header {
+  background: #2e7d32;
+  padding-top: calc(110rpx + env(safe-area-inset-top));
+  padding-bottom: 32rpx;
+  padding-left: 30rpx;
+  padding-right: 30rpx;
+  min-height: calc(230rpx + env(safe-area-inset-top));
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #fff;
+}
+
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 12rpx 24rpx;
+  border-radius: 32rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.4);
+}
+
+.plus-icon {
+  font-size: 32rpx;
+  color: #fff;
+  font-weight: 300;
+}
+
+.new-chat-text {
+  font-size: 28rpx;
+  color: #fff;
+}
+
+/* 历史列表 */
+.history-scroll {
+  flex: 1;
+  overflow: hidden;
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.history-list {
+  padding: 24rpx 0;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx 32rpx;
+  background: #fff;
+  gap: 24rpx;
+}
+
+.conv-icon {
+  width: 80rpx;
+  height: 80rpx;
+  background: #eef5ec;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-emoji {
+  font-size: 40rpx;
+}
+
+.conv-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.conv-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.conv-preview {
+  font-size: 26rpx;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conv-delete {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.4;
+}
+
+.conv-delete:active {
+  opacity: 1;
+}
+
+.delete-icon {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.conv-divider {
+  height: 1rpx;
+  background: #f0f0f0;
+  margin-left: 136rpx;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 200rpx;
+  gap: 24rpx;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}

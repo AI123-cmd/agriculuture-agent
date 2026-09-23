@@ -1,0 +1,362 @@
+/* pages/ai/chat.wxss */
+page {
+  background: #ffffff; /* 整个页面填白，消除输入栏下方的浅绿色空白 */
+}
+
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #ffffff; /* 填白，输入栏和 tab-bar 之间视觉上无缝 */
+}
+
+/* 头部 —— 和首页面积完全一致 */
+.header {
+  background: #2e7d32;
+  padding-top: calc(110rpx + env(safe-area-inset-top));
+  padding-bottom: 32rpx;
+  padding-left: 30rpx;
+  padding-right: 30rpx;
+  min-height: calc(230rpx + env(safe-area-inset-top));
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* —— 作物标签条 —— */
+.crop-tag-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 30rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.crop-tag-left {
+  display: flex;
+  align-items: center;
+}
+
+.crop-tag-label {
+  font-size: 26rpx;
+  color: #999;
+  margin-right: 16rpx;
+}
+
+.crop-tag-current {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 6rpx 24rpx;
+  border-radius: 24rpx;
+}
+
+.crop-tag-switch {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.switch-text {
+  font-size: 26rpx;
+  color: #2e7d32;
+}
+
+.switch-arrow {
+  font-size: 36rpx;
+  color: #2e7d32;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* 消息列表 */
+.chat-scroll {
+  flex: 1;
+  width: 100%;
+  /* 明确给一个计算后的有效高度，保证 scroll-view 内部可滚动 */
+  height: calc(100vh - 310rpx - env(safe-area-inset-top));
+  background: #eef5ec; /* 只有消息区域是浅绿，周围全白 */
+  /* 预留固定输入栏+底部导航的总高度，内容不会被遮挡 */
+  padding: 24rpx 24rpx calc(260rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.chat-list {
+  padding-bottom: 24rpx;
+}
+
+.msg-row {
+  display: flex;
+  margin-bottom: 32rpx;
+  align-items: flex-start;
+}
+
+.msg-row.ai-row {
+  flex-direction: row;
+}
+
+.msg-row.user-row {
+  flex-direction: row-reverse;
+}
+
+.msg-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ai-avatar {
+  background: #4a7c59;
+}
+
+.avatar-icon {
+  font-size: 36rpx;
+}
+
+.msg-content {
+  display: flex;
+  align-items: flex-end;
+  max-width: 75%;
+  margin: 0 16rpx;
+}
+
+.ai-content {
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.user-content {
+  flex-direction: row-reverse;
+}
+
+.msg-bubble {
+  padding: 24rpx 28rpx;
+  border-radius: 24rpx;
+  font-size: 30rpx;
+  line-height: 1.5;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.ai-bubble {
+  background: #fff;
+  color: #333;
+  border-top-left-radius: 8rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.user-bubble {
+  background: #2e7d32;
+  color: #fff;
+  border-top-right-radius: 8rpx;
+}
+
+/* AI消息旁的语音播放按钮 —— CSS喇叭图标 */
+.voice-play-btn {
+  margin-left: 12rpx;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: #2e7d32;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 喇叭图标容器 */
+.vp-icon {
+  position: relative;
+  width: 36rpx;
+  height: 36rpx;
+  display: flex;
+  align-items: center;
+}
+
+/* 喇叭主体：小梯形 */
+.vp-speaker {
+  width: 0;
+  height: 0;
+  border-left: 8rpx solid transparent;
+  border-right: 8rpx solid transparent;
+  border-bottom: 12rpx solid transparent;
+  border-top: 12rpx solid transparent;
+  border-bottom-color: #fff;
+  border-top-color: #fff;
+  position: relative;
+  margin-left: 2rpx;
+}
+
+/* 喇叭左侧竖条 */
+.vp-speaker::before {
+  content: '';
+  position: absolute;
+  left: -6rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4rpx;
+  height: 8rpx;
+  background: #fff;
+  border-radius: 1rpx;
+}
+
+/* 声波弧线 */
+.vp-wave {
+  position: absolute;
+  border: 2rpx solid #fff;
+  border-radius: 50%;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-top-color: transparent;
+}
+
+.vp-wave-1 {
+  left: 14rpx;
+  width: 8rpx;
+  height: 8rpx;
+}
+
+.vp-wave-2 {
+  left: 14rpx;
+  width: 16rpx;
+  height: 16rpx;
+}
+
+.vp-wave-3 {
+  left: 14rpx;
+  width: 24rpx;
+  height: 24rpx;
+}
+
+/* 常用问题按钮（固定在输入栏上方） */
+.quick-questions-btn {
+  position: fixed;
+  left: 24rpx;
+  bottom: calc(230rpx + env(safe-area-inset-bottom));
+  background: #2e7d32;
+  border-radius: 32rpx;
+  padding: 16rpx 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  box-shadow: 0 4rpx 16rpx rgba(46, 125, 50, 0.3);
+  z-index: 98;
+}
+
+.qq-icon {
+  width: 40rpx;
+  height: 40rpx;
+  background: #fff;
+  color: #2e7d32;
+  border-radius: 50%;
+  font-size: 28rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qq-label {
+  color: #fff;
+  font-size: 26rpx;
+}
+
+/* 输入栏 —— 固定在屏幕底部（tab-bar上方），不随消息滚动 */
+.input-bar {
+  position: fixed;
+  left: 0;
+  bottom: calc(100rpx + env(safe-area-inset-bottom));
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-top: 1rpx solid #e0e0e0;
+  box-sizing: border-box;
+  z-index: 99;
+}
+
+.voice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+  min-width: 64rpx;
+}
+
+/* 输入栏左侧的语音按钮（实心填充，非镂空风格） */
+.voice-btn .voice-icon {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #2e7d32;
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.voice-btn .voice-icon::before {
+  content: "讲";
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 500;
+}
+
+.voice-label {
+  font-size: 22rpx;
+  color: #666;
+}
+
+.input-wrap {
+  flex: 1;
+  background: #f5f5f5;
+  border-radius: 36rpx;
+  padding: 0 32rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+}
+
+.msg-input {
+  width: 100%;
+  font-size: 30rpx;
+  color: #333;
+}
+
+.send-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.send-btn.active {
+  background: #2e7d32;
+}
+
+.send-icon {
+  color: #fff;
+  font-size: 36rpx;
+  transform: rotate(-30deg);
+}

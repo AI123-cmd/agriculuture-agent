@@ -1,0 +1,274 @@
+/*index.wxss*/
+page {
+  background: #eef5ec;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* —— 固定顶部用户栏 —— */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #2e7d32;
+  padding: 24rpx 30rpx;
+  padding-top: calc(110rpx + env(safe-area-inset-top));
+  padding-bottom: 32rpx;
+  min-height: calc(230rpx + env(safe-area-inset-top));
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+.user-detail {
+  margin-left: 24rpx;
+  margin-right: auto;
+}
+
+.avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  border: 4rpx solid #ffffff;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.crop-name {
+  font-size: 30rpx;
+  color: #ffffff;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.farmer-name {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 6rpx;
+  line-height: 1.5;
+}
+
+/* —— 滚动内容区域 —— */
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-top: calc(290rpx + env(safe-area-inset-top));
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  padding-left: 30rpx;
+  padding-right: 30rpx;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* —— 模块间距 —— */
+.item-block {
+  margin-top: 32rpx;
+}
+
+.item-block:first-child {
+  margin-top: 0;
+}
+
+/* —— 地点信息 —— */
+.location-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx 0;
+}
+
+.location-left {
+  display: flex;
+  align-items: center;
+}
+
+.location-pin {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50% 50% 50% 0;
+  background: #2e7d32;
+  transform: rotate(-45deg);
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.location-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #2e7d32;
+  line-height: 1.5;
+}
+
+.location-set {
+  font-size: 26rpx;
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+/* —— 卡片通用 —— */
+.card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 36rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+
+.card-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #2e7d32;
+  margin-bottom: 32rpx;
+  line-height: 1.5;
+}
+
+/* —— 农事播报 —— */
+.broadcast-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.broadcast-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.broadcast-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.broadcast-item:first-child {
+  padding-top: 0;
+}
+
+.broadcast-dot {
+  width: 12rpx;
+  height: 12rpx;
+  background: #2e7d32;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.broadcast-body {
+  flex: 1;
+  margin-left: 20rpx;
+  min-width: 0;
+}
+
+.broadcast-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2e7d32;
+  line-height: 1.5;
+}
+
+.broadcast-text {
+  font-size: 26rpx;
+  color: #666;
+  margin-top: 6rpx;
+  line-height: 1.5;
+}
+
+.broadcast-check {
+  width: 44rpx;
+  height: 44rpx;
+  background: #ffffff;
+  border: 2rpx solid #c8e6c9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.broadcast-check.done {
+  background: #2e7d32;
+  border-color: #2e7d32;
+}
+
+.broadcast-check.done .check-icon {
+  color: #ffffff;
+}
+
+.check-icon {
+  color: #2e7d32;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+/* —— 快捷入口 —— */
+.quick-wrap {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 32rpx;
+}
+
+.quick-item {
+  flex: 1;
+  height: 140rpx;
+  background: #2e7d32;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(46, 125, 50, 0.2);
+  box-sizing: border-box;
+}
+
+.quick-item:active {
+  background: #256427;
+  opacity: 0.9;
+}
+
+.quick-label {
+  font-size: 28rpx;
+  color: #ffffff;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* —— 环境摘要 —— */
+.env-grid {
+  display: flex;
+  gap: 20rpx;
+}
+
+.env-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f8faf8;
+  border-radius: 16rpx;
+  padding: 36rpx 12rpx;
+}
+
+.env-value {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #2e7d32;
+  margin-bottom: 12rpx;
+  line-height: 1.5;
+}
+
+.env-label {
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.5;
+}

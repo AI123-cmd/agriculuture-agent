@@ -1,0 +1,14 @@
+<view class="tab-bar">
+  <view class="tab-item {{selected === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">
+    <text class="tab-label">首页</text>
+  </view>
+  <view class="tab-item {{selected === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">
+    <text class="tab-label">咨询</text>
+  </view>
+  <view class="tab-item {{selected === 2 ? 'active' : ''}}" bindtap="switchTab" data-index="2">
+    <text class="tab-label">历史</text>
+  </view>
+  <view class="tab-item {{selected === 3 ? 'active' : ''}}" bindtap="switchTab" data-index="3">
+    <text class="tab-label">我的</text>
+  </view>
+</view>

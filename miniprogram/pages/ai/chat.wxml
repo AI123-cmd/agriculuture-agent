@@ -1,0 +1,75 @@
+<!--pages/ai/chat.wxml-->
+<view class="chat-page">
+  <view class="header">
+    <view class="header-title">AI咨询</view>
+  </view>
+
+  <!-- 作物标签条：显示当前咨询的作物模型，可切换 -->
+  <view class="crop-tag-bar">
+    <view class="crop-tag-left">
+      <text class="crop-tag-label">当前咨询</text>
+      <view class="crop-tag-current">{{currentCropName}}</view>
+    </view>
+    <view class="crop-tag-switch" bindtap="showCropSwitch">
+      <text class="switch-text">切换</text>
+      <text class="switch-arrow">›</text>
+    </view>
+  </view>
+
+  <scroll-view class="chat-scroll" scroll-y scroll-top="{{scrollTop}}" scroll-with-animation="{{scrollWithAnimation}}" enhanced show-scrollbar="{{false}}">
+    <view class="chat-list">
+      <block wx:for="{{messages}}" wx:key="id">
+        <!-- AI 消息（左侧） -->
+        <view wx:if="{{item.role === 'ai'}}" class="msg-row ai-row">
+          <view class="msg-avatar ai-avatar">
+            <text class="avatar-icon">🌾</text>
+          </view>
+          <view class="msg-content ai-content">
+            <view class="msg-bubble ai-bubble">{{item.content}}</view>
+            <view wx:if="{{item.showVoice}}" class="voice-play-btn" data-index="{{index}}" bindtap="playVoice">
+              <view class="vp-icon">
+                <view class="vp-speaker"></view>
+                <view class="vp-wave vp-wave-1"></view>
+                <view class="vp-wave vp-wave-2"></view>
+                <view class="vp-wave vp-wave-3"></view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 用户消息（右侧） -->
+        <view wx:if="{{item.role === 'user'}}" class="msg-row user-row">
+          <view class="msg-content user-content">
+            <view class="msg-bubble user-bubble">{{item.content}}</view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </scroll-view>
+
+  <!-- 常用问题浮动按钮 -->
+  <view class="quick-questions-btn" bindtap="showQuickQuestions">
+    <text class="qq-icon">?</text>
+    <text class="qq-label">常用问题</text>
+  </view>
+
+  <!-- 输入区域 -->
+  <view class="input-bar">
+    <view class="voice-btn" bindtap="toggleVoice">
+      <view class="voice-icon"></view>
+      <text class="voice-label">语音</text>
+    </view>
+    <view class="input-wrap">
+      <input class="msg-input"
+             placeholder="输入您的问题..."
+             value="{{inputValue}}"
+             confirm-type="send"
+             adjust-position="{{false}}"
+             bindconfirm="sendMessage"
+             bindinput="onInput" />
+    </view>
+    <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="sendMessage">
+      <text class="send-icon">➤</text>
+    </view>
+  </view>
+</view>

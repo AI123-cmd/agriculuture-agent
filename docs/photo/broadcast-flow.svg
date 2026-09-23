@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC','Hiragino Sans GB',sans-serif">
+  <defs>
+    <linearGradient id="bgb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbf8"/>
+      <stop offset="100%" stop-color="#eff6f0"/>
+    </linearGradient>
+    <linearGradient id="accb" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2e7d32"/>
+      <stop offset="100%" stop-color="#1b5e20"/>
+    </linearGradient>
+    <filter id="shb" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#2e7d32" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arb" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" fill="#a8c4ac"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="330" fill="url(#bgb)"/>
+
+  <text x="24" y="34" font-size="17" font-weight="700" fill="#1b5e20">农事播报 · 规则优先生成链路</text>
+  <text x="24" y="54" font-size="11" fill="#8ba394" font-family="Consolas,monospace">backend/app/broadcast/generator.py</text>
+  <text x="1176" y="34" font-size="11" fill="#8ba394" text-anchor="end">规则命中直出 · 农事历补充 · AI 兜底</text>
+
+  <!-- ============ 顶部输入 ============ -->
+  <rect x="24" y="76" width="1152" height="60" rx="11" fill="#ffffff" stroke="#e2ebe3" filter="url(#shb)"/>
+  <text x="42" y="98" font-size="12.5" font-weight="700" fill="#2e7d32">数据源</text>
+  <text x="42" y="116" font-size="10" fill="#8ba394" font-family="Consolas,monospace">snapshot.py</text>
+
+  <g font-size="11.5" text-anchor="middle">
+    <rect x="150" y="88" width="150" height="36" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <text x="225" y="111" fill="#3c5344">设备传感器读数</text>
+
+    <text x="316" y="111" font-size="13" fill="#a8c4ac">+</text>
+
+    <rect x="336" y="88" width="150" height="36" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <text x="411" y="111" fill="#3c5344">天气实况 / 预报</text>
+
+    <text x="502" y="111" font-size="13" fill="#a8c4ac">+</text>
+
+    <rect x="522" y="88" width="150" height="36" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <text x="597" y="111" fill="#3c5344">农户档案 / 作物</text>
+
+    <text x="688" y="111" font-size="13" fill="#a8c4ac">→</text>
+
+    <rect x="712" y="88" width="216" height="36" rx="8" fill="#eef6ef" stroke="#cfe4d2"/>
+    <text x="820" y="105" fill="#1b5e20" font-weight="700">环境快照 EnvSnapshot</text>
+    <text x="820" y="118" font-size="9.5" fill="#7d9683">缺失字段逐级兜底</text>
+
+    <rect x="944" y="88" width="214" height="36" rx="8" fill="#f7faf7" stroke="#e6efe7"/>
+    <text x="1051" y="111" fill="#3c5344">统一收敛数据源差异</text>
+  </g>
+
+  <line x1="600" y1="136" x2="600" y2="150" stroke="#a8c4ac" stroke-width="2" marker-end="url(#arb)"/>
+
+  <!-- ============ 三级生成 ============ -->
+  <rect x="24" y="158" width="1152" height="152" rx="11" fill="#ffffff" stroke="#e2ebe3" filter="url(#shb)"/>
+  <rect x="42" y="176" width="3.5" height="15" rx="1.75" fill="#2e7d32"/>
+  <text x="53" y="188" font-size="12.5" font-weight="700" fill="#2e7d32">三级生成策略</text>
+
+  <!-- 1 -->
+  <rect x="150" y="172" width="300" height="122" rx="10" fill="#fbfdfb" stroke="#d9e8db"/>
+  <rect x="150" y="172" width="300" height="28" rx="10" fill="#eef6ef"/>
+  <rect x="150" y="190" width="300" height="10" fill="#eef6ef"/>
+  <circle cx="168" cy="186" r="9" fill="url(#accb)"/>
+  <text x="168" y="190" font-size="10.5" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="184" y="190" font-size="12.5" font-weight="700" fill="#1b5e20">阈值规则集</text>
+
+  <g font-size="10.5" fill="#5d7a63">
+    <text x="164" y="220">· 高温热害 ≥ 35℃</text>
+    <text x="164" y="238">· 低温冻害 ≤ 5℃</text>
+    <text x="164" y="256">· 土壤墒情不足 &lt; 20%</text>
+    <text x="164" y="274">· 高湿 ≥ 85% · 降雨 · 大风</text>
+  </g>
+
+  <!-- 2 -->
+  <rect x="466" y="172" width="300" height="122" rx="10" fill="#fbfdfb" stroke="#d9e8db"/>
+  <rect x="466" y="172" width="300" height="28" rx="10" fill="#eef6ef"/>
+  <rect x="466" y="190" width="300" height="10" fill="#eef6ef"/>
+  <circle cx="484" cy="186" r="9" fill="url(#accb)"/>
+  <text x="484" y="190" font-size="10.5" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="500" y="190" font-size="12.5" font-weight="700" fill="#1b5e20">气象风险 + 农事历</text>
+
+  <g font-size="10.5" fill="#5d7a63">
+    <text x="480" y="220">· 病虫害气象风险</text>
+    <text x="480" y="238">  温湿组合：20~25℃ + 湿度 ≥ 90%</text>
+    <text x="480" y="256">· 物候期农事历</text>
+    <text x="480" y="274">  按「作物 + 生育期」补充提醒</text>
+  </g>
+
+  <!-- 3 -->
+  <rect x="782" y="172" width="376" height="122" rx="10" fill="#fffaf3" stroke="#f0dcbe"/>
+  <rect x="782" y="172" width="376" height="28" rx="10" fill="#fdf3e4"/>
+  <rect x="782" y="190" width="376" height="10" fill="#fdf3e4"/>
+  <circle cx="800" cy="186" r="9" fill="#d98324"/>
+  <text x="800" y="190" font-size="10.5" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="816" y="190" font-size="12.5" font-weight="700" fill="#8a5000">AI 简报兜底</text>
+
+  <g font-size="10.5" fill="#a8834a">
+    <text x="796" y="220">· 前两级均未命中时触发</text>
+    <text x="796" y="238">· 复用「通用农业」模型生成 150 字内简报</text>
+    <text x="796" y="256">· 覆盖环境概况 / 风险点 / 农事操作</text>
+    <text x="796" y="274">· 标注 source = ai，与垂类诊断逻辑隔离</text>
+  </g>
+
+  <!-- 输出 -->
+  <line x1="600" y1="310" x2="600" y2="322" stroke="#a8c4ac" stroke-width="2"/>
+  <text x="614" y="325" font-size="11" fill="#6b7d70">输出统一结构 RuleResult：type · level · title · content · source · action · meta</text>
+</svg>

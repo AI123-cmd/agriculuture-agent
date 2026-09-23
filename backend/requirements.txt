@@ -1,0 +1,28 @@
+# Web 框架
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# 数据库
+sqlalchemy>=2.0.25
+pymysql>=1.1.0
+alembic>=1.13.0
+cryptography>=42.0.0
+
+# 缓存 / 会话
+redis>=5.0.0
+
+# HTTP / 工具
+# httpx 0.28+ 移除了 Client(app=...) 参数，与 starlette<0.37 的 TestClient 不兼容
+httpx>=0.27.0,<0.28.0
+python-multipart>=0.0.9
+pytest>=8.0.0
+
+# AI 多轮诊断编排（LangGraph）+ MCP 工具层
+langgraph>=0.2.0
+langgraph-checkpoint-sqlite>=2.0.0
+mcp>=1.0.0
+# 注：文档写 langgraph-mcp-adapters，PyPI 实际包名为 langchain-mcp-adapters
+langchain-mcp-adapters>=0.1.0

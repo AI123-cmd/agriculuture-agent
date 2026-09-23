@@ -1,0 +1,83 @@
+<!--pages/mine/mine.wxml-->
+<view class="mine-page">
+  <!-- 顶部用户信息 -->
+  <view class="header">
+    <view class="user-card" bindtap="showProfileActions">
+      <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
+      <view class="user-info">
+        <view class="nickname">{{nickName}}</view>
+        <view class="farmer-tag" wx:if="{{farmerName}}">农户：{{farmerName}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 修改头像弹层 -->
+  <view class="profile-edit-mask" wx:if="{{showProfileEdit}}" bindtap="hideProfileEdit">
+    <view class="profile-edit-sheet" catchtap="noop">
+      <view class="edit-title">修改头像</view>
+      <view class="avatar-preview-wrap">
+        <image class="avatar-preview" src="{{pendingAvatar || userAvatar}}" mode="aspectFill"></image>
+      </view>
+      <view class="edit-row">
+        <button class="edit-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">从相册选择头像</button>
+      </view>
+      <view class="edit-row">
+        <view class="edit-submit-btn" bindtap="submitProfileEdit">保存</view>
+      </view>
+      <view class="edit-cancel-btn" bindtap="hideProfileEdit">取消</view>
+    </view>
+  </view>
+
+  <!-- 功能列表 -->
+  <view class="menu-section">
+    <view class="menu-item" bindtap="goProfile">
+      <view class="menu-icon profile-icon">
+        <view class="icon-body"></view>
+        <view class="icon-head"></view>
+      </view>
+      <view class="menu-text">农户档案</view>
+      <view class="menu-arrow">›</view>
+    </view>
+    <view class="menu-divider"></view>
+
+    <view class="menu-item" bindtap="goHistory">
+      <view class="menu-icon history-icon">
+        <view class="icon-clock">
+          <view class="clock-hand"></view>
+        </view>
+      </view>
+      <view class="menu-text">咨询历史</view>
+      <view class="menu-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 其他设置 -->
+  <view class="menu-section">
+    <view class="menu-item" bindtap="showAbout">
+      <view class="menu-icon about-icon">
+        <view class="icon-info"></view>
+      </view>
+      <view class="menu-text">关于我们</view>
+      <view class="menu-arrow">›</view>
+    </view>
+    <view class="menu-divider"></view>
+
+    <view class="menu-item" bindtap="showAgreement">
+      <view class="menu-icon doc-icon">
+        <view class="icon-lines">
+          <view class="line"></view>
+          <view class="line"></view>
+          <view class="line"></view>
+        </view>
+      </view>
+      <view class="menu-text">用户协议与隐私政策</view>
+      <view class="menu-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 退出登录 / 注销账号 -->
+  <view class="logout-section">
+    <view class="logout-btn" bindtap="logout">退出登录</view>
+    <view class="cancel-account-btn" bindtap="cancelAccount">注销账号</view>
+  </view>
+</view>
