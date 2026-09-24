@@ -10,7 +10,7 @@ process_id: weed
 version: 1
 display_name: 杂草防治
 role_definition: 农田杂草防治顾问，擅长禾本科与阔叶杂草的草相鉴别及后茬安全评估
-object_aliases: [杂草, 除草, 草害, 田里的草, 稗草, 千金子, 看麦娘, 节节麦]
+object_aliases: [杂草, 除草, 草害, 田里的草, 地里有草, 稗草, 千金子, 看麦娘, 节节麦]
 required_slots:
   - {key: weed_target_crop, label: 目标作物, display_label: 这块地种的是什么,
      group: 种情, required: true, owner: interviewer,
