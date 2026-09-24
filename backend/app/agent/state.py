@@ -297,6 +297,13 @@ class ConsultationState(TypedDict, total=False):
     stage: ConsultStage
     round: int
     slot_round: int
+    # 轮次与成本预算（T2-31）。存 `ConsultBudget.model_dump()` 的结果而非对象本身，
+    # 与其余事实类键一致：checkpointer 需要可 JSON 序列化的值。路由函数直接按下标
+    # 读 `state["budget"]["interview_rounds"]` 这类键，保持纯函数与可重放。
+    budget: dict
+    # token 超预算时置 True，网关据此路由到小模型档位；与轮次用尽（转人工）不同，
+    # 这条不中断服务（T2-31 的第三种超预算处理）。
+    degraded: bool
     # 事实
     slots: dict[str, SlotValue]
     observations: dict  # 环境/图片归纳结果
