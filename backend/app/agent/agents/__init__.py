@@ -10,6 +10,7 @@ from app.agent.agents.candidate_pool import CandidatePool, CandidateSlot, select
 from app.agent.agents.diagnoser import DiagnoserAgent
 from app.agent.agents.exceptions import AgentDegraded, ContractViolation
 from app.agent.agents.field_observer import FieldObserverAgent, RawReading, classify_reading
+from app.agent.agents.followup_builder import build_followup_plan
 from app.agent.agents.interviewer import InterviewerAgent
 from app.agent.agents.panel import (
     PERSPECTIVE_FOCUS,
@@ -20,6 +21,7 @@ from app.agent.agents.panel import (
     all_candidates,
     reduce_exclusions,
 )
+from app.agent.agents.prescriber import PrescriberAgent
 from app.agent.agents.retriever import KnowledgeRetriever, RegionMatcher, RetrieverAgent
 from app.agent.agents.triage import TriageAgent, run_triage
 
@@ -40,12 +42,14 @@ __all__ = [
     "PanelAggregate",
     "PanelOpinion",
     "PanelRunner",
+    "PrescriberAgent",
     "RawReading",
     "RegionMatcher",
     "RetrieverAgent",
     "TriageAgent",
     "aggregate_panel",
     "all_candidates",
+    "build_followup_plan",
     "classify_reading",
     "reduce_exclusions",
     "run_triage",

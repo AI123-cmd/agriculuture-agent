@@ -71,6 +71,12 @@ class PrescriptionAction(BaseModel):
         return self
 
 
+# 回访任务的种类。前四值来自技术方案 5.3.5 的主链路定义，`compliance_check` 由 T2-04 的
+# `pig.yaml` 引入：养猪流程的回访是按法定时限链确认"是否已上报"，它不是效果核查，
+# 若在契约层把它折成 `effect_check`，法定报告义务的回访会被标错类别。
+FollowupKindValue = Literal["effect_check", "risk_check", "preserve_scene", "observe", "compliance_check"]
+
+
 class FollowupTask(BaseModel):
     """一条回访任务。
 
@@ -83,7 +89,7 @@ class FollowupTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     due_offset_days: int
-    kind: Literal["effect_check", "risk_check", "preserve_scene", "observe"]
+    kind: FollowupKindValue
     content_rule: str | None = None
     ask: str | None = None
     window_based: bool = False

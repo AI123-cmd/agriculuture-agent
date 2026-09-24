@@ -250,6 +250,12 @@ class EvidenceItem(BaseModel):
 
     `region_scope` 记录实际命中的行政级别（县/市/省/全国），这是地区回退时必须
     保留的信息，供界面标注「当前按 XX 市通用农时提示」。
+
+    末尾七项是药剂条目专有的结构化字段，只有 `kind="pesticide"` 的条目有值。技术方案
+    5.3.1 的原始定义只有前八个字段，这七项由 T2-21 补上：处方里的剂量区间与安全间隔期
+    必须从知识库条目**照抄**（"模板出事实、模型只改写"），若证据条目不携带它们，处方
+    就只能由模型生成数字，这条原则当场失效。可空是必须的——非药剂条目没有这些字段，
+    而 `extra="forbid"` 不允许它们以未声明的方式出现。
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -262,6 +268,14 @@ class EvidenceItem(BaseModel):
     effective_date: date | None
     kind: Literal["pest", "disease", "pesticide", "cultivation", "threshold"]
     score: float
+    # 药剂条目专有：剂量区间、安全间隔期、每季使用上限、登记作物与禁忌搭配
+    dosage_min: float | None = None
+    dosage_max: float | None = None
+    dosage_unit: str | None = None
+    safety_interval_days: int | None = None
+    max_uses_per_season: int | None = None
+    registered_crops: list[str] = []
+    forbidden_combinations: list[str] = []
 
 
 class ConsultationState(TypedDict, total=False):
