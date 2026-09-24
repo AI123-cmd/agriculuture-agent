@@ -14,7 +14,9 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
+from .diagnosis import CONFIDENCE_DISPLAY, DiagnosisResult, UncertaintySource
 from .evidence import EvidenceItem, EvidenceKindValue, EvidenceQuery, EvidenceSet, RegionLevelActual
+from .gate import GateContext, GateResult, GateViolation, KnowledgeFacts
 from .interview import (
     SKIP_MARKERS,
     AnswerTypeValue,
@@ -23,6 +25,14 @@ from .interview import (
     QuestionOption,
 )
 from .observation import EnvReading, ImageCandidate, ObservationResult
+from .prescription import (
+    FollowupPlan,
+    FollowupTask,
+    PesticideItem,
+    Prescription,
+    PrescriptionAction,
+)
+from .report import ContactInfo, ReportDecision, ReportSignal
 from .triage import ObjectConfirmRequest, TriageResult, match_object_alias
 
 _M = TypeVar("_M", bound=BaseModel)
@@ -48,21 +58,36 @@ def load_contract(model_cls: type[_M], payload: dict) -> _M:
 
 
 __all__ = [
+    "CONFIDENCE_DISPLAY",
     "SKIP_MARKERS",
     "AnswerTypeValue",
+    "ContactInfo",
+    "DiagnosisResult",
     "EnvReading",
     "EvidenceItem",
     "EvidenceKindValue",
     "EvidenceQuery",
     "EvidenceSet",
+    "FollowupPlan",
+    "FollowupTask",
+    "GateContext",
+    "GateResult",
+    "GateViolation",
     "ImageCandidate",
     "InterviewBatch",
     "InterviewQuestion",
+    "KnowledgeFacts",
     "ObjectConfirmRequest",
     "ObservationResult",
+    "PesticideItem",
+    "Prescription",
+    "PrescriptionAction",
     "QuestionOption",
     "RegionLevelActual",
+    "ReportDecision",
+    "ReportSignal",
     "TriageResult",
+    "UncertaintySource",
     "dump_contract",
     "load_contract",
     "match_object_alias",
