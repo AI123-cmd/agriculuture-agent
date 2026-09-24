@@ -284,9 +284,12 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
 
         去重必须发生在截断之前：混合检索（BM25 加向量）的不同通路会召回同一条目，先去重
         才能让 `top_k` 个位置都留给不同的条目。保留分值更高者，因为两条通路给出的分数反映
-        的是同一份相关性，取高的一次更接近重排序的结论。
+        的是同一份相关性，取高的一次更接近重排序的结论。升序遍历再写字典，后写覆盖前写，
+        留下的正是更高分的那一条。
         """
-        unique = {item.knowledge_id: item for item in sorted(result.items, key=lambda i: i.score, reverse=True)}
+        unique: dict[str, EvidenceItem] = {}
+        for item in sorted(result.items, key=lambda i: i.score):
+            unique[item.knowledge_id] = item
         items = sorted(unique.values(), key=lambda i: i.score, reverse=True)[: self._top_k_for(ctx.process_config)]
         updates: dict[str, Any] = {"items": items, "hit": bool(items)}
         if not items and not result.unmatched_reason:

@@ -7,9 +7,20 @@
 
 from app.agent.agents.base import AgentContext, AgentFailure, BaseAgent, FailureMode
 from app.agent.agents.candidate_pool import CandidatePool, CandidateSlot, select_candidate_slots
+from app.agent.agents.diagnoser import DiagnoserAgent
 from app.agent.agents.exceptions import AgentDegraded, ContractViolation
 from app.agent.agents.field_observer import FieldObserverAgent, RawReading, classify_reading
 from app.agent.agents.interviewer import InterviewerAgent
+from app.agent.agents.panel import (
+    PERSPECTIVE_FOCUS,
+    PanelAggregate,
+    PanelOpinion,
+    PanelRunner,
+    aggregate_panel,
+    all_candidates,
+    reduce_exclusions,
+)
+from app.agent.agents.retriever import KnowledgeRetriever, RegionMatcher, RetrieverAgent
 from app.agent.agents.triage import TriageAgent, run_triage
 
 __all__ = [
@@ -20,12 +31,23 @@ __all__ = [
     "CandidatePool",
     "CandidateSlot",
     "ContractViolation",
+    "DiagnoserAgent",
     "FailureMode",
     "FieldObserverAgent",
     "InterviewerAgent",
+    "KnowledgeRetriever",
+    "PERSPECTIVE_FOCUS",
+    "PanelAggregate",
+    "PanelOpinion",
+    "PanelRunner",
     "RawReading",
+    "RegionMatcher",
+    "RetrieverAgent",
     "TriageAgent",
+    "aggregate_panel",
+    "all_candidates",
     "classify_reading",
+    "reduce_exclusions",
     "run_triage",
     "select_candidate_slots",
 ]
