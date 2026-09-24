@@ -60,8 +60,6 @@ class EventOutbox(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="已投递尝试次数")
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True, comment="最近一次投递失败原因")
     # `available_at` 既是"最早可投递时刻"（退避用），也是抢占租约（见 events/outbox.py）
-    available_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

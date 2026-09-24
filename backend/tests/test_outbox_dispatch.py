@@ -115,9 +115,9 @@ def test_claim_stmt_uses_skip_locked_and_lease() -> None:
     # 用 postgresql 方言编译：`str(stmt)` 走默认编译，内层子查询会渲染成一个
     # 绑定参数（`IN (SELECT ...)` 的具体内容看不见），断言 SKIP LOCKED 会误判。
     sql = str(
-        OutboxDispatcher().claim_stmt(_BATCH).compile(
-            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-        )
+        OutboxDispatcher()
+        .claim_stmt(_BATCH)
+        .compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
     )
     assert "FOR UPDATE SKIP LOCKED" in sql
     assert "RETURNING" in sql
@@ -398,6 +398,7 @@ def test_end_to_end_dispatch_reaches_worker(factory) -> None:
     注册表写成 `snapshot_requested`、worker 注册成别的名字，桩测试全绿而线上事件
     永远没人消费。
     """
+
     async def _run() -> None:
         pool = await create_pool(RedisSettings.from_dsn(get_settings().REDIS_URL))
         try:

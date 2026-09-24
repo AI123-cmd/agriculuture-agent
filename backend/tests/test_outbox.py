@@ -115,7 +115,9 @@ def test_partial_index_on_pending_exists(sync_engine) -> None:
     `dispatched` 行不在这份索引里，历史越多它越省。
     """
     with sync_engine.connect() as conn:
-        defs = dict(conn.execute(text("SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :t"), {"t": _TABLE}).all())
+        defs = dict(
+            conn.execute(text("SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :t"), {"t": _TABLE}).all()
+        )
     partial = {name: ddl for name, ddl in defs.items() if "WHERE" in ddl}
     assert partial, f"event_outbox 上没有部分索引：{sorted(defs)}"
     # PostgreSQL 会把条件规范化成 ((status)::text = 'pending'::text)
