@@ -46,3 +46,6 @@ langchain-mcp-adapters>=0.1.0
 
 # 流程配置（T2-03 从 seeds/*.yaml 加载 ProcessConfig）
 PyYAML>=6.0
+
+# 中文分词（T2-17 追问候选池的相关性粗排；同时也是知识库检索的关键词兜底分词器）
+jieba>=0.42.1
