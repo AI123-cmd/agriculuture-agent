@@ -309,6 +309,15 @@ class ConsultationState(TypedDict, total=False):
     # 流程
     process_id: ProcessId
     process_locked: bool
+    # 流程红线是否已加载（T2-24）。路由函数首行检查它，为假即 fail-closed 转人工：
+    # 红线配置缺失时用通用规则继续出方，等于突破产品说明书 9.3，属于不可接受的风险。
+    redlines_loaded: bool
+    # 本流程必填槽位键清单（T2-24）。`slots_ready` 只能做集合运算，不能查流程配置
+    # ——路由函数必须是无 IO 的纯函数，故由 intake 把配置里的必填键摊平后写进 state。
+    required_slots: list[str]
+    # 会诊是否必要（T2-24）。由问诊节点按流程配置与该轮信息量置位，路由据此在
+    # `verify` 与 `panel` 之间二选一，只读 bool，不对文本做关键词匹配。
+    panel_needed: bool
     # config_version / config_hash 是技术方案 5.3.1 之外的必要推断：8.4 要求
     # `GateResult.checked_rules` 记录配置版本，而闸门只能从 state 读到它。
     config_version: int
@@ -334,6 +343,13 @@ class ConsultationState(TypedDict, total=False):
     observations: dict  # 环境/图片归纳结果
     evidence: list[dict]  # EvidenceItem 序列化
     prescription_history: list[dict]  # 档案中的用药史，只读快照，与 slots 分开存放
+    # 对象确认交互（T2-25）。分诊判不出对象归属时插入一次确认，这三个键承载该交互：
+    # `awaiting_object_confirm` 表示正等农户回答，`object_label` 是展示给农户的对象名，
+    # `object_confirmed_conflict` 表示农户回答与档案记录冲突——冲突只能回分诊重判，
+    # 不能就地改流程，否则档案一致性无从保证。
+    awaiting_object_confirm: bool
+    object_label: str
+    object_confirmed_conflict: bool
     # 产出
     # 分诊产出（T2-14）。存 `TriageResult` 序列化后的 dict，与其余事实类键一致。
     # 条件边 `route_after_triage`（T2-24）直接按下标读 `handoff_to_report` 与
