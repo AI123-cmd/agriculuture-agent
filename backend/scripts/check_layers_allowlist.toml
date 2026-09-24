@@ -1,0 +1,18 @@
+# 分层依赖检查的白名单（T1-12）。
+#
+# 只在这里登记例外，脚本不解析 `# noqa`：行内豁免会散落在各处且无人复查，
+# 集中登记才能让"临时例外"在评审时被看见。
+#
+# 每条 [[allow]] 三个字段：
+#   rule   —— 规则名，取值 L1 / L2 / L3 / L4
+#   path   —— 相对 backend/ 的路径前缀（`is_allowed` 用 startswith 匹配）
+#   reason —— 为什么必须开这个例外，以及**何时失效**（必须含 T 开头的任务编号）
+#             没有失效条件的例外会永久存在，`check_allowlist_hygiene` 就是防这一点。
+#
+# 条目数上限见 pyproject.toml 的 `[tool.check-layers] max_allowlist_entries`。
+# 示例（当前无例外，故整段注释掉）：
+#
+#   [[allow]]
+#   rule = "L2"
+#   path = "app/agent/nodes/legacy_import.py"
+#   reason = "T2-25 主图重排后删除本条"

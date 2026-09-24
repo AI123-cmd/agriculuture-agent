@@ -37,6 +37,7 @@ BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 清空顺序：子表在前，避免外键阻塞
 _TABLES = (
+    "event_outbox",
     "ai_message",
     "ai_conversation",
     "memory_summary",

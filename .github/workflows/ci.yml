@@ -1,0 +1,69 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # 迁移依赖 pgvector 与 timescaledb 两个扩展，官方 postgres 镜像不带它们
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_PASSWORD: huanong
+          POSTGRES_USER: huanong
+          POSTGRES_DB: huanong
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U huanong"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # 测试库与开发库分离（T1-08）：conftest 会据此建/清 huanong_test
+      TEST_DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong_test
+      DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong
+      CHECKPOINT_DB_URL: postgresql://huanong:huanong@localhost:5432/huanong
+      # 检查点是核心依赖，测试不依赖外部服务
+      USE_MOCK_LLM: "true"
+      REDIS_URL: ""
+      JWT_SECRET: ci-only-secret-key-at-least-32-bytes-long
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      - name: 建测试库
+        run: |
+          PGPASSWORD=huanong psql -h localhost -U huanong -d huanong \
+            -c 'CREATE DATABASE huanong_test OWNER huanong;'
+
+      # 顺序与 scripts/ci.sh 一致：ruff → mypy → check-layers → 迁移 → 测试。
+      # 分层依赖检查放在 mypy 之后：分层违规常同时导致类型错误，先报基础门禁。
+      - name: ruff
+        run: |
+          cd backend
+          ruff format --check app tests
+          ruff check app tests
+
+      - name: mypy
+        run: cd backend && mypy app
+
+      - name: check-layers
+        run: python backend/scripts/check_layers.py
+
+      - name: migrations
+        run: |
+          cd backend
+          alembic upgrade head
+          alembic downgrade -1
+          alembic upgrade head
+
+      - name: tests
+        run: cd backend && pytest -q

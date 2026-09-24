@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     UPLOAD_MAX_BYTES: int = 5 * 1024 * 1024
     UPLOAD_ALLOWED_TYPES: set[str] = {"image/jpeg", "image/png", "image/webp"}
 
+    # 事件发件箱（T1-13）
+    # 单轮抢占条数：一次 cron 要处理完积压，又不能把批次开得太大而长时间占用
+    # 连接与内存。100 条对应"每 5 秒一轮"，足够消化常规积压。
+    OUTBOX_BATCH_SIZE: int = 100
+
     # 历史列表预览的取数策略（T1-11）
     # `lateral`：对页内每条会话按 conversation_id 索引取最后一条，不扫全表；
     #           代价与页大小成正比、与消息表大小无关，是多租户下的正确默认。

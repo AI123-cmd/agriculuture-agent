@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.uow import unit_of_work
+from app.events import EVENT_PRESCRIPTION_CREATED, emit
 from app.models import AIConversation, AIMessage
 from app.repositories import conversation_repo, crop_repo, message_repo, profile_repo, tag_repo
 from app.schemas import ChatRequest
@@ -47,12 +48,20 @@ class AIService:
         reply = result.get("reply") or ""
         related = result.get("related_suggestions") or ["追肥建议", "排水建议", "3天后复查"]
 
+        # 只有走到 `prescribe` 节点才算产出处方。中途结束的轮次（症状/管理信息
+        # 不全，图返回追问文案）不应发 `prescription.created`，否则回访会被登记
+        # 在一个并不存在的处方上。延迟导入 `Step` 与下面的 `get_agent` 同理：
+        # `app.agent` 包会连锁导入 services，模块级导入会形成循环。
+        from app.agent.state import Step
+
+        prescribed = result.get("step") == Step.PRESCRIBE.value
+
         # 图执行（秒级）刻意放在事务之外：把它包进事务会长时间持锁，且检查点写入
         # 由 AsyncPostgresSaver 自己的连接池管理，与业务事务本就不是同一连接
         # （技术方案 7.5 的连接池 autocommit=True 也印证这点）。一致性靠顺序保证：
         # 业务事务成功后才有业务记录，检查点先行不会造成业务数据的部分写入。
         async with unit_of_work(db, name="ai.chat"):
-            await self._persist(db, user_id, session_id, req, reply)
+            await self._persist(db, user_id, session_id, req, reply, prescribed=prescribed)
 
         tags_added = [req.cropTag] if req.cropTag else []
         return {
@@ -62,7 +71,16 @@ class AIService:
             "tagsAdded": tags_added,
         }
 
-    async def _persist(self, db: AsyncSession, user_id: str, session_id: str, req: ChatRequest, reply: str) -> None:
+    async def _persist(
+        self,
+        db: AsyncSession,
+        user_id: str,
+        session_id: str,
+        req: ChatRequest,
+        reply: str,
+        *,
+        prescribed: bool,
+    ) -> None:
         """落库本轮对话（不提交，事务边界由 `chat` 的 `unit_of_work` 统一收口）。
         `session_id` 由 `chat` 判定归属后传入，这里不再按 id 直查。
 
@@ -77,7 +95,7 @@ class AIService:
         else:
             conv.crop_tag = req.cropTag or conv.crop_tag
 
-        await message_repo.add_many(
+        messages = await message_repo.add_many(
             db,
             user_id,
             session_id,
@@ -91,6 +109,41 @@ class AIService:
         tags_added = [req.cropTag] if req.cropTag else []
         await ProfileService().add_tags(db, user_id, tags_added)
         await MemoryService().remember(db, user_id, session_id, req.message, reply)
+
+        if prescribed:
+            await self._emit_prescription_created(db, user_id, session_id, messages[-1])
+
+    async def _emit_prescription_created(
+        self, db: AsyncSession, user_id: str, session_id: str, reply_message: AIMessage
+    ) -> None:
+        """把"处方已生成"写进发件箱（T1-13）。必须在 `unit_of_work` 内调用。
+
+        事件与业务写在同一事务里，因此不存在"业务提交了但事件没落库"。全流程只
+        插一行、不产生额外往返，对话链路的延迟预算不受影响——这正是把回访登记、
+        台账写入移出发件箱（异步化）的理由（技术方案 6.6）。
+
+        聚合根取本条 AI 回复消息：处方目前还没有独立表（T3-09 才建），而"一次
+        对话产生的这份处方"正是回复消息本身。用它做 `aggregate_id`/幂等键有两点
+        好处——天然按轮次唯一，同一会话里多次开方不会撞唯一约束；且它已经是主键，
+        消费者可以直接按 id 回查回复原文。
+
+        `flush` 是为了拿到自增主键：`emit` 只 `add` 不 flush，而这里的事件载荷
+        与幂等键都用得到 id。这次 flush 本来也会在 `unit_of_work` 提交时发生，
+        提前到此处不额外增加往返。
+        """
+        await db.flush()
+        await emit(
+            db,
+            event_type=EVENT_PRESCRIPTION_CREATED,
+            aggregate_type="prescription",
+            aggregate_id=str(reply_message.id),
+            user_id=user_id,
+            payload={
+                "session_id": session_id,
+                "message_id": reply_message.id,
+                "summary": (reply_message.content or "")[:200],
+            },
+        )
 
     async def build_context(self, db: AsyncSession, user_id: str, crop_tag: str | None) -> dict:
         """组装诊断上下文。

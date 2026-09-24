@@ -73,6 +73,12 @@ disallow_untyped_defs = true
 ignore_missing_imports = true
 exclude = ["^alembic/", "^scripts/", "^tests/"]
 
+[tool.check-layers]
+# L4 的合法入口：只有数据访问层与引擎封装可以直接构造查询语句。
+db_query_allowed = ["app/repositories/", "app/db/"]
+# 白名单条目上限：例外过多说明规则已被架空，该回头改代码而不是继续加条目。
+max_allowlist_entries = 5
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

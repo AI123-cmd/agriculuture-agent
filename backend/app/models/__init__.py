@@ -3,6 +3,7 @@ from .conversation import AIConversation, AIMessage
 from .crop import Crop
 from .device import Device
 from .env_reading import EnvReading
+from .event_outbox import EventOutbox
 from .farmer_profile import FarmerProfile
 from .field import Field
 from .knowledge import KnowledgeItem
@@ -25,4 +26,5 @@ __all__ = [
     "UserProfileTag",
     "EnvReading",
     "KnowledgeItem",
+    "EventOutbox",
 ]
