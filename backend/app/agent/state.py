@@ -304,12 +304,22 @@ class ConsultationState(TypedDict, total=False):
     # token 超预算时置 True，网关据此路由到小模型档位；与轮次用尽（转人工）不同，
     # 这条不中断服务（T2-31 的第三种超预算处理）。
     degraded: bool
+    # 档案输入（T2-14）。技术方案 5.3.1 的状态清单里没有这两项，但分诊要读档案里的
+    # 经营条目与流程归属才能判"对象是否与档案相符"，且它必须来自调用方注入的只读快照
+    # ——智能体层不得自己查库。
+    profile: dict
+    profile_process_id: str | None
     # 事实
     slots: dict[str, SlotValue]
     observations: dict  # 环境/图片归纳结果
     evidence: list[dict]  # EvidenceItem 序列化
     prescription_history: list[dict]  # 档案中的用药史，只读快照，与 slots 分开存放
     # 产出
+    # 分诊产出（T2-14）。存 `TriageResult` 序列化后的 dict，与其余事实类键一致。
+    # 条件边 `route_after_triage`（T2-24）直接按下标读 `handoff_to_report` 与
+    # `object_confirmed`：这两项决定主图走确认回环还是直接进流程子图，做成契约对象
+    # 会让路由函数多一次校验，且校验失败时无法兜底（路由必须无 IO、无异常）。
+    triage: dict
     diagnosis: dict | None
     prescription: dict | None
     gate_result: dict | None

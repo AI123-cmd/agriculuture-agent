@@ -7,6 +7,7 @@
 
 from app.agent.agents.base import AgentContext, AgentFailure, BaseAgent, FailureMode
 from app.agent.agents.exceptions import AgentDegraded, ContractViolation
+from app.agent.agents.triage import TriageAgent, run_triage
 
 __all__ = [
     "AgentContext",
@@ -15,4 +16,6 @@ __all__ = [
     "BaseAgent",
     "ContractViolation",
     "FailureMode",
+    "TriageAgent",
+    "run_triage",
 ]

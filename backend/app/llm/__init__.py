@@ -16,9 +16,11 @@ from app.llm.errors import (
     SchemaUnsupportedError,
     TransientModelError,
 )
+from app.llm.factory import build_gateway, get_gateway
 from app.llm.gateway import CallAuditor, ModelGateway
 from app.llm.metering import NullTokenMeter, TokenMeter
 from app.llm.providers.base import ModelProvider, ModelResponse
+from app.llm.providers.mock import MockProvider
 from app.llm.router import ModelCandidate, ModelRouter, RoutingDecision
 from app.llm.tiers import DEFAULT_TIER_MAP, ModelTier, TierSpec
 
@@ -28,6 +30,7 @@ __all__ = [
     "CallAuditor",
     "CircuitBreaker",
     "CircuitState",
+    "MockProvider",
     "ModelCandidate",
     "ModelError",
     "ModelGateway",
@@ -43,5 +46,7 @@ __all__ = [
     "TierSpec",
     "TokenMeter",
     "TransientModelError",
+    "build_gateway",
+    "get_gateway",
     "trim_messages",
 ]

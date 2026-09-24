@@ -77,6 +77,18 @@ class Settings(BaseSettings):
     FARM_LLM_TIMEOUT: int = 30
     USE_MOCK_LLM: bool = True
 
+    # 模型网关装配（T2-55）。档位参数与熔断阈值一律进环境变量：开发环境用轻量模型
+    # 跑通链路、生产环境换正式模型，硬编码会让"改模型"变成"改代码 + 重新发版"。
+    LLM_MAX_TOKENS: int = 2048
+    LLM_MAX_HISTORY_ROUNDS: int = 6
+    # 预算低于此值时主模型档位降一档（T2-57 的 `min_budget_for_primary`）
+    LLM_MIN_BUDGET_FOR_PRIMARY: int = 8000
+    # 熔断阈值与冷却时长（T2-58）。冷却期取 30 秒：短于它供应商刚恢复就被再次打满，
+    # 长于它一次偶发故障会让可用供应商长时间缺席。
+    CIRCUIT_FAILURE_THRESHOLD: int = 5
+    CIRCUIT_COOLDOWN_SECONDS: int = 30
+    CIRCUIT_HALF_OPEN_PROBES: int = 2
+
     # AI 多轮诊断编排（LangGraph）
     LLM_DEFAULT_MODEL: str = "deepseek-v4-flash"
     CONFIDENCE_HIGH_THRESHOLD: int = 3
