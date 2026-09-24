@@ -18,7 +18,7 @@ from app.core.config import Settings, get_settings
 # 每次新增迁移后由发布流程更新此值。它与 `alembic/HEAD` 双写是刻意的：
 # 前者是代码断言值（服务启动时校验），后者是发布产物校验值（流水线校验），
 # 二者同时存在才能挡住"迁移加了但忘了更新期望值"。
-EXPECTED_REVISION = "0003_event_outbox"
+EXPECTED_REVISION = "0004_process_config"
 
 # 检查点 schema 下应由 AsyncPostgresSaver.setup() 建出的表数量。
 # 这些表的结构跟随 LangGraph 版本演进，故不纳入迁移管理，只断言数量下限。

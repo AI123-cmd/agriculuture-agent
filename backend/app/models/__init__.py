@@ -9,6 +9,7 @@ from .field import Field
 from .knowledge import KnowledgeItem
 from .location import Location
 from .memory_summary import MemorySummary
+from .process_config import ProcessConfigRow, ProcessRedlineRow
 from .profile_tag import UserProfileTag
 from .user import User
 
@@ -27,4 +28,6 @@ __all__ = [
     "EnvReading",
     "KnowledgeItem",
     "EventOutbox",
+    "ProcessConfigRow",
+    "ProcessRedlineRow",
 ]

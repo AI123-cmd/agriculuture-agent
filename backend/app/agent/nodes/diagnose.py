@@ -4,12 +4,13 @@ from langchain_core.runnables import RunnableConfig
 
 from app.agent.confidence import assess
 from app.agent.nodes import _db_from_config
-from app.agent.state import AgentState, ConsultStage
+from app.agent.state import ConsultStage, TransitionalState
 from app.ai_router.registry import resolve
 from app.services.memory_service import MemoryService
 
 
-async def diagnose(state: AgentState, config: RunnableConfig | None = None) -> dict:
+# TODO(T2-25): 标注用过渡状态（旧键清单），本节点由 T2-19 起替换为 `ConsultationState` 版本。
+async def diagnose(state: TransitionalState, config: RunnableConfig | None = None) -> dict:
     db = _db_from_config(config)
     crop_tag = state.get("crop_tag")
     symptoms = (state.get("symptoms") or "").strip()

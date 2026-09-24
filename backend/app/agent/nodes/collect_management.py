@@ -2,7 +2,7 @@
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.state import MANAGEMENT_KEYS, AgentState, ConsultStage
+from app.agent.state import MANAGEMENT_KEYS, ConsultStage, TransitionalState
 
 _FERTILIZE = ("施肥", "追肥", "尿素", "复合肥", "有机肥", "氮肥", "磷", "钾", "底肥", "叶面肥")
 _PESTICIDE = ("打药", "农药", "喷药", "杀虫", "杀菌", "除草", "拌种", "蘸根")
@@ -31,7 +31,8 @@ def _extract_management(message: str) -> dict:
     return result
 
 
-def collect_management(state: AgentState, config: RunnableConfig | None = None) -> dict:
+# TODO(T2-25): 标注用过渡状态（旧键清单），本节点由 T2-15 起替换为 `ConsultationState` 版本。
+def collect_management(state: TransitionalState, config: RunnableConfig | None = None) -> dict:
     management = dict(state.get("management") or {})
     message = (state.get("user_message") or "").strip()
 

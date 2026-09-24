@@ -2,10 +2,11 @@
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.state import AgentState, ConsultStage
+from app.agent.state import ConsultStage, TransitionalState
 
 
-def collect_symptoms(state: AgentState, config: RunnableConfig | None = None) -> dict:
+# TODO(T2-25): 标注用过渡状态（旧键清单），本节点由 T2-14 起替换为 `ConsultationState` 版本。
+def collect_symptoms(state: TransitionalState, config: RunnableConfig | None = None) -> dict:
     symptoms = (state.get("symptoms") or "").strip()
     message = (state.get("user_message") or "").strip()
     image_url = state.get("image_url")

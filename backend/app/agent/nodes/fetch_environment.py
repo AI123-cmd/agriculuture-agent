@@ -3,12 +3,13 @@
 from langchain_core.runnables import RunnableConfig
 
 from app.agent.nodes import _repos_from_config
-from app.agent.state import AgentState, ConsultStage
+from app.agent.state import ConsultStage, TransitionalState
 from app.core.config import get_settings
 from app.tools import knowledge, profile, sensors, weather
 
 
-async def fetch_environment(state: AgentState, config: RunnableConfig | None = None) -> dict:
+# TODO(T2-25): 标注用过渡状态（旧键清单），本节点由 T2-14 起替换为 `ConsultationState` 版本。
+async def fetch_environment(state: TransitionalState, config: RunnableConfig | None = None) -> dict:
     settings = get_settings()
     if not settings.MCP_ENABLED:
         return {"stage": ConsultStage.VERIFY.value, "environment": {}}

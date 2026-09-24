@@ -1,10 +1,16 @@
-"""置信度分级：规则化、确定性、可单测。"""
+"""置信度分级：规则化、确定性、可单测。
 
-from app.agent.state import MANAGEMENT_KEYS, AgentState
+# TODO(T2-25): 本模块读的是旧编排状态的键（`image_url`、`symptoms`、`management`、
+# `evidence_conflict`），这些键将由 `ConsultationState` 的 `slots` / `observations`
+# 取代；评分改为按槽位覆盖度计算的动作在 T2-19，届时本模块随旧节点一并重写。
+# 过渡期沿用 `TransitionalState` 作类型标注，理由见 `state.py` 中该类的说明。
+"""
+
+from app.agent.state import MANAGEMENT_KEYS, TransitionalState
 from app.core.config import get_settings
 
 
-def assess(state: AgentState) -> tuple[int, str]:
+def assess(state: TransitionalState) -> tuple[int, str]:
     """根据证据信号计算置信度得分与分级。
 
     信号：图片 / 症状完整 / 管理完整 / 环境一致，各 1 分。

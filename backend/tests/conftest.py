@@ -35,9 +35,12 @@ from app.main import app as fastapi_app  # noqa: E402
 
 BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# 清空顺序：子表在前，避免外键阻塞
+# 清空顺序：子表在前，避免外键阻塞；process_redline 与 process_config 同版本，
+# 排在其前以保持"被引用者在前"的一致顺序（两者无外键，顺序仅为可读性）。
 _TABLES = (
     "event_outbox",
+    "process_redline",
+    "process_config",
     "ai_message",
     "ai_conversation",
     "memory_summary",

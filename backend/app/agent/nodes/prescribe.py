@@ -2,10 +2,11 @@
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.state import AgentState, ConsultStage
+from app.agent.state import ConsultStage, TransitionalState
 
 
-def prescribe(state: AgentState, config: RunnableConfig | None = None) -> dict:
+# TODO(T2-25): 标注用过渡状态（旧键清单），本节点由 T2-20 起替换为 `ConsultationState` 版本。
+def prescribe(state: TransitionalState, config: RunnableConfig | None = None) -> dict:
     diagnosis = state.get("diagnosis") or {}
     summary = diagnosis.get("summary") or ""
     level = state.get("confidence_level", "medium")

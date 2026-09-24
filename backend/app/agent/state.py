@@ -1,8 +1,13 @@
-"""全项目唯一的枚举来源，以及 LangGraph 编排状态定义。
+"""全项目唯一的枚举来源，以及 LangGraph 编排状态定义（技术方案 5.3.1）。
 
 枚举集中在一处（技术方案 5.2「枚举封闭」）是为了让契约层、智能体层、闸门层、
 知识库层、模型网关引用同一份定义。若各处各写一遍字符串常量，一次措辞变更就会
 在不同层之间产生不匹配，而这类不匹配发生在安全校验链路上是不可接受的。
+
+本模块只放**纯定义**（枚举、`SlotValue`、`EvidenceItem`、`ConsultationState`），不放
+任何写入函数：`app/process_config/models.py` 反向依赖本模块取枚举，若这里再导入流程
+配置，就会形成 `state → process_config → state` 的循环导入。黑板读写函数因此单独放在
+`app/agent/blackboard.py`。
 
 全部枚举继承 `str, Enum`：枚举值会进入 YAML 配置、JSON 契约、JSONB 列与数据库
 字符串列，`str` 混入让 `ProcessId.RICE == "rice"` 成立，序列化边界上无须反复做
@@ -13,10 +18,12 @@
 general」是一个显式的路由决策，必须由分诊智能体给出 `fallback_reason` 后才能发生。
 """
 
+from datetime import date
 from enum import Enum
-from typing import Annotated, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.core.exceptions import EnumParseError
 
@@ -206,24 +213,154 @@ def parse_process_id(raw: str) -> ProcessId:
 MANAGEMENT_KEYS = ("fertilize", "pesticide", "water", "weather")
 
 
-# TODO(T2-25): 过渡期保留的旧编排状态，由 T2-08 的 ConsultationState 取代，
-# 主图在 T2-25 重建后本类随 graph.py / nodes/ 一并删除。
-class AgentState(TypedDict, total=False):
+class SlotValue(BaseModel):
+    """单个信息槽位，带来源与状态（技术方案 5.3.1 原样定义）。
+
+    `source` 必填，因为「没有来源的事实」在黑板上无法参与优先级比较；`status` 用
+    `Literal` 而不是 `SlotStatus` 枚举，是为了与技术方案 5.3.1 的代码原文逐字一致，
+    两者取值相同、序列化结果一致，不冲突。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    value: str | None = None
+    status: Literal["filled", "unknown", "missing"] = "missing"
+    source: Literal["profile", "sensor", "weather", "user_answer", "image", "inferred"]
+    confidence: float | None = None
+    asked_at_round: int | None = None
+
+    @model_validator(mode="after")
+    def _status_consistency(self) -> "SlotValue":
+        """拦最隐蔽的一类错误：置了值却忘改状态，或改了状态却没写值。
+
+        这类不一致不会报任何异常，却直接导致追问筛选器把已答的槽位当成未问。
+        `missing` 与 `unknown` 的差别是刻意保留的：前者是「还没问」，后者是
+        「问过且农户答不出」，后者是合法答案，不得携带值。
+        """
+        if self.status == "filled" and self.value is None:
+            raise ValueError("status=filled 时 value 不得为空")
+        if self.status == "missing" and self.value is not None:
+            raise ValueError("status=missing 时不得携带 value")
+        return self
+
+
+class EvidenceItem(BaseModel):
+    """一条证据，必须带溯源（技术方案 5.3.1 原样定义）。
+
+    `region_scope` 记录实际命中的行政级别（县/市/省/全国），这是地区回退时必须
+    保留的信息，供界面标注「当前按 XX 市通用农时提示」。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    knowledge_id: str
+    title: str
+    content: str
+    process_id: str
+    region_scope: str | None
+    effective_date: date | None
+    kind: Literal["pest", "disease", "pesticide", "cultivation", "threshold"]
+    score: float
+
+
+class ConsultationState(TypedDict, total=False):
+    """黑板式共享状态，同时是 LangGraph 的 State 类型（技术方案 5.3.1）。
+
+    `total=False` 是关键：LangGraph 允许节点只返回自己改动的键，未返回的键保留
+    上一轮的值。若用 `total=True`，每个节点都必须返回全部字段，实现会变得冗长
+    且极易遗漏。
+
+    事实类的键（`evidence`、`diagnosis`、`prescription`、`gate_result`、
+    `report_decision`）都是 `dict` / `list[dict]` 而非契约对象：TypedDict 交给
+    checkpointer 时需要可 JSON 序列化，契约对象在节点内部使用，入 state 前统一
+    `model_dump(mode="json")`，出 state 时统一 `Model.model_validate(...)`。
+
+    注意 LangGraph 的一个行为约束：节点内对 state 的**原地修改**
+    （如 `state.setdefault("slots", {})[k] = v`）不会被持久化到后续节点，节点
+    必须把改动**作为返回值**交给图层合并。`blackboard.write_slot` 因此既支持原地
+    写入（供纯函数单测与节点工厂直接调用），也提供返回值供节点返回。
+    """
+
+    # 身份与归属
+    session_id: str
+    user_id: str
+    farm_plot_id: str | None
+    # 流程
+    process_id: ProcessId
+    process_locked: bool
+    # config_version / config_hash 是技术方案 5.3.1 之外的必要推断：8.4 要求
+    # `GateResult.checked_rules` 记录配置版本，而闸门只能从 state 读到它。
+    config_version: int
+    config_hash: str
+    # 进展
+    stage: ConsultStage
+    round: int
+    slot_round: int
+    # 事实
+    slots: dict[str, SlotValue]
+    observations: dict  # 环境/图片归纳结果
+    evidence: list[dict]  # EvidenceItem 序列化
+    prescription_history: list[dict]  # 档案中的用药史，只读快照，与 slots 分开存放
+    # 产出
+    diagnosis: dict | None
+    prescription: dict | None
+    gate_result: dict | None
+    report_decision: dict | None
+    # 会话
+    messages: Annotated[list, add_messages]
+    reply: str
+    trace_id: str
+
+
+# TODO(T2-25): 过渡期旧键清单（原 `AgentState`），纯粹为了让尚未替换的节点（T2-14 起逐个
+# 替换）与旧线性图通过 mypy：LangGraph **会静默丢弃**节点返回的、未在 state 类型中声明的
+# 键，而旧节点仍返回 `symptoms`、`management`、`confidence_level` 等键；若把它们标注成
+# `ConsultationState`，mypy 会在 `.get()` 上判为 `object` 而报错，运行时则会因键被丢弃使
+# 条件边全部走到 `end`。本类随旧图（`graph.py`）与旧节点在 T2-25 一并删除。
+class TransitionalState(TypedDict, total=False):
     session_id: str
     user_id: str
     crop_tag: str
-    stage: str  # 当前环节，取 ConsultStage 的值（checkpoint 持久化）
-    round: int  # 取证轮数（防死循环）
+    stage: str
+    round: int
     image_url: str | None
-    user_message: str  # 本条用户输入（供节点读取）
-    context: dict  # 由 ai_service 构建的档案上下文
+    user_message: str
+    context: dict
     symptoms: str
-    management: dict  # 六问答案
-    environment: dict  # 传感器/天气快照
+    management: dict
+    environment: dict
     evidence_conflict: bool
     diagnosis: dict | None
     confidence_score: float
-    confidence_level: str  # high / medium / low
-    messages: Annotated[list[dict], add_messages]  # 会话消息（短期记忆）
+    confidence_level: str
+    messages: Annotated[list[dict], add_messages]
     reply: str
     related_suggestions: list[str]
+
+
+__all__ = [
+    "MANAGEMENT_KEYS",
+    "SOURCE_PRIORITY",
+    "AnswerType",
+    "ConfidenceLevel",
+    "ConsultStage",
+    "ConsultationState",
+    "EvidenceItem",
+    "EvidenceKind",
+    "GateDecision",
+    "ObjectType",
+    "PanelResolution",
+    "ProcessId",
+    "SlotGroup",
+    "SlotOwner",
+    "SlotSource",
+    "SlotStatus",
+    "SlotValue",
+    "TaskType",
+    "TransitionalState",
+    "TriggerSource",
+    "ViolationSeverity",
+    "parse_process_id",
+    "parse_stage",
+]
