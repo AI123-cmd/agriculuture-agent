@@ -9,6 +9,7 @@ from app.agent.agents.base import AgentContext, AgentFailure, BaseAgent, Failure
 from app.agent.agents.candidate_pool import CandidatePool, CandidateSlot, select_candidate_slots
 from app.agent.agents.exceptions import AgentDegraded, ContractViolation
 from app.agent.agents.field_observer import FieldObserverAgent, RawReading, classify_reading
+from app.agent.agents.interviewer import InterviewerAgent
 from app.agent.agents.triage import TriageAgent, run_triage
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "ContractViolation",
     "FailureMode",
     "FieldObserverAgent",
+    "InterviewerAgent",
     "RawReading",
     "TriageAgent",
     "classify_reading",
