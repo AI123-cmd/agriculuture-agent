@@ -234,7 +234,7 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
         解析在 `_parse_rewrite` 里做，且结果只作为增量追加，出错的代价很低。
         """
         messages = build_rewrite_prompt(keywords, config)
-        response = await self._gateway.chat(cast(GatewayTaskType, self.task_type), messages)
+        response = await self._require_gateway().chat(cast(GatewayTaskType, self.task_type), messages)
         if response.error or not response.content:
             return []
         return _parse_rewrite(response.content)

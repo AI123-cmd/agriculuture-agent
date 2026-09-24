@@ -37,7 +37,7 @@ from typing import Any, ClassVar, Generic, TypeVar, cast
 from pydantic import BaseModel
 from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.agent.agents.exceptions import ContractViolation
+from app.agent.agents.exceptions import AgentDegraded, ContractViolation
 from app.agent.state import ConsultationState, TaskType
 from app.llm.enums import TaskType as GatewayTaskType
 from app.llm.errors import TransientModelError
@@ -97,8 +97,21 @@ class BaseAgent(Generic[OutT], ABC):
     # 首次之外的额外尝试次数，总计最多 3 次调用（与技术方案 7.3 的"最多 2 次重试"一致）。
     max_attempts: ClassVar[int] = 2
 
-    def __init__(self, gateway: ModelGateway) -> None:
+    def __init__(self, gateway: ModelGateway | None) -> None:
+        # 允许为 `None`：报告守卫（T2-22）是纯规则实现，按技术方案 6.5 不调用模型，因此不持有
+        # 网关。它覆写 `run` 直接走规则判定，不会到达 `_call_with_retry`；万一被误调到模型路径，
+        # `_require_gateway` 会抛契约违约而不是 `AttributeError`，让失败落在明确的分类里。
         self._gateway = gateway
+
+    def _require_gateway(self) -> ModelGateway:
+        """取网关，缺网关视为前提缺失（只有不调模型的智能体允许持有 `None`）。
+
+        抛 `AgentDegraded` 而不是 `ContractViolation`：后者是可重试类，而"这个智能体本就
+        不该调模型"重试一百次也不会改变结果，只会把问诊延迟拉长。
+        """
+        if self._gateway is None:
+            raise AgentDegraded(f"{self.name} 未持有模型网关，不应进入模型调用路径")
+        return self._gateway
 
     # ---- 子类必须实现 ----
 
@@ -166,7 +179,9 @@ class BaseAgent(Generic[OutT], ABC):
             messages = self.build_messages(state, ctx)
             if attempt_state["n"] > 1:
                 messages = self._append_repair_hint(messages, attempt_state["last_error"])
-            response = await self._gateway.chat(cast(GatewayTaskType, ctx.task_type), messages, self.output_schema)
+            response = await self._require_gateway().chat(
+                cast(GatewayTaskType, ctx.task_type), messages, self.output_schema
+            )
             if response.parsed is None:
                 attempt_state["last_error"] = response.error or "解析失败"
                 raise ContractViolation(f"{self.name} 结构化输出解析失败")

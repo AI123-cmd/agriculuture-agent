@@ -300,6 +300,12 @@ class ConsultationState(TypedDict, total=False):
     session_id: str
     user_id: str
     farm_plot_id: str | None
+    # 农户本次输入的原样文本与档案地区编码。技术方案 5.3.1 把它们放在 `messages` 与
+    # 档案里，但报告守卫与转人工上下文包需要**不经模型**地直接读到原文与地区：守卫是
+    # fail-closed 规则实现（T2-22），只能读 state，不能从消息列表里猜哪条是本次输入；
+    # 地区编码由接口层注入（T2-33），用于解析联系入口（T2-22）与地区适宜性规则（T2-40）。
+    user_message: str
+    region_code: str | None
     # 流程
     process_id: ProcessId
     process_locked: bool
@@ -338,6 +344,10 @@ class ConsultationState(TypedDict, total=False):
     prescription: dict | None
     gate_result: dict | None
     report_decision: dict | None
+    # 转人工上下文包（T2-23）。存 `HandoffPackage.model_dump(mode="json")` 的结果，与其余
+    # 事实类键一致。它必须在此声明：LangGraph **会静默丢弃**节点返回的未声明键，接口层
+    # （T2-33）从这里读出并映射成响应里的 `handoff` 字段。
+    handoff_package: dict | None
     # 会话
     messages: Annotated[list, add_messages]
     reply: str

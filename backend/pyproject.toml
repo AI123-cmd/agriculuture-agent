@@ -67,6 +67,7 @@ ignore = ["E501"]
 # 的差别在 `str()`/f-string 上（前者给 "ProcessId.RICE"，后者给 "rice"），而契约对象
 # 里需要前者那种更显式的调试输出。这些文件登记豁免，新增枚举文件时一并加入。
 "app/agent/state.py" = ["UP042"]
+"app/agent/agents/handoff.py" = ["UP042"]
 "app/process_config/rule_ids.py" = ["UP042"]
 "app/agent/budget.py" = ["UP042"]
 "app/agent/agents/base.py" = ["UP042"]
