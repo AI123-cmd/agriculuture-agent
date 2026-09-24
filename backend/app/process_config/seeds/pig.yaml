@@ -1,0 +1,87 @@
+# 养猪流程配置。
+#
+# 七条流程中唯一的结构特例（技术方案 7.4）：其他流程以给答案为目标，养猪流程以
+# 不漏报为最高目标，因此在 observe 之前插入 report_guard 节点。
+#
+# 因此这里的 required_slots 必须包含**拆细的识别信号槽位**（死亡数量、是否突然死亡、
+# 是否多处栏舍同时出现），供报告守卫匹配。刻意不合并成"有无异常"一个槽位：
+# 触发条件极低意味着一旦合并，信号就会被含糊回答掩盖，导致本该上报的病例被漏掉。
+process_id: pig
+version: 1
+display_name: 养猪
+role_definition: 生猪养殖顾问，熟悉常见猪病识别与法定报告义务边界，涉及重大动物疫病一律引导上报
+object_aliases: [猪, 养猪, 生猪, 母猪, 仔猪, 育肥猪, 猪场, 猪圈]
+required_slots:
+  - {key: pig_symptom_pattern, label: 症状形态, display_label: 猪是什么样子,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [不吃食, 发烧, 咳嗽喘气, 拉稀, 皮肤发红发紫, 站不起来], ask_order: 10}
+  - {key: pig_symptom_scope, label: 发病头数, display_label: 有多少头猪出现这种情况,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [1头, 2到5头, 6到20头, 20头以上], ask_order: 20}
+  # 以下三项是报告守卫的识别信号，必须拆细（技术方案 7.4）
+  - {key: pig_death_count, label: 死亡数量, display_label: 已经死了几头,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [没有死亡, 1头, 2到5头, 5头以上], ask_order: 30}
+  - {key: pig_sudden_death, label: 是否突然死亡, display_label: 是突然死的还是病了几天才死的,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [突然死亡无先兆, 病了几天, 说不清], ask_order: 40}
+  - {key: pig_multi_pen, label: 是否多处栏舍同时出现, display_label: 是一个栏里的还是好几个栏都有,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [只有一个栏, 两三个栏, 多个栏舍同时出现], ask_order: 50}
+  - {key: pig_growth_stage, label: 猪群阶段, display_label: 是母猪、仔猪还是育肥猪,
+     group: 苗情, required: true, owner: interviewer, source_hint: [profile],
+     options: [哺乳仔猪, 保育猪, 育肥猪, 母猪], ask_order: 60}
+  - {key: pig_last_medication, label: 最近用药, display_label: 最近用过什么药,
+     group: 管理, required: false, owner: interviewer, source_hint: [profile], ask_order: 70}
+  - {key: pig_pen_temp, label: 栏舍温度传感器读数, display_label: 猪舍里多少度,
+     group: 墒情, required: false, owner: field_observer, source_hint: [sensor], ask_order: 80}
+terminology:
+  internal_terms:
+    法定报告义务: 发现疑似重大动物疫病时按规定向动物疫病预防控制机构报告的义务
+    无害化处理: 对病死畜禽按规范进行焚烧、深埋等处理，禁止随意处置或销售
+    扑杀: 发生重大动物疫病时依法对易感动物实施的强制处理措施
+  colloquial_map:
+    法定报告义务: 这种情况按国家规定要上报
+    无害化处理: 病死猪要按规定处理，不能卖也不能随便扔
+    扑杀: 按规定统一处理
+  display_metrics: [发病头数, 死亡头数]
+timing_rules:
+  # 养猪流程的时机判据是法定时限链，不是农事窗口
+  - {id: pig_report_deadline, when: {death_detected: true},
+     prompt: 立即告知上报时限要求，不得延误}
+  - {id: pig_quarantine_alert, when: {multi_pen: true},
+     prompt: 多栏舍同时发病，立即提示隔离与上报}
+redlines:
+  # TODO(待确认): 禁用兽药清单与法定报告病种范围需兽医与合规共同核定
+  - id: PIG-01
+    desc: 不得替代法定报告义务，疑似重大动物疫病必须引导上报
+    rule: R-REDLINE
+    severity: block
+    data: {forbidden_phrases: [不用上报], notice: 疑似重大动物疫病一律引导向当地动物疫病预防控制机构报告}
+  - id: PIG-02
+    desc: 不得推荐禁用兽药或超范围用药
+    rule: R-REDLINE
+    severity: block
+    data: {forbidden: [氯霉素, 呋喃唑酮, 孔雀石绿], reference: 食品动物禁用的兽药清单}
+  - {id: PIG-03, desc: 不得建议自行处理病死猪，必须按无害化处理规定执行,
+     rule: R-REDLINE, severity: block}
+  - {id: PIG-04, desc: 不得推荐未在猪上登记的兽药, rule: R-REGISTERED-CROP, severity: block}
+  - {id: PIG-05, desc: 不得给出未核算休药期的方案, rule: R-INTERVAL, severity: block}
+output_template:
+  # 养猪流程的风险提示前置（技术方案 7.4 差异点清单）
+  section_order: [风险提示, 现状判断, 处置建议, 上报与合规提示, 回访安排]
+  required_sections: [风险提示, 上报与合规提示]
+  max_chars: 400
+calendar_source: null
+followup_policy:
+  # 按法定时限链而非固定天数：触发即上报，回访用于确认处置动作已完成
+  triggers:
+    - {after_action: 上报, after_days: 1, ask: 是否已向当地动物疫病预防控制机构报告, kind: compliance_check}
+    - {after_action: 隔离, after_days: 2, ask: 隔离措施是否落实，有无新增病例, kind: effect_check}
+  window_based: false
+offline_questions:
+  - {slot_key: pig_pen_temp, text: 猪舍里大概多少度,
+     options: [偏冷, 合适, 偏热], answer_type: single}
+panel_enabled: false
+confusable_items: []
+banned_topics: [发布疫情预报, 承诺治愈率, 指导自行处理病死猪]

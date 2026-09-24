@@ -48,13 +48,13 @@ class AIService:
         reply = result.get("reply") or ""
         related = result.get("related_suggestions") or ["追肥建议", "排水建议", "3天后复查"]
 
-        # 只有走到 `prescribe` 节点才算产出处方。中途结束的轮次（症状/管理信息
+        # 只有走到 `prescribe` 环节才算产出处方。中途结束的轮次（症状/管理信息
         # 不全，图返回追问文案）不应发 `prescription.created`，否则回访会被登记
-        # 在一个并不存在的处方上。延迟导入 `Step` 与下面的 `get_agent` 同理：
+        # 在一个并不存在的处方上。延迟导入 `ConsultStage` 与下面的 `get_agent` 同理：
         # `app.agent` 包会连锁导入 services，模块级导入会形成循环。
-        from app.agent.state import Step
+        from app.agent.state import ConsultStage
 
-        prescribed = result.get("step") == Step.PRESCRIBE.value
+        prescribed = result.get("stage") == ConsultStage.PRESCRIBE.value
 
         # 图执行（秒级）刻意放在事务之外：把它包进事务会长时间持锁，且检查点写入
         # 由 AsyncPostgresSaver 自己的连接池管理，与业务事务本就不是同一连接

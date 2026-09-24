@@ -25,6 +25,7 @@ dependencies = [
     "langgraph-checkpoint-postgres>=2.0.10",
     "mcp>=1.0.0",
     "langchain-mcp-adapters>=0.1.0",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -60,6 +61,11 @@ ignore = ["E501"]
 # app/agent/nodes/__init__.py 必须先定义 _db_from_config 再导入各节点子模块，
 # 否则各节点 `from app.agent.nodes import _db_from_config` 会触发包初始化期循环导入。
 "app/agent/nodes/__init__.py" = ["E402"]
+# 枚举一律按技术方案 5.2 与各任务文件明文要求继承 `str, Enum`：该写法与 `StrEnum`
+# 的差别在 `str()`/f-string 上（前者给 "ProcessId.RICE"，后者给 "rice"），而契约对象
+# 里需要前者那种更显式的调试输出。这些文件登记豁免，新增枚举文件时一并加入。
+"app/agent/state.py" = ["UP042"]
+"app/process_config/rule_ids.py" = ["UP042"]
 # app/main.py 在 win32 上必须在导入 FastAPI 之前设置事件循环策略（psycopg 异步
 # 连接池不支持 ProactorEventLoop），因此业务导入必须排在该语句之后。
 "app/main.py" = ["E402"]

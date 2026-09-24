@@ -2,7 +2,7 @@
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.state import AgentState, Step
+from app.agent.state import AgentState, ConsultStage
 
 
 def prescribe(state: AgentState, config: RunnableConfig | None = None) -> dict:
@@ -20,5 +20,5 @@ def prescribe(state: AgentState, config: RunnableConfig | None = None) -> dict:
     return {
         "reply": "\n\n".join(parts),
         "related_suggestions": ["3天后复查", "追加田间照片", "联系农技员"],
-        "step": Step.PRESCRIBE.value,
+        "stage": ConsultStage.PRESCRIBE.value,
     }

@@ -1,0 +1,62 @@
+# 油菜流程配置。
+#
+# 产品说明书 5.4：补齐调研前，油菜流程不得输出药剂推荐类内容。RAPE-01 是这条
+# 限制的配置层声明（闸门运行时另由 R-REDLINE 拦截，双保险）。
+# TODO(待确认): 本流程的农技排期与红线措辞需人工确认后再定稿（附录 A 的 A7）。
+process_id: rapeseed
+version: 1
+display_name: 油菜
+role_definition: 油菜种植顾问，熟悉菌核病、霜霉病与蚜虫的识别，药剂类建议需待调研补齐后开放
+object_aliases: [油菜, 油菜籽, 菜籽, 油菜花, 甘蓝型油菜, 白菜型油菜]
+required_slots:
+  - {key: rapeseed_symptom_part, label: 受害部位, display_label: 油菜哪个部位出问题了,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [叶片, 茎秆, 花蕾, 角果, 根部], ask_order: 10}
+  - {key: rapeseed_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [有斑点, 发黄, 白粉状, 腐烂, 有虫], ask_order: 20}
+  - {key: rapeseed_symptom_scope, label: 发生范围, display_label: 大概有多少油菜这样,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [几棵, 一小片, 大片], ask_order: 30}
+  - {key: rapeseed_growth_stage, label: 生育期, display_label: 油菜长到哪个阶段了,
+     group: 苗情, required: true, owner: interviewer, source_hint: [profile],
+     options: [苗期, 蕾薹期, 初花期, 盛花期, 角果期], ask_order: 40}
+  - {key: rapeseed_last_pesticide, label: 最近用药, display_label: 最近一次打药是什么时候,
+     group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 50}
+  - {key: rapeseed_drainage, label: 排水条件, display_label: 田里排水好不好,
+     group: 墒情, required: false, owner: interviewer,
+     options: [排水好, 一般, 容易积水], ask_order: 60}
+terminology:
+  internal_terms:
+    菌核病: 由核盘菌引起的油菜主要茎部病害，茎秆出现水渍状病斑并生白色菌丝
+    安全间隔期: 最后一次施药至油菜籽可收获的最短间隔天数
+  colloquial_map:
+    菌核病: 茎秆上长出白毛那种病
+    生育期: 油菜长到哪个阶段
+    安全间隔期: 打完药要等多少天才能收
+  display_metrics: [株发病率, 病茎率]
+timing_rules:
+  - {id: rapeseed_flower_alert, when: {growth_stage: flowering},
+     prompt: 花期是菌核病侵染关键期，注意排水与通风}
+  - {id: rapeseed_rain_alert, when: {weather: continuous_rain}, prompt: 连续降雨，注意清沟排水}
+redlines:
+  # 这一条是 _check_rapeseed_restriction 的判据，措辞必须含"药剂推荐"四个字。
+  - {id: RAPE-01, desc: 调研补齐前禁止输出药剂推荐类内容, rule: R-REDLINE, severity: block}
+  - {id: RAPE-02, desc: 不得提供超出观察与求助范围的处置承诺, rule: R-REDLINE, severity: block}
+  - {id: RAPE-03, desc: 不得给出未核算安全间隔期的方案, rule: R-INTERVAL, severity: block}
+output_template:
+  section_order: [现状判断, 观察建议, 求助指引, 回访安排]
+  required_sections: [观察建议, 求助指引]
+  max_chars: 400
+calendar_source: rapeseed.growth_stage
+followup_policy:
+  triggers:
+    - {after_action: 排水, after_days: 5, ask: 田间积水是否已排除, kind: effect_check}
+    - {after_action: 摘除病叶, after_days: 7, ask: 病斑是否继续扩展, kind: effect_check}
+  window_based: true
+offline_questions:
+  - {slot_key: rapeseed_drainage, text: 田里的排水情况怎么样,
+     options: [排水好, 一般, 容易积水], answer_type: single}
+panel_enabled: false
+confusable_items: []
+banned_topics: [发布病虫害预报, 推荐具体药剂品种]

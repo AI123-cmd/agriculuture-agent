@@ -2,7 +2,7 @@
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.state import MANAGEMENT_KEYS, AgentState, Step
+from app.agent.state import MANAGEMENT_KEYS, AgentState, ConsultStage
 
 _FERTILIZE = ("施肥", "追肥", "尿素", "复合肥", "有机肥", "氮肥", "磷", "钾", "底肥", "叶面肥")
 _PESTICIDE = ("打药", "农药", "喷药", "杀虫", "杀菌", "除草", "拌种", "蘸根")
@@ -42,9 +42,9 @@ def collect_management(state: AgentState, config: RunnableConfig | None = None) 
         questions = "\n".join(f"· {_PROMPTS[k]}" for k in missing)
         return {
             "management": management,
-            "step": Step.COLLECT_MANAGEMENT.value,
+            "stage": ConsultStage.INTERVIEW.value,
             "reply": "为准确诊断，请补充以下农事管理信息：\n" + questions,
             "related_suggestions": ["已施肥", "已打药", "正常灌溉", "近期阴雨"],
         }
 
-    return {"management": management, "step": Step.COLLECT_MANAGEMENT.value}
+    return {"management": management, "stage": ConsultStage.INTERVIEW.value}

@@ -1,0 +1,103 @@
+# 杂草防治流程配置。
+#
+# 这是七条流程中唯一的「跨作物问题类型」：它不绑定地块，农户问的是"地里有草"。
+# 因此 calendar_source 为 null（杂草没有统一的农事历），输出模板以草相鉴别与
+# 后茬安全为核心。
+#
+# 红线重点有两类：一是不混淆草相就推荐药剂（草相识别错会选错药，药害往往比草害更重），
+# 二是后茬长残留限制（前茬用药影响后茬作物）。
+process_id: weed
+version: 1
+display_name: 杂草防治
+role_definition: 农田杂草防治顾问，擅长禾本科与阔叶杂草的草相鉴别及后茬安全评估
+object_aliases: [杂草, 除草, 草害, 田里的草, 稗草, 千金子, 看麦娘, 节节麦]
+required_slots:
+  - {key: weed_target_crop, label: 目标作物, display_label: 这块地种的是什么,
+     group: 种情, required: true, owner: interviewer,
+     options: [水稻, 小麦, 玉米, 油菜, 大豆, 其他], ask_order: 10}
+  - {key: weed_grass_shape, label: 草相形态, display_label: 草长什么样子,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [叶片细长, 叶片宽大, 有绒毛, 有长芒, 说不清], ask_order: 20}
+  - {key: weed_ligule_shape, label: 叶舌与叶耳, display_label: 把叶子翻开，茎和叶交界的地方有膜还是毛,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [有膜状叶舌, 有一圈毛, 什么都没有, 没有翻开看过], ask_order: 30}
+  - {key: weed_symptom_scope, label: 发生范围, display_label: 大概有多少地长草了,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [零星, 一小片, 大片], ask_order: 40}
+  - {key: weed_adjacent_crop, label: 后茬作物, display_label: 这块地下一季打算种什么,
+     group: 种情, required: true, owner: interviewer,
+     options: [水稻, 小麦, 玉米, 油菜, 大豆, 还没定], ask_order: 50}
+  - {key: weed_last_pesticide, label: 最近用药, display_label: 最近一次打除草剂是什么时候,
+     group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 60}
+  - {key: weed_photo_candidate, label: 田间照片识别候选, display_label: 照片里认出来的草,
+     group: 苗情, required: false, owner: field_observer, source_hint: [image], ask_order: 70}
+  # 无传感器时的增强追问目标槽位。必须在此声明：黑板写入要求槽位已在配置中登记，
+  # 否则 offline_questions 里问出的答案无处可写。
+  - {key: weed_soil_moisture, label: 施药时土壤墒情, display_label: 打药前后地里的干湿,
+     group: 墒情, required: false, owner: interviewer, ask_order: 80}
+terminology:
+  internal_terms:
+    经济阈值: 杂草密度达到造成产量损失高于防治成本时的密度水平
+    叶舌: 禾本科植物叶片与叶鞘交界处内侧的膜状或毛状附属物，是草相鉴别的关键特征
+    叶耳: 叶片基部两侧的耳状附属物，禾本科草相鉴别特征之一
+    后茬: 当前作物收获后接续种植的作物
+  colloquial_map:
+    经济阈值: 草长到多少就值得打药
+    叶舌: 叶子和茎交界那圈东西
+    叶耳: 叶子根部两侧的小耳朵
+    后茬: 下一季种的庄稼
+  display_metrics: [经济阈值, 后茬安全间隔]
+timing_rules:
+  - {id: weed_seedling_stage, when: {weed_stage: seedling},
+     prompt: 杂草幼苗期抗性最弱，是化学防治的最佳窗口}
+  - {id: weed_rain_alert, when: {weather: continuous_rain}, prompt: 施药后遇雨会影响药效并增加药害风险}
+redlines:
+  # TODO(待确认): 长残留药剂清单需农技人员按最新登记公告核定
+  - id: WEED-01
+    desc: 不得在未识别草相时推荐具体除草剂品种
+    rule: R-REDLINE
+    severity: block
+    data: {forbidden_phrases: [直接打这种药], reference: 农药登记公告}
+  - id: WEED-02
+    desc: 不得推荐对后茬作物有长残留风险的除草剂
+    rule: R-REDLINE
+    severity: block
+    data: {forbidden_phrases: [后茬可种任意作物], min_days: 60, notice: 长残留除草剂须核算后茬安全间隔}
+  - {id: WEED-03, desc: 不得推荐未在目标作物上登记的除草剂, rule: R-REGISTERED-CROP, severity: block}
+  - {id: WEED-04, desc: 不得给出未核算安全间隔期的方案, rule: R-INTERVAL, severity: block}
+  - {id: WEED-05, desc: 不得超出每季最多使用次数, rule: R-MAX-USE, severity: block}
+output_template:
+  # 药害鉴定分支的处方卡由 T2-21 另行构造，不占用这里的段落顺序
+  section_order: [草相鉴别, 现状判断, 处置建议, 后茬安全提示, 回访安排]
+  required_sections: [草相鉴别, 后茬安全提示]
+  max_chars: 400
+calendar_source: null
+followup_policy:
+  triggers:
+    - {after_action: 用药, after_days: 7, ask: 药后效果如何，草有没有发黄枯死, kind: effect_check}
+    - {after_action: 用药, after_days: 15, ask: 后茬准备种的作物有没有受影响, kind: effect_check}
+  window_based: false
+offline_questions:
+  - {slot_key: weed_soil_moisture, text: 打药前后地里的干湿情况怎么样,
+     options: [湿润, 一般, 偏干], answer_type: single}
+panel_enabled: true
+confusable_items:
+  # 草相鉴别错会直接选错药，药害往往比草害更重，因此杂草流程的易混淆项最多。
+  # TODO(待确认): 各草种的鉴别特征需农技人员定稿，此处按常见禾本科检索口径填写
+  - candidates: [稗草, 稻稗, 千金子]
+    decisive_features:
+      稗草: [无叶舌无叶耳, 叶片细长无毛, 茎基部常带紫红色]
+      稻稗: [无叶舌无叶耳, 叶片较稗草更窄且直立, 与水稻同期生长、形态近似]
+      千金子: [有膜质叶舌, 叶鞘常带紫色, 匍匐茎节上生根]
+    must_exclude: true
+  - candidates: [菵草, 看麦娘]
+    decisive_features:
+      菵草: [有膜质叶舌, 叶片宽而粗糙, 穗呈圆锥状分枝]
+      看麦娘: [有膜质叶舌, 叶片较柔软, 穗呈圆柱状且密生短芒]
+    must_exclude: true
+  - candidates: [节节麦, 雀麦]
+    decisive_features:
+      节节麦: [有膜质叶舌, 叶鞘边缘有细毛, 穗轴逐节脱落]
+      雀麦: [有膜质叶舌, 全株被细软毛, 穗散开呈圆锥状且下垂]
+    must_exclude: true
+banned_topics: [发布草情预报, 推荐未经登记的除草剂组合]

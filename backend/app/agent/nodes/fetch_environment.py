@@ -3,7 +3,7 @@
 from langchain_core.runnables import RunnableConfig
 
 from app.agent.nodes import _repos_from_config
-from app.agent.state import AgentState, Step
+from app.agent.state import AgentState, ConsultStage
 from app.core.config import get_settings
 from app.tools import knowledge, profile, sensors, weather
 
@@ -11,7 +11,7 @@ from app.tools import knowledge, profile, sensors, weather
 async def fetch_environment(state: AgentState, config: RunnableConfig | None = None) -> dict:
     settings = get_settings()
     if not settings.MCP_ENABLED:
-        return {"step": Step.FETCH_ENVIRONMENT.value, "environment": {}}
+        return {"stage": ConsultStage.VERIFY.value, "environment": {}}
 
     # 传仓储入口而非裸会话：工具层签名不含 ORM 类型，agent 层不再透传 AsyncSession
     repos = _repos_from_config(config)
@@ -28,7 +28,7 @@ async def fetch_environment(state: AgentState, config: RunnableConfig | None = N
     if symptoms:
         environment["knowledge"] = knowledge.search_knowledge(symptoms)
 
-    return {"step": Step.FETCH_ENVIRONMENT.value, "environment": environment}
+    return {"stage": ConsultStage.VERIFY.value, "environment": environment}
 
 
 __all__ = ["fetch_environment"]

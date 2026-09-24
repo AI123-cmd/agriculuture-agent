@@ -1,0 +1,64 @@
+# 通用农业兜底流程配置。
+#
+# 这是分诊无法归属到具体流程时的落点。它不是"什么都答"的流程：技术方案 9.2 明确
+# 通用流程无专属阈值、无药剂条目，处方只能给观察与求助建议——因为没有流程专属知识
+# 库支撑，给出具体用药建议就是无依据输出。
+#
+# 因此它的 confusable_items 为空（没有判别依据），红线至少含一条禁止输出药剂推荐。
+process_id: general
+version: 1
+display_name: 通用农业
+role_definition: 通用农事顾问，覆盖未纳入专属流程的作物与问题，只给出观察与求助建议
+object_aliases: [农业, 种地, 庄稼, 作物, 病虫害, 种植]
+required_slots:
+  # 只保留最基础的四到五项，且原则是"任何农户都能答"——兜底流程不能靠追问把
+  # 信息补全，否则与专属流程的边界就模糊了。
+  - {key: general_crop_name, label: 作物名称, display_label: 种的是什么庄稼,
+     group: 种情, required: true, owner: interviewer, ask_order: 10}
+  - {key: general_symptom_part, label: 受害部位, display_label: 庄稼哪个部位出问题了,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [叶片, 茎秆, 根部, 果实, 整株], ask_order: 20}
+  - {key: general_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [有虫, 有斑点, 发黄, 萎蔫, 腐烂, 说不清], ask_order: 30}
+  - {key: general_symptom_scope, label: 发生范围, display_label: 大概有多少出问题了,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [几棵, 一小片, 大片], ask_order: 40}
+  - {key: general_last_pesticide, label: 最近用药, display_label: 最近一次打药是什么时候,
+     group: 管理, required: false, owner: interviewer, source_hint: [profile], ask_order: 50}
+  # 增强追问的目标槽位，必须在此声明才能在黑板中写入
+  - {key: general_symptom_distribution, label: 发病分布, display_label: 出问题的地方怎么分布,
+     group: 病虫情, required: false, owner: interviewer,
+     options: [从边上开始, 从中间开始, 到处都是, 说不清], ask_order: 60}
+terminology:
+  internal_terms:
+    综合防治: 结合农业防治、物理防治、生物防治与化学防治的整体处置思路
+    观察建议: 在信息不足时给出的、农户可自行执行的田间观察与记录动作
+  colloquial_map:
+    综合防治: 从多个方面一起想办法
+    观察建议: 建议你先看看这些地方
+  display_metrics: []
+timing_rules:
+  - {id: general_rain_alert, when: {weather: continuous_rain},
+     prompt: 连续降雨，注意排水与病害流行的可能}
+redlines:
+  - {id: GEN-01, desc: 禁止输出药剂推荐类内容，无专属知识库支撑, rule: R-REDLINE, severity: block}
+  - {id: GEN-02, desc: 不得给出未核算安全间隔期的方案, rule: R-INTERVAL, severity: block}
+  # 无数据支撑的数字属于编造，通用流程尤其容易发生
+  - {id: GEN-03, desc: 不得出现无事实来源的数值, rule: R-NO-DATA, severity: block}
+output_template:
+  section_order: [现状判断, 观察建议, 求助指引, 回访安排]
+  required_sections: [观察建议, 求助指引]
+  max_chars: 400
+calendar_source: null
+followup_policy:
+  # 通用流程不给固定回访天数，由处方卡给出观察时点（技术方案 7.4 差异点清单）
+  triggers:
+    - {after_action: 观察, after_days: 3, ask: 按建议观察后，情况有没有变化, kind: effect_check}
+  window_based: false
+offline_questions:
+  - {slot_key: general_symptom_distribution, text: 出问题的地方是怎么分布的,
+     options: [从边上开始, 从中间开始, 到处都是, 说不清], answer_type: single}
+panel_enabled: false
+confusable_items: []
+banned_topics: [发布病虫害预报, 预测产量, 推荐具体药剂品种]

@@ -1,0 +1,71 @@
+# 水稻流程配置。一期五条流程中病虫害谱最宽的一条。
+#
+# 不启用并行会诊（panel_enabled: false）：水稻的病虫害判据以形态与虫量为主，
+# 易混淆项少，单路判定足够。红线重点是抗药性暂停名单与共养区禁忌。
+process_id: rice
+version: 1
+display_name: 水稻
+role_definition: 水稻种植顾问，熟悉稻飞虱、稻纵卷叶螟、纹枯病与稻瘟病的识别与防治节奏
+object_aliases: [水稻, 稻子, 稻谷, 早稻, 中稻, 晚稻, 粳稻, 籼稻]
+required_slots:
+  - {key: rice_symptom_part, label: 受害部位, display_label: 稻子的哪个部位出问题了,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [叶片, 茎秆, 穗部, 根部], ask_order: 10}
+  - {key: rice_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [有虫, 有斑点, 发黄, 枯心, 卷叶], ask_order: 20}
+  - {key: rice_symptom_scope, label: 发生范围, display_label: 大概有多少田块这样,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [几丛, 一小片, 大片], ask_order: 30}
+  - {key: rice_growth_stage, label: 生育期, display_label: 稻子长到哪个阶段了,
+     group: 苗情, required: true, owner: interviewer, source_hint: [profile],
+     options: [苗期, 分蘖期, 拔节期, 孕穗期, 抽穗期, 灌浆期], ask_order: 40}
+  - {key: rice_last_pesticide, label: 最近用药, display_label: 最近一次打药是什么时候,
+     group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 50}
+  - {key: rice_water_layer, label: 水层状态, display_label: 田里的水深不深,
+     group: 墒情, required: false, owner: interviewer,
+     options: [有水层, 湿润, 干裂], ask_order: 60}
+  - {key: rice_soil_moisture, label: 田间水分传感器读数, display_label: 田里干湿情况,
+     group: 墒情, required: false, owner: field_observer, source_hint: [sensor], ask_order: 70}
+terminology:
+  internal_terms:
+    病丛率: 发病丛数占调查总丛数的比例
+    百丛虫量: 每百丛水稻上的虫口数量，稻飞虱的常用防治指标口径
+    安全间隔期: 最后一次施药至水稻可收获的最短间隔天数
+  colloquial_map:
+    病丛率: 有多少丛稻子出问题
+    百丛虫量: 一百丛稻子上大概有多少虫子
+    生育期: 稻子长到哪个阶段
+    安全间隔期: 打完药要等多少天才能收
+  display_metrics: [病丛率, 百丛虫量]
+timing_rules:
+  - {id: rice_boot_window, when: {growth_stage: booting}, prompt: 孕穗期对稻瘟病与螟虫敏感，注意预防}
+  - {id: rice_rain_alert, when: {weather: continuous_rain}, prompt: 连续阴雨，纹枯病与稻瘟病易流行}
+  - {id: rice_high_temp, when: {air_temp_above: 35}, prompt: 高温期间稻飞虱增殖快，注意查虫}
+redlines:
+  # TODO(待确认): 抗药性暂停名单以当地植保部门最新公告为准
+  - id: RICE-01
+    desc: 不得推荐处于抗药性暂停名单中的药剂
+    rule: R-REDLINE
+    severity: block
+    data: {forbidden_phrases: [暂停使用药剂], reference: 全国农业技术推广服务中心抗药性公报}
+  - {id: RICE-02, desc: 不得在共养区推荐对养殖对象有毒的药剂, rule: R-REDLINE, severity: block}
+  - {id: RICE-03, desc: 不得推荐未在水稻上登记的农药, rule: R-REGISTERED-CROP, severity: block}
+  - {id: RICE-04, desc: 不得给出未核算安全间隔期的方案, rule: R-INTERVAL, severity: block}
+  - {id: RICE-05, desc: 不得超出每季最多使用次数, rule: R-MAX-USE, severity: block}
+output_template:
+  section_order: [现状判断, 处置建议, 用药安全提示, 回访安排]
+  required_sections: [处置建议, 用药安全提示]
+  max_chars: 400
+calendar_source: rice.growth_stage
+followup_policy:
+  triggers:
+    - {after_action: 用药, after_days: 7, ask: 药后效果如何, kind: effect_check}
+    - {after_action: 施肥, after_days: 10, ask: 叶色有没有转深, kind: effect_check}
+  window_based: true
+offline_questions:
+  - {slot_key: rice_water_layer, text: 田里现在有水层吗,
+     options: [有水层, 湿润, 干裂], answer_type: single}
+panel_enabled: false
+confusable_items: []
+banned_topics: [发布病虫害预报]

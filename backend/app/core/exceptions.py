@@ -78,3 +78,15 @@ class TransactionError(AppException):
 class ServerError(AppException):
     def __init__(self, message: str = "服务器内部错误"):
         super().__init__(500, message)
+
+
+class EnumParseError(AppException):
+    """自由文本落到封闭枚举时解析失败，属契约违约（技术方案 5.2）。
+
+    取 500 而非 400：触发点都在服务端内部——模型输出、YAML 配置、数据库字符串列。
+    责任不在调用方，改请求无法修正，因此归入服务端故障一类；调用方（T2-13）拿到
+    它之后的正确动作是重试一次再降级，而不是把错误透传给农户。
+    """
+
+    def __init__(self, message: str = "枚举取值非法"):
+        super().__init__(500, message)

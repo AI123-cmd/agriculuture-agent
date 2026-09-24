@@ -84,6 +84,14 @@ class Settings(BaseSettings):
     MAX_COLLECT_ROUNDS: int = 3
     MCP_ENABLED: bool = True
 
+    # 流程配置热加载（T2-05）
+    # 默认关闭：热加载是为「配置更新不必重启服务」准备的运维手段，开发与测试环境
+    # 打开它反而会让「读到的到底是哪一版」变得不确定，不利于复现问题。
+    PROCESS_CONFIG_HOT_RELOAD: bool = False
+    # 检查间隔（秒）。取 60 是因为配置变更是低频人工操作，更短的间隔只是徒增
+    # 数据库查询；而运维期望的生效延迟也在这个量级。
+    PROCESS_CONFIG_CHECK_INTERVAL: int = 60
+
     # 地图 / 天气
     GEOCODING_API_URL: str = ""
     GEOCODING_API_KEY: str = ""

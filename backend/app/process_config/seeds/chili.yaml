@@ -1,0 +1,72 @@
+# 辣椒流程完整配置。骨架来自技术方案 T2-04。
+#
+# 辣椒是青枯病（细菌性）与枯萎病（真菌性）鉴别难度最高的流程，两个关键鉴别槽位
+# chili_vascular_bundle 与 chili_exudate 同时出现在 required_slots 与
+# confusable_items.decisive_features 中——一份配置驱动三处行为（技术方案 9.1）。
+process_id: chili
+version: 1
+display_name: 辣椒
+role_definition: 辣椒种植顾问，擅长土传性枯萎类病害与青枯病的鉴别
+object_aliases: [辣椒, 朝天椒, 线椒, 菜椒, 青椒, 干椒]
+required_slots:
+  - {key: chili_symptom_pattern, label: 症状形态, display_label: 辣椒是什么样子,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [萎蔫, 有斑点, 发黄, 烂根, 有虫], ask_order: 10}
+  - {key: chili_symptom_speed, label: 萎蔫速度, display_label: 是一天里就蔫下去还是慢慢蔫的,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [半天内急速萎蔫, 几天逐渐萎蔫, 说不清], ask_order: 20}
+  - {key: chili_vascular_bundle, label: 维管束表现, display_label: 把茎切断看里面，有没有发黄变褐,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [维管束黄褐色, 未见变色, 没有切开看过], ask_order: 30}
+  - {key: chili_exudate, label: 挤压切口渗出物, display_label: 挤一下切口，有没有乳白色液体冒出来,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [有乳白色菌脓, 没有, 说不清], ask_order: 40}
+  - {key: chili_soil_type, label: 土壤类型, display_label: 地里是什么土,
+     group: 墒情, required: false, owner: interviewer, source_hint: [profile],
+     options: [黏土, 沙壤土, 壤土], ask_order: 50}
+  - {key: chili_greenhouse_humidity, label: 棚内湿度, display_label: 棚里潮不潮,
+     group: 墒情, required: false, owner: interviewer, options: [很潮, 一般, 偏干], ask_order: 60}
+  - {key: chili_soil_reading, label: 土壤传感器读数, display_label: 地里的湿度和温度,
+     group: 墒情, required: false, owner: field_observer, source_hint: [sensor], ask_order: 70}
+terminology:
+  internal_terms:
+    青枯病: 由青枯雷尔氏菌引起的细菌性维管束病害
+    枯萎病: 由镰刀菌引起的真菌性土传病害
+    维管束: 茎内输导组织，纵向切开后可见
+  colloquial_map:
+    维管束: 茎里面那些纹路
+    菌脓: 挤出来的白色浆液
+    土传病害: 从土里传染的病
+  display_metrics: [株发病率, 维管束变色率]
+timing_rules:
+  - {id: chili_rain_alert, when: {weather: continuous_rain},
+     prompt: 连续降雨，注意排水防涝，土传病害高发期}
+  - {id: chili_soil_temp, when: {soil_temp_above: 25}, prompt: 土温偏高，青枯病风险上升}
+redlines:
+  - {id: CHILI-01, desc: 不得在青枯病与枯萎病鉴别未完成时给出单一用药方案,
+     rule: R-REDLINE, severity: block}
+  - {id: CHILI-02, desc: 必须给出土壤层面处置措施, rule: R-REDLINE, severity: block}
+  - {id: CHILI-03, desc: 不得推荐未在辣椒上登记的农药, rule: R-REGISTERED-CROP, severity: block}
+  - {id: CHILI-04, desc: 不得建议更高剂量试图解决土传病害, rule: R-DOSAGE, severity: block}
+output_template:
+  section_order: [现状判断, 鉴别说明, 处置建议, 用药安全提示, 回访安排]
+  required_sections: [鉴别说明, 处置建议]
+  max_chars: 400
+calendar_source: chili.growth_stage
+followup_policy:
+  triggers:
+    - {after_action: 用药, after_days: 3, ask: 三天后叶片恢复情况, kind: effect_check}
+    - {after_action: 用药, after_days: 7, ask: 病情是否继续扩展, kind: effect_check}
+  window_based: false
+offline_questions:
+  - {slot_key: chili_greenhouse_humidity, text: 棚内湿度大概多少,
+     options: [很潮, 一般, 偏干], answer_type: single}
+panel_enabled: true
+confusable_items:
+  - candidates: [青枯病, 枯萎病]
+    # TODO(待确认): 决定性特征需农技人员定稿，此处与 T2-04 骨架及技术方案 9.1 一致
+    decisive_features:
+      青枯病: [叶片保绿而急速萎蔫, 维管束黄褐色, 挤压切口渗出乳白色菌脓]
+      枯萎病: [无菌脓, 维管束变色伴蓝白色霉状物]
+    must_exclude: true
+banned_topics: [发布病虫害预报]

@@ -2,7 +2,7 @@
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.state import AgentState, Step
+from app.agent.state import AgentState, ConsultStage
 
 
 def collect_symptoms(state: AgentState, config: RunnableConfig | None = None) -> dict:
@@ -17,9 +17,9 @@ def collect_symptoms(state: AgentState, config: RunnableConfig | None = None) ->
     if not symptoms and not image_url:
         return {
             "symptoms": "",
-            "step": Step.COLLECT_SYMPTOMS.value,
+            "stage": ConsultStage.OBSERVE.value,
             "reply": "请描述植株的异常症状，并尽量上传田间照片，便于我准确判断。",
             "related_suggestions": ["上传照片", "叶片发黄", "叶片斑点", "整体萎蔫"],
         }
 
-    return {"symptoms": symptoms, "step": Step.COLLECT_SYMPTOMS.value}
+    return {"symptoms": symptoms, "stage": ConsultStage.OBSERVE.value}

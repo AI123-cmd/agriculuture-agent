@@ -1,0 +1,85 @@
+# 茶流程完整配置。骨架来自技术方案附录 B，字段名与 ProcessConfig 逐字一致。
+#
+# 茶是三条启用并行会诊的流程之一（技术方案 6.4），因为它的易混淆项最多
+# （侵染性病害 / 生理性病害 / 药害 / 缺素）。
+process_id: tea
+version: 1
+display_name: 茶树
+role_definition: 茶园管理顾问，熟悉茶树病虫害、采摘节奏与安全间隔期约束
+object_aliases: [茶, 茶树, 茶叶, 茶园, 普洱, 龙井, 铁观音, 白茶, 乌龙]
+required_slots:
+  - {key: tea_symptom_part, label: 受害部位, display_label: 茶树的哪个部位出问题了,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [嫩芽, 叶片, 枝干, 根部], ask_order: 10}
+  - {key: tea_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [有虫, 有斑点, 发黄, 枯萎, 卷曲], ask_order: 20}
+  - {key: tea_symptom_scope, label: 发生范围, display_label: 大概有多少茶树这样,
+     group: 病虫情, required: true, owner: interviewer,
+     options: [几棵, 一小片, 大片], ask_order: 30}
+  - {key: tea_last_pesticide, label: 最近用药, display_label: 最近一次打药是什么时候,
+     group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 40}
+  - {key: tea_last_pick, label: 上次采摘日, display_label: 上次采摘是哪天,
+     group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 50}
+  - {key: tea_fertilize, label: 施肥情况, display_label: 最近施过什么肥,
+     group: 肥情, required: false, owner: interviewer, source_hint: [profile], ask_order: 60}
+  # 田间照片识别结果由现场采集智能体写入，owner 与问诊分开（黑板单一写入者）
+  - {key: tea_leaf_symptom_photo, label: 叶片照片识别, display_label: 照片里的叶子情况,
+     group: 苗情, required: false, owner: field_observer, source_hint: [image], ask_order: 70}
+  # 无传感器时的增强追问目标槽位。必须在此声明：黑板写入要求槽位已在配置中登记，
+  # 否则 offline_questions 里问出的答案无处可写，追问就变成了白问。
+  - {key: tea_shade_level, label: 遮阴程度, display_label: 茶园有没有遮阴,
+     group: 管理, required: false, owner: interviewer, ask_order: 80}
+terminology:
+  internal_terms:
+    叶发病率: 以叶片为单位统计的病叶数占调查总叶数的比例
+    安全间隔期: 最后一次施药至茶叶可采摘的最短间隔天数
+    采摘轮次: 一年中以采摘批次划分的农事节点
+  colloquial_map:
+    叶发病率: 有多少叶子出了问题
+    生育期: 茶树长到哪个阶段
+    安全间隔期: 打完药要等多少天才能采
+    采摘轮次: 这是第几批采茶
+  display_metrics: [叶发病率, 安全间隔期]
+timing_rules:
+  - {id: tea_pick_window, when: {season: spring_pick}, prompt: 春茶采摘期临近，注意采摘前安全间隔期}
+  - {id: tea_rain_alert, when: {weather: continuous_rain}, prompt: 连续降雨，注意茶园排水与病害预防}
+redlines:
+  - {id: TEA-01, desc: 不得推荐未在茶树上登记的农药, rule: R-REGISTERED-CROP, severity: block}
+  # TODO(待确认): 禁用品种清单与引用标准号需农技人员按最新版公告核定
+  - id: TEA-02
+    desc: 不得触碰禁限用品种
+    rule: R-REDLINE
+    severity: block
+    data: {forbidden: [乙酰甲胺磷, 丁硫克百威, 乐果, 氰戊菊酯], reference: NY/T 4803 附录B}
+  # rule 取值为逗号分隔的多规则，必须加引号：流式映射里裸逗号会被当成键值分隔符，
+  # 结果第二段变成值为 None 的键，报错信息会指向字段名而非 YAML 写法。
+  - {id: TEA-03, desc: 不得开出未核算安全间隔期与每季最多使用次数的方案,
+     rule: "R-INTERVAL,R-MAX-USE", severity: block}
+  - {id: TEA-04, desc: 不得开出与采摘节奏冲突的方案, rule: R-INTERVAL, severity: block}
+  # 技术方案 8.2 中 R-REGION 的违规等级是 degrade；红线侧只有 block/warn 两档，
+  # 故此处记 warn，实际降级动作由闸门规则 R-REGION 自己完成。
+  - {id: TEA-05, desc: 出口茶园不得忽略输入国标准, rule: R-REGION, severity: warn}
+output_template:
+  # required_sections 必须是 section_order 的子集，否则渲染时会静默丢段落
+  section_order: [现状判断, 处置建议, 用药安全提示, 安全间隔期与下一轮采摘的时间关系, 回访安排]
+  required_sections: [用药安全提示, 安全间隔期与下一轮采摘的时间关系]
+  max_chars: 400
+calendar_source: tea.picking_round
+followup_policy:
+  triggers:
+    - {after_action: 用药, after_days: 7, ask: 药后效果如何, kind: effect_check}
+    - {after_action: 修剪, after_days: 14, ask: 新芽长势如何, kind: effect_check}
+  window_based: true
+offline_questions:
+  - {slot_key: tea_shade_level, text: 茶园有没有遮阴,
+     options: [全遮阴, 半遮阴, 无遮阴], answer_type: single}
+panel_enabled: true
+confusable_items:
+  - candidates: [侵染性病害, 生理性病害]
+    # TODO(待确认): 决定性特征需农技人员定稿，此处为按植保通例填写的占位描述
+    decisive_features:
+      侵染性病害: [病斑边界清晰并有扩展趋势, 相邻植株出现同向传播, 潮湿处可见霉层或菌脓]
+      生理性病害: [同批次同管理茶园同时发黄, 症状沿根系或肥料接触带分布, 无霉层无菌脓]
+    must_exclude: true
+banned_topics: [发布病虫害预报, 提前发布采摘期预测]

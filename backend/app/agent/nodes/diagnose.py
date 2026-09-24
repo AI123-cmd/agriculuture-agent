@@ -4,7 +4,7 @@ from langchain_core.runnables import RunnableConfig
 
 from app.agent.confidence import assess
 from app.agent.nodes import _db_from_config
-from app.agent.state import AgentState, Step
+from app.agent.state import AgentState, ConsultStage
 from app.ai_router.registry import resolve
 from app.services.memory_service import MemoryService
 
@@ -33,7 +33,7 @@ async def diagnose(state: AgentState, config: RunnableConfig | None = None) -> d
         "diagnosis": {"summary": text, "confidence": score, "level": level},
         "confidence_score": score,
         "confidence_level": level,
-        "step": Step.DIAGNOSE.value,
+        "stage": ConsultStage.JUDGE.value,
     }
     # 低置信度时标记取证轮次，供条件路由决定是否回环补证据
     if level == "low":

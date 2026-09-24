@@ -43,3 +43,6 @@ python-multipart>=0.0.9
 mcp>=1.0.0
 # 注：文档写 langgraph-mcp-adapters，PyPI 实际包名为 langchain-mcp-adapters
 langchain-mcp-adapters>=0.1.0
+
+# 流程配置（T2-03 从 seeds/*.yaml 加载 ProcessConfig）
+PyYAML>=6.0
