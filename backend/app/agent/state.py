@@ -389,6 +389,18 @@ class ConsultationState(TypedDict, total=False):
     # 事实类键一致。它必须在此声明：LangGraph **会静默丢弃**节点返回的未声明键，接口层
     # （T2-33）从这里读出并映射成响应里的 `handoff` 字段。
     handoff_package: dict | None
+    # 安全闸门确认（T2-32）。degrade/block 时闸门节点中断等待农户知情确认，恢复输入
+    # `continue` / `abort` 落到这个键。`route_after_gate` 只认 `decision`、不认它是否
+    # 放行（degrade 选继续也仍然转人工，不是放行处方），故它不参与路由，只供接口层与
+    # 展示层判断"农户是否选择继续"。必须声明，否则节点返回值被 LangGraph 静默丢弃。
+    gate_confirmed: bool
+    # 农户本次输入的多模态原样值（T2-33）。由接口层注入，与 `user_message` 并列：
+    # 观察节点读 `image_url` 做图片候选识别，语音转写后的文本走 `user_message`。
+    image_url: str | None
+    voice_url: str | None
+    # 结构化上下文（T2-33）。service 层经 repository 取出后注入，图内智能体只与 state
+    # 交互、不查库（L2/L4）。形态是 service 组装的 dict，节点按需读取。
+    context: dict
     # 会话
     messages: Annotated[list, add_messages]
     reply: str
