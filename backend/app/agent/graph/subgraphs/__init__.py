@@ -15,7 +15,9 @@ from collections.abc import Callable
 from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.graph.subgraphs.chili import build_chili_subgraph
+from app.agent.graph.subgraphs.general import build_general_subgraph
 from app.agent.graph.subgraphs.pig import build_pig_subgraph
+from app.agent.graph.subgraphs.rapeseed import build_rapeseed_subgraph
 from app.agent.graph.subgraphs.rice import build_rice_subgraph
 from app.agent.graph.subgraphs.tea import build_tea_subgraph
 from app.agent.graph.subgraphs.weed import build_weed_subgraph
@@ -27,6 +29,8 @@ SUBGRAPH_BUILDERS: dict[ProcessId, Callable[[], CompiledStateGraph]] = {
     ProcessId.CHILI: build_chili_subgraph,
     ProcessId.WEED: build_weed_subgraph,
     ProcessId.PIG: build_pig_subgraph,
+    ProcessId.RAPESEED: build_rapeseed_subgraph,
+    ProcessId.GENERAL: build_general_subgraph,
 }
 
 __all__ = ["SUBGRAPH_BUILDERS"]
