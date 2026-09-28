@@ -9,6 +9,11 @@
    跳过缺名/缺日期的行；红线快照缺失时构造"不可用"而非抛错；
 4. **子图形态**：`build_gate_subgraph()` 无参与带参两种调用都返回已编译子图。
 
+`degrade`/`block` 分支在 T2-32 加入了"安全拦截后确认"中断，**直接调用节点函数**会因
+`interrupt()` 拿不到运行上下文而抛 `RuntimeError`。因此本文件把三态用例改为跑一张最小
+编译图（`gate_check` 单节点 + 内存检查点）：`degrade`/`block` 先观察到中断，再以
+`Command(resume="continue")` 恢复，与生产路径一致。
+
 `GateService` 用桩替换：闸门的规则判定由 T2-34 单独覆盖，本项只验证节点对 decision 的
 输出处理与工单触发，因此不牵动数据库（真实 `GateService` 会写审计表）。
 """
@@ -17,10 +22,13 @@ from datetime import date
 from typing import Any
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Command
 
 from app.agent.contracts import FollowupPlan, PesticideItem, Prescription, PrescriptionAction, dump_contract
 from app.agent.graph import gate_graph
-from app.agent.state import ConsultStage
+from app.agent.state import ConsultStage, ConsultationState
 from app.gate.constants import DEGRADE_OUTPUT_TEXT
 from app.gate.contracts import GateResult, GateViolation
 from app.process_config.redlines import LoadedRedlines, Redline
@@ -160,11 +168,32 @@ def _patch_service(monkeypatch, result: GateResult) -> _StubService:
     return stub
 
 
+def _gate_app():
+    """最小闸门图：单节点 `gate_check` + 内存检查点，供中断/恢复路径使用。"""
+    graph = StateGraph(ConsultationState)
+    graph.add_node("gate_check", gate_graph.build_gate_node(_FakeKnowledge()))
+    graph.add_edge(START, "gate_check")
+    graph.add_edge("gate_check", END)
+    return graph.compile(checkpointer=InMemorySaver())
+
+
+async def _run_gate(state: dict, *, resume: object = "continue", thread_id: str = "t-gate") -> dict:
+    """跑一遍闸门节点：`allow` 直接完成；`degrade`/`block` 先中断，再按 `resume` 恢复。
+
+    返回最后一次 `ainvoke` 的结果（已合并中断前的 state 与恢复后的产出）。
+    """
+    app = _gate_app()
+    config = {"configurable": {"thread_id": thread_id}}
+    first = await app.ainvoke(state, config)
+    if not first.get("__interrupt__"):
+        return first
+    return await app.ainvoke(Command(resume=resume), config)
+
+
 async def test_allow_keeps_original_text_and_gate_stage(monkeypatch) -> None:
     _patch_service(monkeypatch, _result("allow"))
-    node = gate_graph.build_gate_node(_FakeKnowledge())
 
-    out = await node(_state())
+    out = await _run_gate(_state(), thread_id="t-allow")
 
     assert out["prescription_text"] == "建议在傍晚喷施吡虫啉，出现药害立即停用。"
     assert out["stage"] == ConsultStage.GATE
@@ -173,9 +202,8 @@ async def test_allow_keeps_original_text_and_gate_stage(monkeypatch) -> None:
 
 async def test_degrade_replaces_output_and_marks_suppressed(monkeypatch) -> None:
     _patch_service(monkeypatch, _result("degrade"))
-    node = gate_graph.build_gate_node(_FakeKnowledge())
 
-    out = await node(_state())
+    out = await _run_gate(_state(), thread_id="t-degrade")
 
     assert out["prescription_text"] == DEGRADE_OUTPUT_TEXT
     assert out["stage"] == ConsultStage.GATE
@@ -191,15 +219,14 @@ async def test_block_sets_blocked_stage_and_raises_ticket(monkeypatch) -> None:
         tickets.append(kwargs)
 
     monkeypatch.setattr(gate_graph, "enqueue_review_ticket", _fake_ticket)
-    node = gate_graph.build_gate_node(_FakeKnowledge())
 
-    out = await node(_state())
+    out = await _run_gate(_state(), thread_id="t-block")
 
     assert out["stage"] == ConsultStage.BLOCKED
     assert out["stage"] != ConsultStage.HANDOFF
     assert out["prescription_text"] == DEGRADE_OUTPUT_TEXT
     assert out["prescription_suppressed"] is True
-    assert len(tickets) == 1
+    assert len(tickets) == 1  # 工单在中断之后入队，恢复不会重复
     assert tickets[0]["knowledge_ids"] == ["K-1001"]
     assert tickets[0]["rule_ids"] == ["R-WHITELIST"]
 
@@ -212,9 +239,8 @@ async def test_allow_does_not_raise_ticket(monkeypatch) -> None:
         tickets.append(kwargs)
 
     monkeypatch.setattr(gate_graph, "enqueue_review_ticket", _fake_ticket)
-    node = gate_graph.build_gate_node(_FakeKnowledge())
 
-    await node(_state())
+    await _run_gate(_state(), thread_id="t-allow-noticket")
 
     assert tickets == []
 
@@ -229,9 +255,8 @@ async def test_shadow_shell_routes_on_inner_decision(monkeypatch) -> None:
         tickets.append(kwargs)
 
     monkeypatch.setattr(gate_graph, "enqueue_review_ticket", _fake_ticket)
-    node = gate_graph.build_gate_node(_FakeKnowledge())
 
-    out = await node(_state())
+    out = await _run_gate(_state(), thread_id="t-shadow")
 
     assert out["stage"] == ConsultStage.BLOCKED
     assert out["gate_result"]["decision"] == "block"
@@ -240,11 +265,10 @@ async def test_shadow_shell_routes_on_inner_decision(monkeypatch) -> None:
 
 async def test_degrade_does_not_mutate_prescription(monkeypatch) -> None:
     _patch_service(monkeypatch, _result("degrade"))
-    node = gate_graph.build_gate_node(_FakeKnowledge())
     state = _state()
     before = dict(state["prescription"])
 
-    await node(state)
+    await _run_gate(state, thread_id="t-degrade-immutable")
 
     assert state["prescription"] == before
 
