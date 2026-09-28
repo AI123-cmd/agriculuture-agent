@@ -17,7 +17,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Index, Integer, String, func, text
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,4 +43,14 @@ class GateAudit(Base, OwnedMixin):
     session_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     process_id: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     config_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    decision: Mapped[str] = mapped_column(String(10), nullable=False, index=True, comment="allow/degrade/
+    decision: Mapped[str] = mapped_column(String(10), nullable=False, index=True, comment="allow/degrade/block")
+    violations: Mapped[list[dict]] = mapped_column(JSONB, nullable=False, default=list)
+    checked_rules: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    prescription_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    shadowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+
+
+__all__ = ["GateAudit"]
