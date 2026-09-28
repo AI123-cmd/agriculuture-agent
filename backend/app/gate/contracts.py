@@ -64,10 +64,13 @@ class GateResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     passed: bool
-    violations: list[GateViolation]
-    checked_rules: list[str]  # 实际执行的规则 id，供审计反查漏配
-    process_redlines_loaded: bool
-    decision: Literal["allow", "degrade", "block"]
+    # 以下四项带默认值，只为支撑影子模式的"放行外壳"（T2-46 与 T6-05 均要求
+    # `GateResult(passed=True, shadowed=result)` 可构造）：外壳的这四项是占位，
+    # 真实判定在内层 `shadowed`。正常判定路径仍由引擎显式填满全部字段。
+    violations: list[GateViolation] = []
+    checked_rules: list[str] = []  # 实际执行的规则 id，供审计反查漏配
+    process_redlines_loaded: bool = True
+    decision: Literal["allow", "degrade", "block"] = "allow"
     degrade_output: str | None = None
     # 影子模式（T2-46）：外层是 `passed=True` 的"放行外壳"，内层才是真实判定。
     # 生产环境不允许 `GATE_MODE=shadow`，此字段只在灰度期非空。
@@ -221,6 +224,10 @@ class GateContext(BaseModel):
     # 闸门对它的要求只是"能调用声明的方法"，由调用方保证传入的实现可用。
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True, frozen=True)
 
+    # 归属字段（T2-46）。审计表 `gate_audit` 要求 `session_id`/`user_id`，而这两个值只有
+    # state 知道，由 `build_gate_context`（T2-45）填入。它们不被任何规则读取，只用于落库。
+    session_id: str
+    user_id: str
     process_id: ProcessId
     config_version: int
     prescription: GatePrescription
@@ -262,6 +269,10 @@ class GateContext(BaseModel):
         形态不同，必须由生成侧提供映射才能做反向扫描。
         """
         return dict(self.numeric_tokens)
+
+
+# `GateResult.shadowed` 是前向引用（`"GateResult | None"`），需在模块末尾重建解析（T2-46）。
+GateResult.model_rebuild()
 
 
 __all__ = [
