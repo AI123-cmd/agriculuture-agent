@@ -26,6 +26,7 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph, StateNode
+from langgraph.types import interrupt
 
 from app.agent.contracts import Prescription, dump_contract
 from app.agent.state import ConsultationState, ConsultStage, ProcessId
@@ -204,7 +205,17 @@ async def _raise_review_ticket(ctx: GateContext, result: GateResult) -> None:
 
 
 def build_gate_node(knowledge: KnowledgeFacts, today: date | None = None) -> GateNode:
-    """产出闸门节点。`knowledge` 由调用方注入，闸门不自行创建仓储。"""
+    """产出闸门节点。`knowledge` 由调用方注入，闸门不自行创建仓储。
+
+    degrade/block 分支加入「安全拦截后的确认」中断（T2-32）：不直接返回处方，先中断让
+    农户知情确认，恢复输入是枚举 `continue` / `abort`（不是自然语言回答）。恢复后节点
+    从头执行，`service.review` 会重跑一次，因此副作用（复核工单）**必须放在中断之后**，
+    否则每次恢复都会重复入队一张工单。
+
+    `gate_confirmed` 只作展示与接口层判断，不参与路由——`route_after_gate` 只认
+    `decision`：degrade 即便农户选 continue 也仍然转人工（输出的是转人工引导，不是放行
+    处方），block 无论选什么都不输出处方。
+    """
     service = GateService()
 
     async def gate_node(state: ConsultationState) -> dict:
@@ -225,19 +236,32 @@ def build_gate_node(knowledge: KnowledgeFacts, today: date | None = None) -> Gat
                 "prescription_text": state.get("prescription_text"),
             }
 
+        # degrade/block：不直接返回处方，先中断让农户知情确认是否继续咨询。
+        decision = interrupt(
+            {
+                "kind": "gate_confirm",
+                "decision": effective.decision,
+                "why": effective.degrade_output,
+                "options": ["continue", "abort"],
+            }
+        )
+
         if effective.decision == "degrade":
             # 降级：输出整体替换为 degrade_output，不修改后输出（产品说明书 6.2）。
             return {
                 "gate_result": dump_contract(effective),
+                "gate_confirmed": decision == "continue",
                 "stage": ConsultStage.GATE,
                 "prescription_text": effective.degrade_output,
                 "prescription_suppressed": True,
             }
 
-        # block：拒绝输出并记录审计事件，同时触发知识条目复核工单。
+        # block：拒绝输出并登记审计事件，同时触发知识条目复核工单。工单落在中断之后，
+        # 避免恢复时节点从头执行导致重复入队。
         await _raise_review_ticket(ctx, effective)
         return {
             "gate_result": dump_contract(effective),
+            "gate_confirmed": decision == "continue",
             "stage": ConsultStage.BLOCKED,
             "prescription_text": DEGRADE_OUTPUT_TEXT,
             "prescription_suppressed": True,

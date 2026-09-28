@@ -66,10 +66,13 @@ async def intake(state: ConsultationState) -> dict:
     """
     process_hint = state.get("process_hint")
     locked = process_hint is not None
+    # 预算只在为空时初始化：恢复中断时 `intake` 可能重跑，若每次都重置为 initial，
+    # 轮次上限会被"退出再进来"绕过，农户可无限追问（T2-32 必须堵住的漏洞）。
+    budget = state.get("budget") or ConsultBudget.initial().to_state()
     return {
         "session_id": state.get("session_id"),
         "stage": ConsultStage.INTAKE,
-        "budget": ConsultBudget.initial().to_state(),
+        "budget": budget,
         "process_locked": locked,
         "process_id": ProcessId(process_hint) if locked else None,
         "redlines_loaded": state.get("redlines_loaded", False),  # 由 config 注入

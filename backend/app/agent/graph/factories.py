@@ -34,6 +34,8 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
+from langgraph.types import interrupt
+
 from app.agent.agents.base import AgentContext
 from app.agent.agents.diagnoser import DiagnoserAgent
 from app.agent.agents.field_observer import (
@@ -47,6 +49,7 @@ from app.agent.agents.interviewer import InterviewerAgent
 from app.agent.agents.panel import PanelRunner, aggregate_panel
 from app.agent.agents.prescriber import PrescriberAgent
 from app.agent.agents.retriever import KnowledgeRetriever, RegionMatcher, RetrieverAgent
+from app.agent.blackboard import apply_answers, progress_of
 from app.agent.budget import ConsultBudget
 from app.agent.contracts import EvidenceItem, EvidenceQuery, ImageCandidate, dump_contract
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, TaskType
@@ -145,13 +148,34 @@ def make_observe_node(config: ProcessConfig) -> NodeFn:
 
 
 def make_interview_node(config: ProcessConfig) -> NodeFn:
-    """问诊节点工厂：必问清单、候选池排序、术语口语化映射、每轮问题上限均由配置决定。"""
+    """问诊节点工厂：必问清单、候选池排序、术语口语化映射、每轮问题上限均由配置决定。
+
+    本节点是「等农户回答」这一类中断的落点（T2-32）：生成本轮问题后 `interrupt` 暂停，
+    检查点保存完整状态，下个 HTTP 请求带答案恢复。恢复时节点从头执行、重新生成同一批
+    问题（候选池与问法都是确定性生成的，重复执行不产生不同问题），`interrupt` 的返回值
+    即农户答案，随后套用答案并记一轮问诊。
+
+    关键顺序约束：`interrupt` 必须在**写入新状态之前**调用，这样恢复时 `state` 仍是中断
+    那一刻的快照；若先写答案再中断，恢复会读到已被修改的 state，答案被套用两次。
+    """
     interviewer = InterviewerAgent(get_gateway(), ConsultBudget())
 
     async def interview(state: ConsultationState) -> dict:
         batch = await interviewer.run(state, _context_for(state, config, TaskType.INTERVIEW))
+        payload = {
+            "questions": [q.model_dump(mode="json") for q in batch.questions],
+            "stage_hint": batch.stage_hint,
+            "progress": progress_of(state),
+        }
+        # 中断点：此处暂停，返回值即恢复时传入的答案（形态见 T2-33 的 ChatRequest.answers）。
+        answers = interrupt(payload)
+
+        budget = ConsultBudget(**state.get("budget", {}))
+        budget.note_interview_round()
         return {
-            "pending_questions": [q.model_dump(mode="json") for q in batch.questions],
+            "slots": apply_answers(state.get("slots") or {}, answers),
+            "budget": budget.to_state(),
+            "pending_questions": payload["questions"],
             "stage_hint": batch.stage_hint,
             # 会诊必要性由代码按流程配置置位：路由只读这个布尔量，不对自由文本做关键词匹配。
             "panel_needed": config.panel_enabled,

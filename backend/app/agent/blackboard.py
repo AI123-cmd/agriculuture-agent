@@ -21,6 +21,10 @@
 反向依赖取枚举，若在 `state.py` 里导入 `ProcessConfig` 就会形成循环导入。
 """
 
+from collections.abc import Mapping
+from typing import Any
+
+from app.agent.budget import ConsultBudget
 from app.agent.state import (
     SOURCE_PRIORITY,
     ConsultationState,
@@ -116,9 +120,68 @@ def append_evidence(state: ConsultationState, items: list[EvidenceItem]) -> dict
     return {"evidence": list(merged.values())}
 
 
+def _iter_answer_entries(answers: object) -> list[Mapping[str, Any]]:
+    """把中断恢复值摊平成一批答案条目。
+
+    恢复值的形态有两处不同的来源：接口层（T2-33）传 `{"answers": [...], ...}`，测试与
+    直接调用方可能只传答案列表。两种形态都接受，逐条筛出 Mapping；其余类型一律忽略
+    ——答案来自外部输入，宁可少写一个槽位也不能因一条脏数据把整轮问诊打断。
+    """
+    payload: object = answers
+    if isinstance(answers, Mapping) and "answers" in answers:
+        payload = answers.get("answers")
+    if isinstance(payload, Mapping):
+        payload = [payload]
+    if not isinstance(payload, (list, tuple)):
+        return []
+    return [item for item in payload if isinstance(item, Mapping)]
+
+
+def apply_answers(slots: Mapping[str, Any], answers: object) -> dict[str, SlotValue]:
+    """把农户的恢复答案套用进槽位，返回**新的**槽位字典（纯函数，不改入参）。
+
+    答案键接受 `slotKey`（接口契约）与 `slot_key`（内部契约）两种写法，二者在此归一。
+    `unknown` 落成不带值的合法答案；空值的 `filled` 被丢弃——把它写成 `filled` 会绕过
+    `SlotValue` 的"置了状态却没写值"一致性校验，不如不写，留待下一轮继续问。来源固定为
+    `user_answer`：这是农户亲口给的，优先级低于档案但与其余农户输入同级。
+    """
+    merged: dict[str, SlotValue] = dict(slots)
+    for entry in _iter_answer_entries(answers):
+        key = entry.get("slotKey") or entry.get("slot_key")
+        if not isinstance(key, str) or not key:
+            continue
+        status = entry.get("status") or "filled"
+        if status not in ("filled", "unknown"):
+            status = "filled"
+        if status == "unknown":
+            merged[key] = SlotValue(key=key, value=None, status="unknown", source="user_answer")
+            continue
+        raw_value = entry.get("value")
+        text = "" if raw_value is None else str(raw_value).strip()
+        if not text:
+            continue
+        merged[key] = SlotValue(key=key, value=text, status="filled", source="user_answer")
+    return merged
+
+
+def progress_of(state: ConsultationState) -> dict[str, int]:
+    """当前问诊进度 `{current, total}`。与问诊节点的进度提示同一口径。
+
+    `round` 是已完成轮次，故当前轮为 `round + 1`；上界取预算里的 `max_interview_rounds`，
+    避免轮次用尽后的补问出现 `5/4` 这类越界进度。只读 `state` 的字典键、不重建预算对象，
+    与路由函数保持同样的纯函数形态（T2-31）。
+    """
+    budget = state.get("budget") or {}
+    total = budget.get("max_interview_rounds", ConsultBudget().max_interview_rounds)
+    current = min(state.get("round", 0) + 1, total)
+    return {"current": current, "total": total}
+
+
 __all__ = [
     "BlackboardError",
     "append_evidence",
+    "apply_answers",
+    "progress_of",
     "read_slot",
     "set_stage",
     "slot_summary",
