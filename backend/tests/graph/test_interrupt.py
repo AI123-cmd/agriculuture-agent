@@ -137,9 +137,7 @@ async def test_interview_interrupts_then_resumes_with_answer(monkeypatch) -> Non
     assert payload["progress"] == {"current": 1, "total": 4}
     assert (await app.aget_state(config)).next  # 中断中：next 指向待执行节点
 
-    second = await app.ainvoke(
-        Command(resume={"answers": [{"slotKey": "symptom", "value": "叶片发黄"}]}), config
-    )
+    second = await app.ainvoke(Command(resume={"answers": [{"slotKey": "symptom", "value": "叶片发黄"}]}), config)
 
     assert second["slots"]["symptom"].value == "叶片发黄"
     assert second["slots"]["symptom"].status == "filled"
@@ -286,6 +284,10 @@ def _prescription_dict() -> dict:
         facts_provenance={
             "safety_interval_days": "knowledge:K-1001",
             "max_uses_per_season": "knowledge:K-1001",
+            "pesticide_items[0].dosage_min": "knowledge:K-1001:field:dosage_min",
+            "pesticide_items[0].dosage_max": "knowledge:K-1001:field:dosage_max",
+            "pesticide_items[0].safety_interval_days": "knowledge:K-1001",
+            "pesticide_items[0].max_uses_per_season": "knowledge:K-1001",
         },
         requires_tech_station=False,
         detail_terms={},
@@ -352,8 +354,18 @@ async def _handoff_stub(state: ConsultationState) -> dict:
 
 
 def _gate_app(monkeypatch, decision: str, checkpointer):
-    """最小闸门图：gate（真实子图）→ route_after_gate → followup / handoff。"""
+    """最小闸门图：gate（真实子图）→ route_after_gate → followup / handoff。
+
+    `block` 分支会触发复核工单，`GateService` 既已用桩替换，工单入队也一并桩掉：本文件
+    只验证中断与路由，工单落库由 T2-46 单独覆盖，不在此牵动数据库。
+    """
     monkeypatch.setattr(gate_graph, "GateService", lambda *a, **k: _StubGateService(_gate_result(decision)))
+
+    async def _fake_ticket(**kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(gate_graph, "enqueue_review_ticket", _fake_ticket)
+
     graph = StateGraph(ConsultationState)
     graph.add_node("gate", gate_graph.build_gate_subgraph(_FakeKnowledge()))
     graph.add_node("followup", _followup_stub)
@@ -401,15 +413,23 @@ async def test_gate_degrade_abort_goes_handoff_with_abort_reply(monkeypatch) -> 
 
 
 async def test_gate_block_interrupts_and_never_outputs_prescription(monkeypatch) -> None:
-    """block 在 gate 中断，恢复后到 handoff，处方始终被抑制。"""
+    """block 在 gate 中断，恢复后同样转人工，处方始终被抑制、不被放行。
+
+    节点级 `stage=BLOCKED` 由 `test_gate_subgraph.py` 的单节点用例固定；此处跑的是
+    `route_after_gate`——block 一律走 `handoff`（fail-closed），故端到端看到的是
+    `HANDOFF` 且处方被抑制。
+    """
     app = _gate_app(monkeypatch, "block", InMemorySaver())
     config = {"configurable": {"thread_id": "t-gate-block"}}
 
-    await app.ainvoke(_gate_state(), config)
+    first = await app.ainvoke(_gate_state(), config)
+    assert _interrupt_payload(first)["decision"] == "block"
+
     resumed = await app.ainvoke(Command(resume="continue"), config)
 
-    assert resumed["stage"] == ConsultStage.BLOCKED
+    assert resumed["stage"] == ConsultStage.HANDOFF
     assert resumed["prescription_suppressed"] is True
+    assert "吡虫啉" not in (resumed.get("prescription_text") or "")
     assert (await app.aget_state(config)).next == ()
 
 
@@ -446,13 +466,19 @@ def test_apply_answers_ignores_non_mapping_and_keeps_existing() -> None:
 
 
 def test_progress_of_matches_interview_stage_hint() -> None:
-    """进度口径：当前轮为 round+1，上限取预算里的 max_interview_rounds。"""
-    assert progress_of({"round": 2, "budget": {"max_interview_rounds": 4}}) == {"current": 3, "total": 4}
+    """进度口径：当前轮为已完成轮次 + 1，上限取预算里的 max_interview_rounds。
+
+    与 `InterviewerAgent.compute_stage_hint` 同源：轮次计数器统一用
+    `budget.interview_rounds`（T2-31 起取代旧的 `round`）。
+    """
+    state = {"budget": {"max_interview_rounds": 4, "interview_rounds": 2}}
+    assert progress_of(state) == {"current": 3, "total": 4}
 
 
 def test_progress_of_clamps_to_total() -> None:
     """轮次用尽后的补问不出现越界进度。"""
-    assert progress_of({"round": 9, "budget": {"max_interview_rounds": 4}}) == {"current": 4, "total": 4}
+    state = {"budget": {"max_interview_rounds": 4, "interview_rounds": 9}}
+    assert progress_of(state) == {"current": 4, "total": 4}
 
 
 def test_progress_of_defaults_without_budget() -> None:

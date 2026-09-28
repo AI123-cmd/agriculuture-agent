@@ -1,5 +1,6 @@
 """LangGraph 编排层入口：暴露枚举、状态定义与 build_graph / get_agent / resume_graph。"""
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 
@@ -79,5 +80,5 @@ async def resume_graph(session_id: str, resume_value: object) -> dict:
     `"continue"` / `"abort"`。
     """
     graph = await get_agent()
-    config = {"configurable": {"thread_id": session_id}}
+    config: RunnableConfig = {"configurable": {"thread_id": session_id}}
     return await graph.ainvoke(Command(resume=resume_value), config=config)

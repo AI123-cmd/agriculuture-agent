@@ -165,15 +165,19 @@ def apply_answers(slots: Mapping[str, Any], answers: object) -> dict[str, SlotVa
 
 
 def progress_of(state: ConsultationState) -> dict[str, int]:
-    """当前问诊进度 `{current, total}`。与问诊节点的进度提示同一口径。
+    """当前问诊进度 `{current, total}`：已完成轮次 + 1，上界取预算总额。
 
-    `round` 是已完成轮次，故当前轮为 `round + 1`；上界取预算里的 `max_interview_rounds`，
-    避免轮次用尽后的补问出现 `5/4` 这类越界进度。只读 `state` 的字典键、不重建预算对象，
-    与路由函数保持同样的纯函数形态（T2-31）。
+    `current` 取自 `budget["interview_rounds"]` 而非 `state["round"]`：T2-31 起
+    `ConsultBudget.interview_rounds` 是唯一随问诊推进记账的轮次计数器，`round` 已被它
+    取代（见 `budget.py` 模块说明），且没有节点再写 `round`。若读 `round`，恢复续问的
+    进度会永远停在 1。上界取 `max_interview_rounds`，避免轮次用尽后的补问出现 `5/4`
+    这类越界进度。只读 `state` 的字典键、不重建预算对象，与路由函数保持同样的纯函数
+    形态（T2-31）。
     """
     budget = state.get("budget") or {}
     total = budget.get("max_interview_rounds", ConsultBudget().max_interview_rounds)
-    current = min(state.get("round", 0) + 1, total)
+    rounds = budget.get("interview_rounds", 0)
+    current = min(rounds + 1, total)
     return {"current": current, "total": total}
 
 
