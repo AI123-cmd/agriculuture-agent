@@ -413,7 +413,6 @@ __all__ = [
     "SlotStatus",
     "SlotValue",
     "TaskType",
-    "TransitionalState",
     "TriggerSource",
     "ViolationSeverity",
     "parse_process_id",

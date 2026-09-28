@@ -149,6 +149,8 @@ def prescription(
 def gate_context(**overrides) -> GateContext:
     """构造一个默认全部合法的 `GateContext`。各测试按需覆盖字段。"""
     base: dict = {
+        "session_id": "sess-0001",
+        "user_id": "user-0001",
         "process_id": ProcessId.RICE,
         "config_version": 1,
         "prescription": prescription(),

@@ -6,6 +6,8 @@ from .env_reading import EnvReading
 from .event_outbox import EventOutbox
 from .farmer_profile import FarmerProfile
 from .field import Field
+from .gate_audit import GateAudit
+from .gate_review_ticket import GateReviewTicket
 from .knowledge import KnowledgeItem
 from .location import Location
 from .memory_summary import MemorySummary
@@ -30,4 +32,6 @@ __all__ = [
     "EventOutbox",
     "ProcessConfigRow",
     "ProcessRedlineRow",
+    "GateAudit",
+    "GateReviewTicket",
 ]

@@ -8,6 +8,7 @@
 失败行为是 fail-closed（全局约定第六节）：任何一处判断不出结论，安全结论都是"不放行"。
 """
 
+from app.gate.audit import GateAuditWriter
 from app.gate.contracts import (
     GateAction,
     GateContext,
@@ -22,9 +23,11 @@ from app.gate.engine import GateEngine
 from app.gate.enums import GateDecision, GateRuleId, GateSeverity, ProcessId, ViolationSeverity
 from app.gate.ports import KnowledgeEntrySnapshot, KnowledgeFacts
 from app.gate.rules.base import GateConfigError, Rule, build_rules, register
+from app.gate.service import GateService
 
 __all__ = [
     "GateAction",
+    "GateAuditWriter",
     "GateConfigError",
     "GateContext",
     "GateDecision",
@@ -34,6 +37,7 @@ __all__ = [
     "GatePrescription",
     "GateResult",
     "GateRuleId",
+    "GateService",
     "GateSeverity",
     "GateViolation",
     "KnowledgeEntrySnapshot",

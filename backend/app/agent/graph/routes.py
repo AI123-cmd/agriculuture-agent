@@ -26,7 +26,7 @@ path_map 里指向 `handoff` 节点，在子图 path_map 里必须指向子图�
 
 from collections.abc import Mapping
 
-from app.agent.state import ConsultStage, ConsultationState, ProcessId
+from app.agent.state import ConsultationState, ConsultStage, ProcessId
 
 # 会诊（多视角并行）只在指定流程启用：茶、辣椒、杂草属"同症多因"的高混淆场景，
 # 需要多个独立视角后再收敛；水稻与养猪的判别依据更确定，多跑一轮会诊只增成本。

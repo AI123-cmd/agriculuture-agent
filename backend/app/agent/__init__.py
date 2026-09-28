@@ -1,10 +1,8 @@
 """LangGraph 编排层入口：暴露枚举、状态定义与 build_graph / get_agent。"""
 
-import asyncio
-
 from langgraph.graph.state import CompiledStateGraph
 
-from .graph import build_graph
+from .graph.main import build_graph
 from .state import (
     SOURCE_PRIORITY,
     AnswerType,
@@ -56,17 +54,15 @@ __all__ = [
 ]
 
 _agent: CompiledStateGraph | None = None
-_agent_loop: asyncio.AbstractEventLoop | None = None
 
 
 async def get_agent() -> CompiledStateGraph:
     """返回编译后的诊断图单例（含 PostgreSQL checkpointer）。
 
-    图绑定创建时的事件循环；跨循环（如测试隔离）自动重建。
+    Postgres checkpointer 用连接池，不绑事件循环，跨循环复用同一个 saver 是安全的，
+    故不再保留 `_agent_loop` 判断——那会在测试隔离时误触发重建（T2-30）。
     """
-    global _agent, _agent_loop
-    loop = asyncio.get_running_loop()
-    if _agent is None or _agent_loop is not loop:
+    global _agent
+    if _agent is None:
         _agent = await build_graph()
-        _agent_loop = loop
     return _agent

@@ -233,11 +233,14 @@ def get_triage_agent() -> TriageAgent:
     return TriageAgent(build_gateway(), load_all_configs())
 
 
-async def run_triage(state: ConsultationState, config: dict | None = None) -> dict:
+async def run_triage(state: ConsultationState) -> dict:
     """主图 `triage` 节点（T2-25 的节点契约）。
 
     返回 state 增量：分诊结果（序列化）、流程标识与环节。`process_id` 必须由本节点写入
     ——`route_after_triage` 之后由 `subgraph_router` 按它选子图，链路中间没有第二个写入点。
+
+    只吃 state、返回 state 增量，不带 `config` 参数是刻意的——与 `handoff`、`report_guard`
+    节点保持同一形态，也避免 LangGraph 对 `config` 参数类型发出告警。
     """
     agent = get_triage_agent()
     general = get_process_config(ProcessId.GENERAL)

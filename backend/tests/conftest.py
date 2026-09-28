@@ -39,6 +39,8 @@ BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 排在其前以保持"被引用者在前"的一致顺序（两者无外键，顺序仅为可读性）。
 _TABLES = (
     "event_outbox",
+    "gate_audit",
+    "gate_review_ticket",
     "process_redline",
     "process_config",
     "ai_message",

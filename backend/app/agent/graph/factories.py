@@ -49,7 +49,7 @@ from app.agent.agents.prescriber import PrescriberAgent
 from app.agent.agents.retriever import KnowledgeRetriever, RegionMatcher, RetrieverAgent
 from app.agent.budget import ConsultBudget
 from app.agent.contracts import EvidenceItem, EvidenceQuery, ImageCandidate, dump_contract
-from app.agent.state import ConsultStage, ConsultationState, ProcessId, TaskType
+from app.agent.state import ConsultationState, ConsultStage, ProcessId, TaskType
 from app.llm import get_gateway
 from app.process_config.loader import get_process_config
 from app.process_config.models import ProcessConfig

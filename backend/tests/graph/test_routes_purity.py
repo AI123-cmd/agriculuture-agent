@@ -42,26 +42,33 @@ def _parse_routes() -> ast.Module:
 def _route_functions(tree: ast.Module) -> dict[str, ast.FunctionDef]:
     """取出所有顶层 `route_*` 函数定义。"""
     return {
-        node.name: node
-        for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name.startswith("route_")
+        node.name: node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name.startswith("route_")
     }
 
 
-def _returned_names(func: ast.FunctionDef) -> set[str]:
-    """收集函数所有 `return <字符串常量>` 的取值。
+def _returnable_strings(node: ast.expr) -> set[str]:
+    """只收集"可能作为返回值"的字符串常量。
 
-    三元表达式（如 `return "confirm_object" if cond else "enter_process"`）的两个分支都是
-    `ast.Constant`，因此遍历整棵子树而不是只看 `IfExp` 的直接子节点。
+    不能对整个 return 表达式做 `ast.walk`：三元表达式 `return "gate" if state.get("stage") ==
+    ... else "handoff"` 的条件里也含字符串常量（`.get("stage")` 的键名），那些不是分支名。
+    因此只沿"取值位置"递归——裸字符串常量，以及 `IfExp` 的 `body`/`orelse` 两支，不下探条件。
     """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return {node.value}
+    if isinstance(node, ast.IfExp):
+        return _returnable_strings(node.body) | _returnable_strings(node.orelse)
+    return set()
+
+
+def _returned_names(func: ast.FunctionDef) -> set[str]:
+    """收集函数所有"可能返回值"的字符串常量（裸常量或三元分支）。"""
     func_name: str = func.name
     assert func_name
     return {
-        inner.value
+        name
         for node in ast.walk(func)
         if isinstance(node, ast.Return) and node.value is not None
-        for inner in ast.walk(node.value)
-        if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+        for name in _returnable_strings(node.value)
     }
 
 
@@ -90,9 +97,7 @@ def test_all_routes_are_synchronous() -> None:
     """条件边刻意保持同步：LangGraph 允许 async 条件边，但本模块要求无 IO 无等待。"""
     tree = _parse_routes()
     async_routes = [
-        node.name
-        for node in tree.body
-        if isinstance(node, ast.AsyncFunctionDef) and node.name.startswith("route_")
+        node.name for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name.startswith("route_")
     ]
     assert not async_routes, f"以下边被写成了 async: {async_routes}"
 

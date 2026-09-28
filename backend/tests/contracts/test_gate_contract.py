@@ -21,13 +21,19 @@ from app.agent.contracts import (
     dump_contract,
     load_contract,
 )
-from app.agent.state import ProcessId, SlotValue
+from app.agent.state import ProcessId
 from app.process_config.redlines import LoadedRedlines, Redline
 from app.process_config.rule_ids import GateRuleId
 
 
 class _FakeKnowledge:
     """`KnowledgeFacts` 的最小实现：闸门只依赖协议声明的方法，测试不必牵动数据库。"""
+
+    def get_entry(self, knowledge_id: str) -> None:
+        return None
+
+    def is_approved(self, knowledge_id: str) -> bool:
+        return True
 
     def get_registered_crops(self, knowledge_id: str) -> tuple[str, ...]:
         return ("茶",)
@@ -122,15 +128,13 @@ def _gate_result(**overrides) -> dict:
 
 def _gate_context(**overrides) -> dict:
     base = {
+        "session_id": "sess-0001",
+        "user_id": "user-0001",
         "process_id": ProcessId.TEA,
         "config_version": 3,
-        "prescription": _prescription(),
+        "prescription": dump_contract(_prescription()),
         "redlines": _loaded_redlines(),
-        "slots": {
-            "tea_leaf_symptom": SlotValue(
-                key="tea_leaf_symptom", value="叶片卷曲", status="filled", source="user_answer"
-            )
-        },
+        "slots": {"tea_leaf_symptom": "叶片卷曲"},
         "knowledge": _FakeKnowledge(),
         "medication_history": [],
         "region_code": "330100",
@@ -240,6 +244,7 @@ def test_field_names_match_spec() -> None:
         "process_redlines_loaded",
         "decision",
         "degrade_output",
+        "shadowed",
     }
 
 
@@ -265,24 +270,28 @@ def test_gate_context_rejects_messages() -> None:
 
 def test_gate_context_fields_match_spec() -> None:
     assert set(GateContext.model_fields) == {
+        "session_id",
+        "user_id",
         "process_id",
         "config_version",
         "prescription",
+        "payload",
         "redlines",
         "slots",
         "knowledge",
         "medication_history",
         "region_code",
         "today",
-        "checked_rule_ids",
+        "season_start",
+        "rule_configs",
+        "numeric_tokens",
     }
 
 
 def test_gate_context_valid() -> None:
     ctx = GateContext(**_gate_context())
-    assert ctx.process_id is ProcessId.TEA
-    assert ctx.slots["tea_leaf_symptom"].status == "filled"
-    assert ctx.checked_rule_ids == []
+    assert ctx.process_id == ProcessId.TEA
+    assert ctx.slots["tea_leaf_symptom"] == "叶片卷曲"
 
 
 def test_gate_context_accepts_knowledge_protocol() -> None:
@@ -298,10 +307,15 @@ def test_gate_context_rejects_unknown_process() -> None:
 
 
 def test_json_schema_generates() -> None:
-    """结构化输出与前端协议都依赖 JSON Schema；`knowledge` 是协议类型，需确认生成不失败。"""
+    """结构化输出与前端协议都依赖 JSON Schema；`knowledge` 是协议类型，需确认生成不失败。
+
+    `GateResult.shadowed` 是自引用字段，因此顶层 schema 是 `$ref` + `$defs` 形态，
+    属性定义在 `$defs` 里而非顶层 `properties`。
+    """
     schema = GateResult.model_json_schema()
-    assert "decision" in schema["properties"]
-    assert "process_redlines_loaded" in schema["properties"]
+    definitions = schema.get("properties") or schema["$defs"]["GateResult"]["properties"]
+    assert "decision" in definitions
+    assert "process_redlines_loaded" in definitions
 
 
 def test_gate_result_roundtrip_through_state_payload() -> None:
@@ -309,3 +323,24 @@ def test_gate_result_roundtrip_through_state_payload() -> None:
     payload = dump_contract(original)
     assert payload["decision"] == "allow"
     assert load_contract(GateResult, payload) == original
+
+
+def test_shadowed_shell_can_wrap_block_result() -> None:
+    """T2-46：影子模式的外层是 `passed=True` 放行外壳，内层才是真实判定。
+
+    `passed=True` 与内层 `decision="block"` 表面矛盾，校验器显式跳过这一种组合。
+    """
+    inner = GateResult(
+        **_gate_result(passed=False, decision="block", violations=[GateViolation(**_violation(severity="block"))])
+    )
+    shell = GateResult(passed=True, shadowed=inner)
+    assert shell.passed is True
+    assert shell.decision == "allow"
+    assert shell.shadowed is not None
+    assert shell.shadowed.decision == "block"
+
+
+def test_block_violation_still_rejected_without_shadow() -> None:
+    """无影子字段时，"有 block 违规却 allow"仍然被拦住（不能被影子豁免放宽）。"""
+    with pytest.raises(ValidationError, match="不得 allow"):
+        GateResult(**_gate_result(violations=[GateViolation(**_violation(severity="block"))]))
