@@ -47,8 +47,16 @@ async def get_checkpointer() -> AsyncPostgresSaver:
 
 
 async def close_checkpointer() -> None:
-    """关闭连接池并释放单例，供应用生命周期收尾与测试重建使用。"""
+    """关闭连接池并释放单例，供应用生命周期收尾与测试重建使用。
+
+    同时重置已编译的图单例：图在编译时**绑定**当前 saver，若只释放 saver 而保留图，
+    下次 `get_agent()` 会返回仍指向已关闭连接池的旧图，请求随即抛 `PoolClosed`。
+    这里用局部导入避免与 `app.agent.__init__` 形成模块级循环依赖。
+    """
     global _saver, _pool
     if _pool is not None:
         await _pool.close()
     _saver, _pool = None, None
+    from app.agent import reset_agent
+
+    reset_agent()

@@ -1,5 +1,20 @@
-from .ai import ChatRequest, ChatResponse, HistoryItem, HistoryResponse
+from .ai import HistoryItem, HistoryResponse
 from .broadcast import BroadcastItem, BroadcastTodayResponse, MarkDoneRequest
+from .consult import (
+    ChatRequest,
+    ChatResponse,
+    ContactInfoView,
+    FollowupPlanView,
+    FollowupTaskView,
+    HandoffView,
+    PesticideItemView,
+    PrescriptionActionView,
+    PrescriptionView,
+    ProgressInfo,
+    QuestionView,
+    QuotaPromptView,
+    SlotAnswer,
+)
 from .environment import (
     DeviceItem,
     EnvironmentDetail,
@@ -30,6 +45,17 @@ __all__ = [
     "DeviceItem",
     "ChatRequest",
     "ChatResponse",
+    "ContactInfoView",
+    "FollowupPlanView",
+    "FollowupTaskView",
+    "HandoffView",
+    "PesticideItemView",
+    "PrescriptionActionView",
+    "PrescriptionView",
+    "ProgressInfo",
+    "QuestionView",
+    "QuotaPromptView",
+    "SlotAnswer",
     "HistoryItem",
     "HistoryResponse",
 ]

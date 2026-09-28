@@ -1,4 +1,8 @@
-"""AI 对话路由：POST /api/ai/chat、GET /api/ai/history、DELETE /api/ai/history/{id}。"""
+"""AI 对话路由：POST /api/ai/chat、GET /api/ai/history、DELETE /api/ai/history/{id}。
+
+`/ai/chat` 是 T2-33 的图驱动接口：入参为 `ChatRequest`，出参为 `ChatResponse`。
+转人工是正常业务结果（用 200 + `handoff` 字段表达），因此本路由不设 4xx/5xx 分支。
+"""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.response import ok
 from app.db.session import get_db
-from app.schemas import ChatRequest
+from app.schemas.consult import ChatRequest
 from app.services import get_ai_service
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -18,8 +22,8 @@ async def chat(
     db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_current_user),
 ) -> dict:
-    data = await get_ai_service().chat(db, user_id, req)
-    return ok(data)
+    response = await get_ai_service().chat(db, user_id, req)
+    return ok(response.model_dump(mode="json"))
 
 
 @router.get("/history")

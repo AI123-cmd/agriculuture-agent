@@ -283,7 +283,7 @@ def test_chat_with_foreign_session_id_does_not_take_over(client) -> None:
     b_session = "sess-b-owned-001"
     resp = client.post(
         "/api/ai/chat",
-        json={"message": "水稻叶片发黄", "sessionId": b_session, "cropTag": "水稻"},
+        json={"message": "水稻叶片发黄", "sessionId": b_session},
         headers=b_headers,
     )
     assert resp.status_code == 200
@@ -295,7 +295,7 @@ def test_chat_with_foreign_session_id_does_not_take_over(client) -> None:
     # A 拿 B 的 sessionId 发消息
     resp = client.post(
         "/api/ai/chat",
-        json={"message": "稻飞虱怎么防", "sessionId": b_session, "cropTag": "水稻"},
+        json={"message": "稻飞虱怎么防", "sessionId": b_session},
         headers=a_headers,
     )
     assert resp.status_code == 200

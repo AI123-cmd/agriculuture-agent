@@ -71,6 +71,18 @@ async def get_agent() -> CompiledStateGraph:
     return _agent
 
 
+def reset_agent() -> None:
+    """丢弃编译后的图单例，使下次 `get_agent()` 用当前 checkpointer 重建。
+
+    编译后的图**绑定**构造时的 saver 实例，而 `close_checkpointer()` 会关闭并释放
+    该 saver 的连接池。若只重置 saver、不重置图，下一次 `get_agent()` 会命中缓存里
+    仍指向已关闭连接池的旧图，请求即抛 `PoolClosed`。二者必须同生共死：
+    `close_checkpointer()` 收尾时调用本函数。
+    """
+    global _agent
+    _agent = None
+
+
 async def resume_graph(session_id: str, resume_value: object) -> dict:
     """按 `thread_id` 恢复中断的图，传入农户的回答或确认选择（T2-32）。
 

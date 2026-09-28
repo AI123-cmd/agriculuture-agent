@@ -68,7 +68,7 @@ def test_chat_persists_normally_without_injection(client, auth_headers, counts) 
 
     resp = client.post(
         "/api/ai/chat",
-        json={"message": "水稻叶片发黄", "sessionId": "sess-persist-ok", "cropTag": "水稻"},
+        json={"message": "水稻叶片发黄", "sessionId": "sess-persist-ok"},
         headers=auth_headers,
     )
 
@@ -84,7 +84,7 @@ def test_chat_rolls_back_both_tables_on_injected_failure(client, auth_headers, c
 
     resp = client.post(
         "/api/ai/chat",
-        json={"message": "稻飞虱怎么防", "sessionId": "sess-rollback-fail", "cropTag": "水稻"},
+        json={"message": "稻飞虱怎么防", "sessionId": "sess-rollback-fail"},
         headers=auth_headers,
     )
 
@@ -99,7 +99,7 @@ def test_chat_rollback_leaves_no_orphan_conversation(client, auth_headers, count
 
     resp = client.post(
         "/api/ai/chat",
-        json={"message": "排水沟怎么修", "sessionId": "sess-rollback-orphan", "cropTag": None},
+        json={"message": "排水沟怎么修", "sessionId": "sess-rollback-orphan"},
         headers=auth_headers,
     )
 
@@ -115,7 +115,7 @@ def test_no_idle_in_transaction_after_chat(client, engine, auth_headers, counts)
     """
     resp = client.post(
         "/api/ai/chat",
-        json={"message": "玉米追肥时间", "sessionId": "sess-idle-check", "cropTag": "玉米"},
+        json={"message": "玉米追肥时间", "sessionId": "sess-idle-check"},
         headers=auth_headers,
     )
     assert resp.status_code == 200

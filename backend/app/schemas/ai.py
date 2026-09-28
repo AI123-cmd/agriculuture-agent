@@ -1,22 +1,11 @@
-"""AI 对话相关模型。"""
+"""AI 对话历史模型。
+
+问诊出入参已迁至 `app/schemas/consult.py`（T2-33）；本模块只保留历史列表模型。
+"""
 
 import builtins
 
 from pydantic import BaseModel, Field
-
-
-class ChatRequest(BaseModel):
-    message: str
-    sessionId: str
-    cropTag: str | None = None
-    imageUrl: str | None = None
-
-
-class ChatResponse(BaseModel):
-    sessionId: str
-    reply: str
-    relatedSuggestions: list[str] = []
-    tagsAdded: list[str] = []
 
 
 class HistoryItem(BaseModel):

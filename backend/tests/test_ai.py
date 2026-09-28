@@ -4,20 +4,19 @@
 def test_chat_returns_reply(client, auth_headers):
     resp = client.post(
         "/api/ai/chat",
-        json={"message": "水稻分蘖期怎么施肥？", "sessionId": "sess-001", "cropTag": "水稻"},
+        json={"message": "水稻分蘖期怎么施肥？", "sessionId": "sess-001"},
         headers=auth_headers,
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert data["sessionId"] == "sess-001"
     assert data["reply"]
-    assert "水稻" in data["tagsAdded"] or data["tagsAdded"] == []
 
 
 def test_history_after_chat(client, auth_headers):
     client.post(
         "/api/ai/chat",
-        json={"message": "怎么防治稻飞虱？", "sessionId": "sess-001", "cropTag": "水稻"},
+        json={"message": "怎么防治稻飞虱？", "sessionId": "sess-001"},
         headers=auth_headers,
     )
     resp = client.get("/api/ai/history", headers=auth_headers)
@@ -30,7 +29,7 @@ def test_history_after_chat(client, auth_headers):
 def test_delete_history(client, auth_headers):
     client.post(
         "/api/ai/chat",
-        json={"message": "hello", "sessionId": "sess-del", "cropTag": None},
+        json={"message": "hello", "sessionId": "sess-del"},
         headers=auth_headers,
     )
     resp = client.delete("/api/ai/history/sess-del", headers=auth_headers)
