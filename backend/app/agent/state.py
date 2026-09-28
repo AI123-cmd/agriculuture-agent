@@ -209,10 +209,6 @@ def parse_process_id(raw: str) -> ProcessId:
         raise EnumParseError(f"非法 process_id: {raw!r}") from exc
 
 
-# 六问（管理追问）的字段键，用于判断证据是否完整
-MANAGEMENT_KEYS = ("fertilize", "pesticide", "water", "weather")
-
-
 class SlotValue(BaseModel):
     """单个信息槽位，带来源与状态（技术方案 5.3.1 原样定义）。
 
@@ -309,9 +305,15 @@ class ConsultationState(TypedDict, total=False):
     # 流程
     process_id: ProcessId
     process_locked: bool
+    # 入口直达提示（T2-25）：小程序按钮带来的 `process_hint`。非空说明入口已锁定流程，
+    # intake 据此跳过 triage 提问；它是外部注入值，与分诊得出的 `process_id` 分开存放。
+    process_hint: str | None
     # 流程红线是否已加载（T2-24）。路由函数首行检查它，为假即 fail-closed 转人工：
     # 红线配置缺失时用通用规则继续出方，等于突破产品说明书 9.3，属于不可接受的风险。
     redlines_loaded: bool
+    # 流程红线快照（T2-45）。闸门不从流程配置重算红线，只消费 intake 装载进 state 的这份
+    # `LoadedRedlines.model_dump()`；闸门是纯函数组件，读 state 之外无处取红线。
+    redlines: dict
     # 本流程必填槽位键清单（T2-24）。`slots_ready` 只能做集合运算，不能查流程配置
     # ——路由函数必须是无 IO 的纯函数，故由 intake 把配置里的必填键摊平后写进 state。
     required_slots: list[str]
@@ -343,6 +345,19 @@ class ConsultationState(TypedDict, total=False):
     observations: dict  # 环境/图片归纳结果
     evidence: list[dict]  # EvidenceItem 序列化
     prescription_history: list[dict]  # 档案中的用药史，只读快照，与 slots 分开存放
+    # 问诊产出（T2-26）。`pending_questions` 是本轮待农户回答的问题（`InterviewQuestion`
+    # 序列化），`stage_hint` 是问诊智能体对下一步环节的建议。二者都由 `interview` 工厂节点
+    # 返回，若不在此声明会被 LangGraph 静默丢弃，接口层随即拿不到问题时序。
+    pending_questions: list[dict]
+    stage_hint: str
+    # 会诊产出（T2-26）。`panel_aggregate` 是聚合裁定结果（序列化），`panel_ran` 标记本次
+    # 已会诊（防止回环重复消耗），`panel_force_uncertain` 供判定智能体在未收敛时强制输出
+    # 不确定。三者同样必须声明，否则节点返回值会被丢弃。
+    panel_aggregate: dict
+    panel_ran: bool
+    panel_force_uncertain: bool
+    # 内部置信度分数（T2-26）。仅用于路由，不得进入任何展示文案（5.3.4 硬约束）。
+    confidence_score: float
     # 对象确认交互（T2-25）。分诊判不出对象归属时插入一次确认，这三个键承载该交互：
     # `awaiting_object_confirm` 表示正等农户回答，`object_label` 是展示给农户的对象名，
     # `object_confirmed_conflict` 表示农户回答与档案记录冲突——冲突只能回分诊重判，
@@ -350,6 +365,11 @@ class ConsultationState(TypedDict, total=False):
     awaiting_object_confirm: bool
     object_label: str
     object_confirmed_conflict: bool
+    # 对象确认的农户答复（T2-25）。`confirm_object` 节点读它：非空则据此回写 `process_id`
+    # 并锁定，为空则输出确认话术并置 `awaiting_object_confirm`。`profile_process_hint` 是
+    # 档案记录的流程归属，用于判定"农户答复与档案冲突"，冲突只能回分诊重判。
+    confirm_object_answer: str | None
+    profile_process_hint: str | None
     # 产出
     # 分诊产出（T2-14）。存 `TriageResult` 序列化后的 dict，与其余事实类键一致。
     # 条件边 `route_after_triage`（T2-24）直接按下标读 `handoff_to_report` 与
@@ -358,6 +378,11 @@ class ConsultationState(TypedDict, total=False):
     triage: dict
     diagnosis: dict | None
     prescription: dict | None
+    # 处方卡最终展示文本（T2-45）。闸门的 `R-PROVENANCE`/`R-REDLINE`/`R-CAUTION` 反向扫描
+    # 读的是它，闸门据此判断"模型说的"是否落在知识库与红线允许的范围内。`prescription_suppressed`
+    # 在 degrade/block 时置真，展示层据此不渲染处方卡。
+    prescription_text: str | None
+    prescription_suppressed: bool
     gate_result: dict | None
     report_decision: dict | None
     # 转人工上下文包（T2-23）。存 `HandoffPackage.model_dump(mode="json")` 的结果，与其余
@@ -370,34 +395,7 @@ class ConsultationState(TypedDict, total=False):
     trace_id: str
 
 
-# TODO(T2-25): 过渡期旧键清单（原 `AgentState`），纯粹为了让尚未替换的节点（T2-14 起逐个
-# 替换）与旧线性图通过 mypy：LangGraph **会静默丢弃**节点返回的、未在 state 类型中声明的
-# 键，而旧节点仍返回 `symptoms`、`management`、`confidence_level` 等键；若把它们标注成
-# `ConsultationState`，mypy 会在 `.get()` 上判为 `object` 而报错，运行时则会因键被丢弃使
-# 条件边全部走到 `end`。本类随旧图（`graph.py`）与旧节点在 T2-25 一并删除。
-class TransitionalState(TypedDict, total=False):
-    session_id: str
-    user_id: str
-    crop_tag: str
-    stage: str
-    round: int
-    image_url: str | None
-    user_message: str
-    context: dict
-    symptoms: str
-    management: dict
-    environment: dict
-    evidence_conflict: bool
-    diagnosis: dict | None
-    confidence_score: float
-    confidence_level: str
-    messages: Annotated[list[dict], add_messages]
-    reply: str
-    related_suggestions: list[str]
-
-
 __all__ = [
-    "MANAGEMENT_KEYS",
     "SOURCE_PRIORITY",
     "AnswerType",
     "ConfidenceLevel",
