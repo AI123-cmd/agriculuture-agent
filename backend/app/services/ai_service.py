@@ -13,7 +13,7 @@
   否则每条条件边都会 fail-closed 转人工。
 """
 
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,10 +61,14 @@ _STAGE_LABELS: dict[ConsultStage, str] = {
     ConsultStage.BLOCKED: "出于安全已停止出方",
 }
 
+# `HandoffView.reason` 的字面量集合（与技术方案 13.2 一致）。显式标注让 mypy 认可
+# `_handoff` 里对 reason 的赋值与改写。
+HandoffReason = Literal["out_of_scope", "safety_degrade", "safety_block", "not_converged", "mandatory_report"]
+
 # `HandoffPackage.reason`（四值）到接口 `HandoffView.reason`（五值）的映射。闸门
 # `degrade` 与 `block` 在内部同为 `safety_block`，接口层按闸门裁定细分展示。
-_SAFETY_DEGRADE = "safety_degrade"
-_SAFETY_BLOCK = "safety_block"
+_SAFETY_DEGRADE: HandoffReason = "safety_degrade"
+_SAFETY_BLOCK: HandoffReason = "safety_block"
 
 
 def stage_label(stage: ConsultStage) -> str:
@@ -102,7 +106,7 @@ class AIService:
 
         return response
 
-    async def _resume_or_start(self, db: AsyncSession, session_id: str, user_id: str, req: ChatRequest) -> ConsultationState:
+    async def _resume_or_start(self, db: AsyncSession, session_id: str, user_id: str, req: ChatRequest) -> dict[str, Any]:
         """新会话 / 中断恢复 两分支。恢复判据是检查点上是否还有待跑节点。"""
         from app.agent import get_agent, resume_graph  # 延迟导入，避免与 services 形成循环依赖
 
@@ -179,17 +183,17 @@ class AIService:
         answers = [answer.model_dump() for answer in (req.answers or [])]
         return {"answers": answers}
 
-    def _build_response(self, session_id: str, state: dict) -> ChatResponse:
+    def _build_response(self, session_id: str, state: dict[str, Any]) -> ChatResponse:
         stage = state.get("stage") or ConsultStage.INTAKE
         response = ChatResponse(
             sessionId=session_id,
             stage=stage,
             stageLabel=stage_label(stage),
-            progress=ProgressInfo(**progress_of(state)),
+            progress=ProgressInfo(**progress_of(cast(ConsultationState, state))),
             reply=state.get("reply") or "",
             questions=self._questions(state),
             prescription=self._prescription(state),
-            environmentNote=build_environment_note(state),
+            environmentNote=build_environment_note(cast(ConsultationState, state)),
             handoff=self._handoff(state),
             quotaPrompt=self._quota_prompt(state),
             degraded=state.get("degraded", False),
@@ -273,13 +277,13 @@ class AIService:
             detailTerms=raw.get("detail_terms") or {},
         )
 
-    def _handoff(self, state: dict) -> HandoffView | None:
+    def _handoff(self, state: dict[str, Any]) -> HandoffView | None:
         """转人工信息。非空时处方必为 `None`（由 `_prescription` 保证）。"""
         package = state.get("handoff_package")
         if not package:
             return None
         gate = state.get("gate_result") or {}
-        reason = package.get("reason") or "not_converged"
+        reason: HandoffReason = package.get("reason") or "not_converged"
         if reason == "legal_report":
             reason = "mandatory_report"
         elif reason == "safety_block":

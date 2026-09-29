@@ -5,6 +5,8 @@
 等级的规则。
 """
 
+from typing import ClassVar
+
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
 from app.gate.rules.base import Rule, register
@@ -15,7 +17,7 @@ class RegionFitnessRule(Rule):
     """R-REGION：建议必须与所在地地区、当前阶段匹配。"""
 
     rule_id = GateRuleId.REGION.value
-    severity: GateSeverity = "degrade"
+    severity: ClassVar[GateSeverity] = "degrade"
     description = "建议必须与所在地地区匹配"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

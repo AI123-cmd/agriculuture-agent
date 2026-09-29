@@ -11,10 +11,15 @@
 后续规则整体跳过，代价是 `checked_rules` 变短，正好被 8.5 第三条复盘用途当作信号。
 """
 
+from typing import Literal
+
 from app.gate.constants import DEGRADE_OUTPUT_TEXT
 from app.gate.contracts import GateContext, GateResult, GateViolation
 from app.gate.enums import GateDecision, GateRuleId
 from app.gate.rules.base import Rule, build_rules
+
+# 裁定档位的字面量类型，与 `GateResult.decision` 的声明一致。
+Decision = Literal["allow", "degrade", "block"]
 
 # 前置规则：必须最先执行，其结论决定其余规则是否可信。红线未加载时它是唯一的执行者。
 _PRECHECK_RULE_IDS = (GateRuleId.REDLINE_LOAD.value,)
@@ -82,13 +87,13 @@ class GateEngine:
         return ctx.redlines.loaded and not any(v.severity == "block" for v in violations)
 
     @staticmethod
-    def _decide(violations: list[GateViolation]) -> str:
+    def _decide(violations: list[GateViolation]) -> Decision:
         """聚合裁定：block 优先于 degrade，degrade 优先于 warn，其余放行。"""
         if any(v.severity == "block" for v in violations):
-            return GateDecision.BLOCK.value
+            return "block"
         if any(v.severity == "degrade" for v in violations):
-            return GateDecision.DEGRADE.value
-        return GateDecision.ALLOW.value
+            return "degrade"
+        return "allow"
 
 
 __all__ = ["GateEngine"]

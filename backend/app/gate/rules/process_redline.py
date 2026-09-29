@@ -7,6 +7,8 @@
 是术语到口语化的改写映射。只扫展示文本会漏掉后两类。
 """
 
+from typing import ClassVar
+
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
 from app.gate.matching import normalize_text
@@ -18,7 +20,7 @@ class ProcessRedlineRule(Rule):
     """R-REDLINE：命中当前流程红线配置的任一禁用项即拦截。"""
 
     rule_id = GateRuleId.REDLINE.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "不得触碰本流程的禁用输出清单"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

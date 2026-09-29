@@ -16,7 +16,7 @@ class RegisteredCropRule(Rule):
     """R-REGISTERED-CROP：药剂登记作物必须包含当前流程对应作物。"""
 
     rule_id = GateRuleId.REGISTERED_CROP.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "药剂登记作物必须包含当前流程对应作物"
 
     # 流程 → 登记作物名（植保口径）。杂草/通用/养猪不在映射内，不做作物登记匹配。

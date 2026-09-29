@@ -4,6 +4,8 @@
 生成不在库中的药剂，后续所有剂量、间隔期、登记作物校验都失去比对基准。
 """
 
+from typing import ClassVar
+
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
 from app.gate.rules.base import Rule, register
@@ -14,7 +16,7 @@ class PesticideWhitelistRule(Rule):
     """R-WHITELIST：药剂条目必须来自已核准知识库。"""
 
     rule_id = GateRuleId.WHITELIST.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "药剂条目必须存在于已核准知识库"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

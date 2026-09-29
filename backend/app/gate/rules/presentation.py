@@ -22,7 +22,7 @@ class CautionToneRule(Rule):
     """
 
     rule_id = GateRuleId.CAUTION.value
-    severity: GateSeverity = "warn"
+    severity: ClassVar[GateSeverity] = "warn"
     description = "输出不得为强制命令语气"
 
     REQUIRED_SOFTENERS: ClassVar[tuple[str, ...]] = (
@@ -65,7 +65,7 @@ class NoDataSupportRule(Rule):
     """
 
     rule_id = GateRuleId.NO_DATA.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "不得出现无事实来源的数值字段"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

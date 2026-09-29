@@ -4,6 +4,8 @@
 以为它们互相独立。二者回答不同问题——`R-DOSAGE` 是"量对不对"，`R-MAX-USE` 是"次数超没超"。
 """
 
+from typing import ClassVar
+
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
 from app.gate.rules.base import Rule, register
@@ -14,7 +16,7 @@ class DosageRangeRule(Rule):
     """R-DOSAGE：剂量必须落在知识条目给定的 [min, max] 区间内。"""
 
     rule_id = GateRuleId.DOSAGE.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "剂量必须落在知识条目给定的区间内"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:
@@ -62,7 +64,7 @@ class MaxUsePerSeasonRule(Rule):
     """R-MAX-USE：每季次数不得超出登记值，且与用药史累计不超限。"""
 
     rule_id = GateRuleId.MAX_USE.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "每季使用次数与登记值、用药史累计均不得超限"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

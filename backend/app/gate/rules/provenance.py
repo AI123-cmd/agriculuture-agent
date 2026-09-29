@@ -11,6 +11,7 @@
 """
 
 import re
+from typing import ClassVar
 
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
@@ -31,7 +32,7 @@ class ProvenanceRule(Rule):
     """R-PROVENANCE：处方文本中的每个数字必须在 provenance 表中有登记。"""
 
     rule_id = GateRuleId.PROVENANCE.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "文本中的事实性数字必须有事实来源登记"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

@@ -7,6 +7,8 @@
 即 block（fail-closed：农户没说何时采，系统就无法证明方案不冲突）。
 """
 
+from typing import ClassVar
+
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity, ProcessId
 from app.gate.rules.base import Rule, register
@@ -17,7 +19,7 @@ class SafetyIntervalRule(Rule):
     """R-INTERVAL：安全间隔期必须明确，且不得与采摘节奏冲突。"""
 
     rule_id = GateRuleId.INTERVAL.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "安全间隔期必须明确且与采摘计划不冲突"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

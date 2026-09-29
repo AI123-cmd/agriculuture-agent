@@ -4,6 +4,8 @@
 读同一份用药史但回答不同问题——次数超限是"量"，重复与禁忌是"质"。
 """
 
+from typing import ClassVar
+
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
 from app.gate.matching import conflicts_with, identity_key, recent_records
@@ -15,7 +17,7 @@ class MedicationConflictRule(Rule):
     """R-CONFLICT：不得与档案近期用药重复，也不得构成已知禁忌搭配。"""
 
     rule_id = GateRuleId.CONFLICT.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "不得与近期用药重复或构成禁忌搭配"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:

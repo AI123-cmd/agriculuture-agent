@@ -7,6 +7,8 @@
 是否可信"。它是引擎排序第一位，也是短路点（见 `engine.py`）。
 """
 
+from typing import ClassVar
+
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
 from app.gate.rules.base import Rule, register
@@ -17,7 +19,7 @@ class RedlineLoadRule(Rule):
     """R-REDLINE-LOAD：流程红线配置必须成功加载，否则直接 block。"""
 
     rule_id = GateRuleId.REDLINE_LOAD.value
-    severity: GateSeverity = "block"
+    severity: ClassVar[GateSeverity] = "block"
     description = "流程红线配置必须成功加载"
 
     def check(self, ctx: GateContext) -> list[GateViolation]:
