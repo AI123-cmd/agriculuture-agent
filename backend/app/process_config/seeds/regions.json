@@ -1,0 +1,7 @@
+{
+  "330000": {"name": "浙江省", "level": "province"},
+  "330100": {"name": "杭州市", "level": "city"},
+  "330200": {"name": "宁波市", "level": "city"},
+  "330102": {"name": "上城区", "level": "county"},
+  "330202": {"name": "海曙区", "level": "county"}
+}

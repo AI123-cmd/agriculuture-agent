@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.knowledge.status import SEARCHABLE_STATUSES, KnowledgeStatus
-from app.models.knowledge import KnowledgeItem
+from app.models.knowledge import KnowledgeItem, KnowledgeRegion
 
 # 关键词召回时，单个分词过短（如单字）区分度太低，容易把无关条目拉进来。过滤长度由业务层
 # 决定，这里只做 SQL；常量放在此处表示"数据访问层也认可这个下限"。
@@ -88,6 +88,25 @@ class KnowledgeRepository:
             stmt = stmt.where(KnowledgeItem.process_id == process_id)
         stmt = stmt.order_by(KnowledgeItem.knowledge_id)
         return list((await self._session.execute(stmt)).scalars().all())
+
+    # ---- 地区挂载读取（T2-50）----
+    #
+    # `knowledge_region` 是条目的地适用范围的多值表达（一条条目可覆盖多个行政区），与主表的
+    # `region_scope` 单值列互补。回退匹配的逐级命中以主表 `region_scope` 为准（见 T2-49 过滤），
+    # 这两条方法供需要按地区反查条目的调用点使用（展示标注、地区覆盖核对）。
+
+    async def list_region_rows(self, region_code: str, region_level: str | None = None) -> list[KnowledgeRegion]:
+        """按行政区编码（可选级别）取地区挂载行。"""
+        stmt = select(KnowledgeRegion).where(KnowledgeRegion.region_code == region_code)
+        if region_level is not None:
+            stmt = stmt.where(KnowledgeRegion.region_level == region_level)
+        stmt = stmt.order_by(KnowledgeRegion.knowledge_id)
+        return list((await self._session.execute(stmt)).scalars().all())
+
+    async def list_knowledge_ids_by_region(self, region_code: str, region_level: str | None = None) -> list[str]:
+        """按行政区编码（可选级别）反查覆盖该地区的条目 id。"""
+        rows = await self.list_region_rows(region_code, region_level)
+        return [row.knowledge_id for row in rows]
 
     # ---- 混合检索的两路召回（T2-49）----
     #
