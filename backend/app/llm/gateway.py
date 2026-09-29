@@ -87,6 +87,8 @@ class ModelGateway:
         trimmed = trim_messages(messages, decision.max_history_rounds)
         digest = self._auditor.record_digest(task_type, trimmed)
         last_error: str | None = None
+        last_candidate: ModelCandidate | None = None
+        last_response: ModelResponse | None = None
         for candidate in decision.chain:
             if not self._circuit.allow(candidate.provider):
                 last_error = f"{candidate.provider} 熔断中"
@@ -99,8 +101,15 @@ class ModelGateway:
                 await self._meter.record(task_type, response, candidate, is_fallback=response.is_fallback)
                 return response
             last_error = response.error
+            last_candidate = candidate
+            last_response = response
             if _counts_as_failure(response.error):
                 self._circuit.record_failure(candidate.provider)
+        # 候选链全部失败：只写一条"最终失败"计量。中间失败的尝试不写——失败响应没有
+        # 可信的 token 数，为每次尝试都写一条会污染成本统计（技术方案 10.4）。失败次数
+        # 已由上面的 `record_failure` 计入熔断器，与计量分开。
+        if last_response is not None and last_candidate is not None:
+            await self._meter.record(task_type, last_response, last_candidate, is_fallback=last_response.is_fallback)
         raise AllProvidersFailedError(str(task_type.value), last_error)
 
     async def _invoke(
