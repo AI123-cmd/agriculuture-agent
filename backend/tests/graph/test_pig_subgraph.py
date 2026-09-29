@@ -131,6 +131,7 @@ async def _trace(graph, state: dict) -> list[str]:
 
 # ---- 1. 入口守卫先于 observe ----
 
+
 async def test_guard_entry_runs_before_observe_when_not_triggered(monkeypatch) -> None:
     """未命中：trace 为入口守卫 → observe → 兜底守卫 → …，全程无 handoff。"""
     _patch_non_guard_leaves(monkeypatch)
@@ -156,6 +157,7 @@ def test_pig_start_edge_targets_entry_guard(monkeypatch) -> None:
 
 
 # ---- 2. 命中即出子图，并到达主图 handoff ----
+
 
 async def test_triggered_at_entry_exits_subgraph_without_observe(monkeypatch) -> None:
     """农户首句命中报告信号：trace 只有入口守卫，不进入 observe / interview / prescribe。"""
@@ -203,6 +205,7 @@ async def test_triggered_guard_routes_to_handoff_on_main_graph(monkeypatch) -> N
 
 # ---- 3. 命中后不回落问诊 ----
 
+
 def test_triggered_guard_never_falls_back_to_interview() -> None:
     """`route_after_subgraph_guard` 对已触发状态恒返回 handoff，与 stage 无关。"""
     for stage in (ConsultStage.INTAKE, ConsultStage.OBSERVE, ConsultStage.INTERVIEW):
@@ -249,5 +252,7 @@ async def test_legal_report_reply_contains_all_actions_and_contacts(monkeypatch)
 
 def test_report_guard_entry_exists_only_in_pig_module() -> None:
     """`report_guard_entry` 是养猪专属，其他子图文件不得出现。"""
-    hits = {path.name for path in _SUBGRAPH_DIR.glob("*.py") if "report_guard_entry" in path.read_text(encoding="utf-8")}
+    hits = {
+        path.name for path in _SUBGRAPH_DIR.glob("*.py") if "report_guard_entry" in path.read_text(encoding="utf-8")
+    }
     assert hits == {"pig.py"}, hits

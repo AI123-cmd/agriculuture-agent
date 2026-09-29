@@ -6,6 +6,9 @@
 
 `process_id` 硬过滤是本文件的重点：茶流程的查询绝不召回辣椒或水稻的条目，且这条要在候选集
 层面成立，而不是靠重排序纠正。
+
+会话一律用 `async with` 开启：漏关的会话会留下空闲事务，阻塞下一个用例的 TRUNCATE，表现为
+整轮挂死。
 """
 
 import asyncio
@@ -72,6 +75,16 @@ async def _insert(session_factory, *items: KnowledgeItem) -> None:
         await db.commit()
 
 
+def _repo(session_factory, embedder=None) -> KnowledgeRepository:
+    """构造检索入口。`KnowledgeRepository` 自持会话工厂，每次召回各开一条会话，无需外层托管。"""
+    return KnowledgeRepository(session_factory, embedder or _FixedEmbedder(_vec("query")))
+
+
+async def _search(session_factory, embedder=None, **overrides) -> list:
+    """端到端跑一次检索。"""
+    return await _repo(session_factory, embedder).search(_query(**overrides))
+
+
 def _query(**overrides) -> EvidenceQuery:
     payload: dict = {
         "process_id": ProcessId.TEA,
@@ -109,12 +122,13 @@ def test_build_filters_does_not_duplicate_general() -> None:
 
 def test_both_recall_sql_carry_status_and_process_filter() -> None:
     """两路召回的 SQL 都带 `status='approved'` 与 `process_id IN (...)`。"""
-    query = _query(process_id=ProcessId.TEA)
-    clauses = where_clauses(build_filters(query))
+    clauses = where_clauses(build_filters(_query(process_id=ProcessId.TEA)))
     repo = QueryRepository(session=None)  # type: ignore[arg-type]  仅取语句，不执行
 
-    for sql in (_sql(repo.vector_recall_stmt([0.0] * EMBEDDING_DIM, clauses, RECALL_TOP_K)),
-                _sql(repo.keyword_recall_stmt(["茶小绿叶蝉"], clauses, RECALL_TOP_K))):
+    for sql in (
+        _sql(repo.vector_recall_stmt([0.0] * EMBEDDING_DIM, clauses, RECALL_TOP_K)),
+        _sql(repo.keyword_recall_stmt(["茶小绿叶蝉"], clauses, RECALL_TOP_K)),
+    ):
         assert "status = 'approved'" in sql
         assert "'tea'" in sql and "'general'" in sql
         assert "'chili'" not in sql and "'rice'" not in sql
@@ -139,7 +153,6 @@ def test_recall_top_k_and_rerank_limit_constants() -> None:
 
 async def test_search_calls_both_channels_with_recall_top_k(session_factory, monkeypatch) -> None:
     """`search` 以 `RECALL_TOP_K` 调用两路召回，两路互不干扰。"""
-    repo = KnowledgeRepository(session_factory(), _FixedEmbedder(_vec("q")))
     seen: dict[str, int] = {}
 
     async def fake_vector(self, text, clauses, top_k):  # type: ignore[no-untyped-def]
@@ -153,14 +166,13 @@ async def test_search_calls_both_channels_with_recall_top_k(session_factory, mon
     monkeypatch.setattr(KnowledgeRepository, "_vector_recall", fake_vector)
     monkeypatch.setattr(KnowledgeRepository, "_keyword_recall", fake_keyword)
 
-    await repo.search(_query())
+    await _search(session_factory)
 
     assert seen == {"vector": 20, "keyword": 20}
 
 
 async def test_two_recalls_run_concurrently(session_factory, monkeypatch) -> None:
     """两路召回用 `asyncio.gather` 并发：各阻塞 0.1 秒，总耗时低于 0.15 秒。"""
-    repo = KnowledgeRepository(session_factory(), _FixedEmbedder(_vec("q")))
 
     async def slow_vector(self, text, clauses, top_k):  # type: ignore[no-untyped-def]
         await asyncio.sleep(0.1)
@@ -174,7 +186,7 @@ async def test_two_recalls_run_concurrently(session_factory, monkeypatch) -> Non
     monkeypatch.setattr(KnowledgeRepository, "_keyword_recall", slow_keyword)
 
     started = time.perf_counter()
-    await repo.search(_query())
+    await _search(session_factory)
     elapsed = time.perf_counter() - started
 
     assert elapsed < 0.15, f"两路召回疑似串行执行，耗时 {elapsed:.3f}s"
@@ -193,7 +205,7 @@ async def test_search_excludes_other_processes(session_factory) -> None:
         _item(knowledge_id="K-rice", process_id="rice", embedding=vector),
     )
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(vector)).search(_query())
+    results = await _search(session_factory, _FixedEmbedder(vector))
 
     ids = {item.knowledge_id for item in results}
     assert "K-tea" in ids
@@ -209,7 +221,7 @@ async def test_general_entries_mix_into_other_processes(session_factory) -> None
         _item(knowledge_id="K-general", process_id="general", embedding=vector),
     )
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(vector)).search(_query())
+    results = await _search(session_factory, _FixedEmbedder(vector))
 
     assert {item.knowledge_id for item in results} == {"K-tea", "K-general"}
 
@@ -224,7 +236,7 @@ async def test_suspended_and_draft_entries_excluded(session_factory) -> None:
         _item(knowledge_id="K-draft", status="draft", embedding=vector),
     )
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(vector)).search(_query())
+    results = await _search(session_factory, _FixedEmbedder(vector))
 
     assert {item.knowledge_id for item in results} == {"K-ok"}
 
@@ -238,7 +250,7 @@ async def test_kind_filter_applied(session_factory) -> None:
         _item(knowledge_id="K-pesticide", kind="pesticide", embedding=vector),
     )
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(vector)).search(_query(kind_filter=["pest"]))
+    results = await _search(session_factory, _FixedEmbedder(vector), kind_filter=["pest"])
 
     assert {item.knowledge_id for item in results} == {"K-pest"}
 
@@ -254,7 +266,7 @@ async def test_expired_and_not_yet_effective_entries_excluded(session_factory) -
         _item(knowledge_id="K-future", effective_date=today + timedelta(days=1), embedding=vector),
     )
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(vector)).search(_query())
+    results = await _search(session_factory, _FixedEmbedder(vector))
 
     assert {item.knowledge_id for item in results} == {"K-active"}
 
@@ -272,9 +284,7 @@ async def test_both_channel_hit_outranks_single_channel(session_factory) -> None
         _item(knowledge_id="K-vector", title="无关条目", content="与查询无关。", embedding=_vec("far")),
     )
 
-    results = await KnowledgeRepository(
-        session_factory(), _FixedEmbedder(vector)
-    ).search(_query(keywords=["茶小绿叶蝉"]))
+    results = await _search(session_factory, _FixedEmbedder(vector), keywords=["茶小绿叶蝉"])
 
     assert results[0].knowledge_id == "K-both"
 
@@ -287,9 +297,9 @@ async def test_vector_recall_excludes_null_embedding(session_factory) -> None:
         _item(knowledge_id="K-hasvec", embedding=vector),
         _item(knowledge_id="K-nullvec", embedding=None),
     )
-    repo = KnowledgeRepository(session_factory(), _FixedEmbedder(vector))
     clauses = where_clauses(build_filters(_query()))
 
+    repo = _repo(session_factory, _FixedEmbedder(vector))
     hits = await repo._vector_recall("茶小绿叶蝉", clauses, RECALL_TOP_K)  # noqa: SLF001
 
     ids = {hit.row.knowledge_id for hit in hits}
@@ -316,7 +326,7 @@ async def test_evidence_fields_copied_verbatim(session_factory) -> None:
         ),
     )
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(vector)).search(_query())
+    results = await _search(session_factory, _FixedEmbedder(vector))
 
     item = results[0]
     assert item.knowledge_id == "K-pest"
@@ -335,7 +345,7 @@ async def test_search_respects_top_k(session_factory) -> None:
     vector = _vec("query")
     await _insert(session_factory, *[_item(knowledge_id=f"K-{i}", embedding=vector) for i in range(5)])
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(vector)).search(_query(top_k=2))
+    results = await _search(session_factory, _FixedEmbedder(vector), top_k=2)
 
     assert len(results) == 2
 
@@ -347,7 +357,7 @@ async def test_keyword_only_hit_still_returned(session_factory) -> None:
         _item(knowledge_id="K-kw", title="茶小绿叶蝉", content="若虫期用药。", embedding=None),
     )
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(_vec("query"))).search(_query())
+    results = await _search(session_factory, _FixedEmbedder(_vec("query")))
 
     assert {item.knowledge_id for item in results} == {"K-kw"}
 
@@ -355,22 +365,20 @@ async def test_keyword_only_hit_still_returned(session_factory) -> None:
 async def test_search_wraps_db_error_as_unavailable(session_factory, monkeypatch) -> None:
     """检索内部异常统一转成 `KnowledgeUnavailableError`，供上层降级处置。"""
 
-    repo = KnowledgeRepository(session_factory(), _FixedEmbedder(_vec("query")))
-
     async def boom(self, text, clauses, top_k):  # type: ignore[no-untyped-def]
         raise RuntimeError("connection reset")
 
     monkeypatch.setattr(KnowledgeRepository, "_vector_recall", boom)
 
     with pytest.raises(KnowledgeUnavailableError):
-        await repo.search(_query())
+        await _search(session_factory)
 
 
 async def test_search_returns_empty_when_no_candidate(session_factory) -> None:
     """候选集为空时返回空列表，不抛异常——空集是合法的检索结果。"""
     await _insert(session_factory, _item(knowledge_id="K-other", process_id="chili"))
 
-    results = await KnowledgeRepository(session_factory(), _FixedEmbedder(_vec("query"))).search(_query())
+    results = await _search(session_factory, _FixedEmbedder(_vec("query")))
 
     assert results == []
 

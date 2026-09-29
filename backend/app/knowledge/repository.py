@@ -13,6 +13,10 @@
 串行会把延迟从"两者较大者"变成"两者之和"。RRF 在重排序之前：RRF 是无参排序合并，先把两路
 前列候选汇成更全的候选，再交给更贵的重排处理。
 
+**本类持会话工厂而非单个会话**：`AsyncSession` 不是并发安全的，同一个会话上并发执行两条
+语句会抛 `IllegalStateChangeError`。两路召回要真正并发（这是 `asyncio.gather` 的意义），
+就必须各用一条独立会话——故构造时传入 `async_sessionmaker`，每次召回各开一条会话。
+
 本模块是**业务编排**，SQL 在 `app/repositories/knowledge.py`（数据访问层）。两者分层是为了
 让"过滤条件""融合逻辑""检索流程"能被分别单测。
 """
@@ -20,14 +24,18 @@
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
+from decimal import Decimal
+from typing import Any, cast
 
-from sqlalchemy.ext.asyncio import AsyncSession
+import jieba
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agent.contracts import EvidenceItem, EvidenceQuery
+from app.agent.contracts.evidence import EvidenceKindValue
 from app.knowledge.embedding import Embedder
 from app.knowledge.errors import KnowledgeUnavailableError
 from app.knowledge.filters import build_filters, where_clauses
-from app.knowledge.fusion import KnowledgeHit, dedupe_by_id, reciprocal_rank_fusion
+from app.knowledge.fusion import CHANNEL_KEYWORD, CHANNEL_VECTOR, KnowledgeHit, dedupe_by_id, reciprocal_rank_fusion
 from app.knowledge.schema import NATIONAL_LEVEL
 from app.repositories.knowledge import KnowledgeRepository as _QueryRepository
 
@@ -38,7 +46,7 @@ RECALL_TOP_K = 20
 # 交给重排序的候选上限。RRF 融合后可能远超此数，重排序计算贵，取前 30 条足矣。
 RERANK_LIMIT = 30
 
-# 重排序器接口：吃 (查询文本, 候选, top_k)，吐重排后的候选。默认实现见 `_IdentityReranker`。
+# 重排序器接口：吃 (查询文本, 候选, top_k)，吐重排后的候选。默认实现见 `_identity_rerank`。
 Reranker = Callable[[str, list[KnowledgeHit], int], Awaitable[list[KnowledgeHit]]]
 
 
@@ -51,18 +59,22 @@ async def _identity_rerank(text: str, hits: list[KnowledgeHit], top_k: int) -> l
     return hits[:top_k]
 
 
+def _to_float(value: Decimal | None) -> float | None:
+    """`Numeric` 列取回是 `Decimal`，证据契约用 `float`；None 原样透传。"""
+    return None if value is None else float(value)
+
+
 class KnowledgeRepository:
-    """知识检索入口。构造时绑定会话与向量化实现；重排序器可选注入（T2-51）。"""
+    """知识检索入口。构造时绑定会话工厂与向量化实现；重排序器可选注入（T2-51）。"""
 
     def __init__(
         self,
-        session: AsyncSession,
+        session_factory: async_sessionmaker[AsyncSession],
         embedder: Embedder,
         *,
         reranker: Reranker | None = None,
     ) -> None:
-        self._session = session
-        self._queries = _QueryRepository(session)
+        self._session_factory = session_factory
         self._embedder = embedder
         self._rerank_impl: Reranker = reranker or _identity_rerank
 
@@ -105,26 +117,33 @@ class KnowledgeRepository:
         return " ".join(word for word in query.keywords if word).strip()
 
     # ---- 第 2 步：并行两路召回 ----
+    #
+    # 两路各自开一条会话：同一个 `AsyncSession` 上并发执行两条语句会抛
+    # `IllegalStateChangeError`，故必须各用独立会话才能真正并发。
 
-    async def _vector_recall(self, text: str, clauses: Sequence, top_k: int) -> list[KnowledgeHit]:
-        """向量召回。文本为空时跳过（空串向量化没有语义）。"""
+    async def _vector_recall(self, text: str, clauses: Sequence[Any], top_k: int) -> list[KnowledgeHit]:
+        """向量召回：先向量化，再在独立会话里按余弦距离取候选。
+
+        文本为空时跳过（空串向量化没有语义）。向量化是网络调用，与关键词路的 SQL 并发执行，
+        这正是 `asyncio.gather` 要重叠的部分。
+        """
         if not text:
             return []
         vector = (await self._embedder.embed([text]))[0]
-        rows = await self._queries.vector_recall(vector, clauses, top_k)
-        return [KnowledgeHit(row=row, score=score, channel="vector") for row, score in rows]
+        async with self._session_factory() as db:
+            rows = await _QueryRepository(db).vector_recall(vector, clauses, top_k)
+        return [KnowledgeHit(row=row, score=score, channel=CHANNEL_VECTOR) for row, score in rows]
 
-    async def _keyword_recall(self, text: str, clauses: Sequence, top_k: int) -> list[KnowledgeHit]:
-        """关键词召回。用 jieba 分词后逐个包含匹配（环境无 zhparser，见数据访问层注释）。"""
+    async def _keyword_recall(self, text: str, clauses: Sequence[Any], top_k: int) -> list[KnowledgeHit]:
+        """关键词召回：jieba 分词后逐个包含匹配（环境无 zhparser，见数据访问层注释）。"""
         tokens = self._tokenize(text)
-        rows = await self._queries.keyword_recall(tokens, clauses, top_k)
-        return [KnowledgeHit(row=row, score=score, channel="keyword") for row, score in rows]
+        async with self._session_factory() as db:
+            rows = await _QueryRepository(db).keyword_recall(tokens, clauses, top_k)
+        return [KnowledgeHit(row=row, score=score, channel=CHANNEL_KEYWORD) for row, score in rows]
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
         """jieba 分词并保序去重。分词在进程内确定，满足检索可复现。"""
-        import jieba
-
         seen: set[str] = set()
         out: list[str] = []
         for token in jieba.lcut(text):
@@ -155,10 +174,10 @@ class KnowledgeRepository:
             process_id=row.process_id,
             region_scope=row.region_scope or NATIONAL_LEVEL,
             effective_date=row.effective_date,
-            kind=row.kind,
+            kind=cast(EvidenceKindValue, row.kind),
             score=hit.score,
-            dosage_min=row.dosage_min,
-            dosage_max=row.dosage_max,
+            dosage_min=_to_float(row.dosage_min),
+            dosage_max=_to_float(row.dosage_max),
             dosage_unit=row.dosage_unit,
             safety_interval_days=row.safety_interval_days,
             max_uses_per_season=row.max_uses_per_season,

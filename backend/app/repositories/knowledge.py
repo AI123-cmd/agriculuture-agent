@@ -13,8 +13,9 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import ColumnElement, Select, case, or_, select
+from sqlalchemy import ColumnElement, Select, case, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
 
 from app.knowledge.status import SEARCHABLE_STATUSES, KnowledgeStatus
 from app.models.knowledge import KnowledgeItem
@@ -29,7 +30,7 @@ def _escape_like(token: str) -> str:
     return token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def _like_any(column, token: str) -> ColumnElement[bool]:
+def _like_any(column: InstrumentedAttribute[str], token: str) -> ColumnElement[bool]:
     """单个分词的“包含”匹配，显式指定转义符与 SQLAlchemy 默认保持一致。"""
     return column.ilike(f"%{_escape_like(token)}%", escape="\\")
 
@@ -134,9 +135,11 @@ class KnowledgeRepository:
                 + case((_like_any(KnowledgeItem.content, token), 1), else_=0)
                 for token in tokens
             ),
-            start=0,
+            start=literal(0),
         ).label("rank")
-        matched = or_(*[_like_any(KnowledgeItem.title, t) for t in tokens], *[_like_any(KnowledgeItem.content, t) for t in tokens])
+        matched = or_(
+            *[_like_any(KnowledgeItem.title, t) for t in tokens], *[_like_any(KnowledgeItem.content, t) for t in tokens]
+        )
         return (
             select(KnowledgeItem, score)
             .where(*clauses)
