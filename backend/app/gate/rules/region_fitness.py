@@ -62,7 +62,12 @@ class RegionFitnessRule(Rule):
         return []
 
     def _check_export_standards(self, ctx: GateContext) -> list[GateViolation]:
-        """TEA-05：出口茶园不得忽略输入国标准。`data.standards` 声明需要的标准。"""
+        """TEA-05：出口茶园不得忽略输入国标准。`data.standards` 声明需要的标准。
+
+        地区未知时整条 R-REGION 不参与判定（三条分支均以"农户所在地区已知"为前提）。
+        """
+        if not ctx.region_code:
+            return []
         raw = ctx.rule_configs.get(GateRuleId.REGION.value, {}).get("standards")
         if not raw:
             return []
@@ -80,12 +85,20 @@ class RegionFitnessRule(Rule):
 
 
 def _region_prefix(code: str) -> str:
-    """取行政区划编码的稳定前缀。省 2 位、市 4 位、县 6 位。"""
-    return "".join(ch for ch in code if ch.isdigit())
+    """取行政区划编码的稳定前缀。省 2 位、市 4 位、县 6 位。
+
+    去掉尾随的 0 后，`330000`（省）与 `330000` 的县级写法 `330100` 会在同一层级对齐：
+    省级 `33`、市级 `3301`、县级 `330101`。这样"上级编码覆盖下级"才可以比较。
+    """
+    digits = "".join(ch for ch in code if ch.isdigit())
+    return digits.rstrip("0")
 
 
 def _matches_prefix(scope: str, entry_scope: str) -> bool:
-    """上级编码覆盖下级：条目范围 330000 覆盖农户 330100。"""
+    """上级编码覆盖下级：条目范围 330000 覆盖农户 330100。
+
+    两侧都去掉尾随 0 后互为前缀即为覆盖；`330100` 与 `3301`（同市）也命中。
+    """
     a, b = _region_prefix(scope), _region_prefix(entry_scope)
     if not a or not b:
         return True  # 无法比对时不报（degrade 规则的保守方向）

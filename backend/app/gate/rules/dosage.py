@@ -8,6 +8,7 @@ from typing import ClassVar
 
 from app.gate.contracts import GateContext, GateViolation
 from app.gate.enums import GateRuleId, GateSeverity
+from app.gate.matching import recent_records
 from app.gate.rules.base import Rule, register
 
 
@@ -107,12 +108,13 @@ class MaxUsePerSeasonRule(Rule):
 
     @staticmethod
     def _history_used(ctx: GateContext) -> dict[str, int]:
-        """统计本季用药史中每个 `knowledge_id` 的已用次数。"""
+        """统计本季用药史中每个 `knowledge_id` 的已用次数。
+
+        窗口过滤复用 `app.gate.matching.recent_records`，与 `R-CONFLICT` 共用同一口径，
+        避免"次数按本季算、冲突按全年算"的不一致（T2-39）。
+        """
         out: dict[str, int] = {}
-        start = ctx.season_start
-        for rec in ctx.medication_history:
-            if start is not None and rec.used_on < start:
-                continue
+        for rec in recent_records(ctx.medication_history, ctx.season_start):
             if rec.knowledge_id:
                 out[rec.knowledge_id] = out.get(rec.knowledge_id, 0) + 1
         return out
