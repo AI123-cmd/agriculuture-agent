@@ -116,9 +116,7 @@ def test_rice_has_resistance_suspension_entry() -> None:
 def test_weed_has_long_residual_restriction_entry() -> None:
     """杂草文件存在 `kind=pesticide` 且 `forbidden_combinations` 非空的条目（后茬长残留限制）。"""
     restricted = [
-        item
-        for item in _load("weed.jsonl")
-        if item.kind is EvidenceKind.PESTICIDE and item.forbidden_combinations
+        item for item in _load("weed.jsonl") if item.kind is EvidenceKind.PESTICIDE and item.forbidden_combinations
     ]
 
     assert restricted
