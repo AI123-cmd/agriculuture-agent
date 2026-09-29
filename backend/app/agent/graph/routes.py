@@ -25,8 +25,9 @@ path_map 里指向 `handoff` 节点，在子图 path_map 里必须指向子图�
 """
 
 from collections.abc import Mapping
+from typing import Any
 
-from app.agent.state import ConsultationState, ConsultStage, ProcessId
+from app.agent.state import ConsultationState, ConsultStage, ProcessId, SlotValue
 
 # 会诊（多视角并行）只在指定流程启用：茶、辣椒、杂草属"同症多因"的高混淆场景，
 # 需要多个独立视角后再收敛；水稻与养猪的判别依据更确定，多跑一轮会诊只增成本。
@@ -46,7 +47,7 @@ _SNAPSHOT_KEYS = (
 
 def _snapshot(state: ConsultationState) -> dict[str, str]:
     """取 state 关键字段的可读快照，供异常消息与日志使用。"""
-    return {key: repr(state.get(key)) for key in _SNAPSHOT_KEYS}  # type: ignore[attr-defined]
+    return {key: repr(state.get(key)) for key in _SNAPSHOT_KEYS}
 
 
 class UnroutedStateError(RuntimeError):
@@ -62,6 +63,13 @@ class UnroutedStateError(RuntimeError):
         super().__init__(f"{func_name} 未覆盖的 state 组合: {self.state_snapshot}")
 
 
+def _slot_status(slot: SlotValue | dict[str, Any]) -> str:
+    """取槽位状态。state 里是 `SlotValue`，检查点反序列化后可能是同形 dict。"""
+    if isinstance(slot, dict):
+        return slot.get("status", "missing")
+    return slot.status
+
+
 def slots_ready(state: ConsultationState) -> bool:
     """必填槽位是否齐备：只做集合运算，不查流程配置。
 
@@ -71,11 +79,7 @@ def slots_ready(state: ConsultationState) -> bool:
     """
     required = set(state.get("required_slots") or [])
     slots = state.get("slots") or {}
-    resolved = {
-        key
-        for key, slot in slots.items()
-        if (slot.status if hasattr(slot, "status") else slot.get("status")) in {"filled", "unknown"}
-    }
+    resolved = {key for key, slot in slots.items() if _slot_status(slot) in {"filled", "unknown"}}
     return not (required - resolved)
 
 

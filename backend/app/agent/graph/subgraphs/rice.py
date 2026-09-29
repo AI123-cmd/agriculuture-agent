@@ -6,6 +6,7 @@
 """
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.agents.report_guard import build_report_guard_node
 from app.agent.graph.factories import (
@@ -30,7 +31,7 @@ from app.agent.state import ConsultationState, ProcessId
 _INTERVIEW_ROUTES = {key: target for key, target in ROUTE_AFTER_INTERVIEW.items() if key != "panel"}
 
 
-def build_rice_subgraph():
+def build_rice_subgraph() -> CompiledStateGraph:
     """水稻子图：observe → report_guard → interview → verify → judge → prescribe。"""
     config = get_config(ProcessId.RICE)
     graph = StateGraph(ConsultationState)

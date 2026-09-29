@@ -5,6 +5,7 @@
 """
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.agents.report_guard import build_report_guard_node
 from app.agent.graph.factories import (
@@ -27,7 +28,7 @@ from app.agent.graph.routes import (
 from app.agent.state import ConsultationState, ProcessId
 
 
-def build_weed_subgraph():
+def build_weed_subgraph() -> CompiledStateGraph:
     """杂草子图：observe → report_guard → interview →(panel)→ verify → judge → prescribe。"""
     config = get_config(ProcessId.WEED)
     graph = StateGraph(ConsultationState)

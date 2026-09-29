@@ -9,6 +9,7 @@
 """
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.agents.report_guard import build_report_guard_node
 from app.agent.graph.factories import (
@@ -33,7 +34,7 @@ from app.agent.state import ConsultationState, ProcessId
 _INTERVIEW_ROUTES = {key: target for key, target in ROUTE_AFTER_INTERVIEW.items() if key != "panel"}
 
 
-def build_pig_subgraph():
+def build_pig_subgraph() -> CompiledStateGraph:
     """养猪子图：入口守卫 → observe → 兜底守卫 → interview → verify → judge → prescribe。"""
     config = get_config(ProcessId.PIG)
     graph = StateGraph(ConsultationState)

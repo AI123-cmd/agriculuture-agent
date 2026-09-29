@@ -8,6 +8,7 @@
 """
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.agents.report_guard import build_report_guard_node
 from app.agent.graph.factories import (
@@ -32,7 +33,7 @@ from app.agent.state import ConsultationState, ProcessId
 _INTERVIEW_ROUTES = {key: target for key, target in ROUTE_AFTER_INTERVIEW.items() if key != "panel"}
 
 
-def build_general_subgraph():
+def build_general_subgraph() -> CompiledStateGraph:
     """通用子图：结构同构，无专属知识、无农事历、无药剂条目。"""
     config = get_config(ProcessId.GENERAL)
     graph = StateGraph(ConsultationState)

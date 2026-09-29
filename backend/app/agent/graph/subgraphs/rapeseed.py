@@ -9,6 +9,7 @@
 """
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.agents.report_guard import build_report_guard_node
 from app.agent.graph.factories import (
@@ -33,7 +34,7 @@ from app.agent.state import ConsultationState, ProcessId
 _INTERVIEW_ROUTES = {key: target for key, target in ROUTE_AFTER_INTERVIEW.items() if key != "panel"}
 
 
-def build_rapeseed_subgraph():
+def build_rapeseed_subgraph() -> CompiledStateGraph:
     """油菜子图：结构同构，处置知识与药剂输出由配置与闸门双重关闭。"""
     config = get_config(ProcessId.RAPESEED)
     graph = StateGraph(ConsultationState)
