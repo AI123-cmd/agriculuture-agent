@@ -36,7 +36,7 @@ from app.knowledge.embedding import Embedder
 from app.knowledge.errors import KnowledgeUnavailableError
 from app.knowledge.filters import build_filters, where_clauses
 from app.knowledge.fusion import CHANNEL_KEYWORD, CHANNEL_VECTOR, KnowledgeHit, dedupe_by_id, reciprocal_rank_fusion
-from app.knowledge.rerank import RERANK_CANDIDATE_LIMIT, HeuristicReranker, Reranker
+from app.knowledge.rerank import RERANK_CANDIDATE_LIMIT, Reranker, build_reranker
 from app.knowledge.schema import NATIONAL_LEVEL
 from app.repositories.knowledge import KnowledgeRepository as _QueryRepository
 
@@ -66,7 +66,7 @@ class KnowledgeRepository:
     ) -> None:
         self._session_factory = session_factory
         self._embedder = embedder
-        self._rerank_impl: Reranker = reranker or _identity_rerank
+        self._rerank_impl: Reranker = reranker or build_reranker()
 
     async def search(self, query: EvidenceQuery) -> list[EvidenceItem]:
         """执行一次单级地区的混合检索，返回按相关度排序的证据。
@@ -92,7 +92,7 @@ class KnowledgeRepository:
         )
 
         fused = reciprocal_rank_fusion(dedupe_by_id(vector_hits), dedupe_by_id(keyword_hits))
-        reranked = await self._rerank_impl(text, fused[:RERANK_LIMIT], query.top_k)
+        reranked = await self._rerank_impl.rerank(text, fused[:RERANK_LIMIT], query.top_k)
         return [self._to_evidence(hit, query) for hit in reranked]
 
     # ---- 第 1 步：元数据过滤 ----

@@ -22,6 +22,7 @@ from typing import Protocol
 
 import httpx
 
+from app.core.config import get_settings
 from app.knowledge.fusion import KnowledgeHit
 from app.models.knowledge import KnowledgeItem
 from app.observability import log, metrics
@@ -161,6 +162,26 @@ class FallbackReranker:
             return await self._fallback.rerank(query, candidates, top_k)
 
 
+def build_reranker() -> Reranker:
+    """按配置装配重排序实现（T2-51）。
+
+    `RERANK_ENABLED=false`（默认）只构造 `HeuristicReranker`，**绝不实例化**
+    `CrossEncoderReranker`：未启用时连远程端点都不该被构造。启用时才把交叉编码器包进
+    `FallbackReranker`，让它的超时与失败回落到规则实现，保证重排失败不中断检索。
+
+    装配收在这里而不是散在调用点：具体实现由配置决定，检索侧只依赖 `Reranker` 协议。
+    """
+    settings = get_settings()
+    if not settings.RERANK_ENABLED:
+        return HeuristicReranker()
+    primary = CrossEncoderReranker(
+        url=settings.RERANK_API_URL,
+        api_key=settings.RERANK_API_KEY,
+        timeout=settings.RERANK_TIMEOUT_SECONDS,
+    )
+    return FallbackReranker(primary, HeuristicReranker(), timeout=settings.RERANK_TIMEOUT_SECONDS)
+
+
 __all__ = [
     "FALLBACK_METRIC",
     "RERANK_CANDIDATE_LIMIT",
@@ -168,4 +189,5 @@ __all__ = [
     "FallbackReranker",
     "HeuristicReranker",
     "Reranker",
+    "build_reranker",
 ]
