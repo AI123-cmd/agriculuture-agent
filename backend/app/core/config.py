@@ -97,6 +97,16 @@ class Settings(BaseSettings):
     FARM_LLM_TIMEOUT: int = 30
     USE_MOCK_LLM: bool = True
 
+    # 供应商适配层（T2-56）。三类适配器各有端点与密钥：`openai_compat` 走原生结构化
+    # 输出（主供应商），`private` 走提示词约束（私有化降档候选）。密钥只放 .env，代码
+    # 里留空值；空端点即视为该供应商未装配，网关按失败处理并继续候选链。
+    OPENAI_COMPAT_BASE_URL: str = ""
+    OPENAI_COMPAT_API_KEY: str = ""
+    PRIVATE_MODEL_BASE_URL: str = ""
+    PRIVATE_MODEL_API_KEY: str = ""
+    # 单次模型调用的超时（秒）。适配器按它施加 httpx 超时，覆盖连接与读取全程。
+    MODEL_REQUEST_TIMEOUT: float = 30.0
+
     # 模型网关装配（T2-55）。档位参数与熔断阈值一律进环境变量：开发环境用轻量模型
     # 跑通链路、生产环境换正式模型，硬编码会让"改模型"变成"改代码 + 重新发版"。
     LLM_MAX_TOKENS: int = 2048
@@ -108,6 +118,10 @@ class Settings(BaseSettings):
     CIRCUIT_FAILURE_THRESHOLD: int = 5
     CIRCUIT_COOLDOWN_SECONDS: int = 30
     CIRCUIT_HALF_OPEN_PROBES: int = 2
+
+    # 零模型模式开关（T2-58）。为真时规则层能力（阈值提示、农事历提示）继续提供，全部
+    # 文案直接用模板原文，不发起任何模型调用。维护期主动关闭模型或外部服务全局中断时使用。
+    ZERO_MODEL_MODE: bool = False
 
     # AI 多轮诊断编排（LangGraph）
     LLM_DEFAULT_MODEL: str = "deepseek-v4-flash"

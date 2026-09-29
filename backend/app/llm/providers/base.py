@@ -9,9 +9,11 @@
 网关这个通用组件不该替它们做决定。
 """
 
-from typing import Protocol
+import json
+import time
+from typing import Any, Protocol
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 
 class ModelResponse(BaseModel):
@@ -59,4 +61,52 @@ class ModelProvider(Protocol):
     ) -> ModelResponse: ...
 
 
-__all__ = ["ModelProvider", "ModelResponse"]
+def parse_structured(content: str | None, schema: type[BaseModel] | None) -> tuple[BaseModel | None, str | None]:
+    """把模型返回的原始文本解析成契约对象。返回 `(parsed, error)`。
+
+    三层保障里，这里承担"解析"这一步，本身不做任何补救：解析失败一律返回
+    `error="parse_error"`，由 `app/llm/structured.py` 决定是否构造修复提示重试。
+    **绝不回退到正则硬抽**——农业场景下错误的字段值比没有字段值更危险，从文本里
+    猜出来的剂量数字会被农户照着用（技术方案 10.2）。
+    """
+    if schema is None:
+        return None, None
+    if not content:
+        return None, "parse_error"
+    try:
+        payload: Any = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return None, "parse_error"
+    try:
+        return schema.model_validate(payload), None
+    except ValidationError:
+        return None, "parse_error"
+
+
+def build_error_response(provider: str, model: str, error: str, latency_ms: int) -> ModelResponse:
+    """构造一条失败响应。token 记 0：失败响应没有可信的 token 数。"""
+    return ModelResponse(
+        content=None,
+        parsed=None,
+        model=model,
+        provider=provider,
+        prompt_tokens=0,
+        completion_tokens=0,
+        latency_ms=latency_ms,
+        is_fallback=False,
+        error=error,
+    )
+
+
+def elapsed_ms(started: float) -> int:
+    """从 `time.perf_counter()` 起点算到现在的毫秒数（非负整数）。"""
+    return max(0, int((time.perf_counter() - started) * 1000))
+
+
+__all__ = [
+    "ModelProvider",
+    "ModelResponse",
+    "build_error_response",
+    "elapsed_ms",
+    "parse_structured",
+]
