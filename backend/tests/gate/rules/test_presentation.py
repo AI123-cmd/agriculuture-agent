@@ -74,7 +74,9 @@ def test_registered_interval_passes() -> None:
     """正例：`safety_interval_days=7` 且该路径已在 `facts_provenance` 中登记。"""
     ctx = gate_context(
         prescription=prescription(
-            items=[pesticide_item(dosage_min=None, dosage_max=None, safety_interval_days=None, max_uses_per_season=None)],
+            items=[
+                pesticide_item(dosage_min=None, dosage_max=None, safety_interval_days=None, max_uses_per_season=None)
+            ],
             safety_interval_days=7,
             facts_provenance={"safety_interval_days": "knowledge:K-1001"},
         ),
@@ -90,7 +92,9 @@ def test_unregistered_interval_blocked() -> None:
     """反例：`safety_interval_days=7` 但溯源表为空。"""
     ctx = gate_context(
         prescription=prescription(
-            items=[pesticide_item(dosage_min=None, dosage_max=None, safety_interval_days=None, max_uses_per_season=None)],
+            items=[
+                pesticide_item(dosage_min=None, dosage_max=None, safety_interval_days=None, max_uses_per_season=None)
+            ],
             safety_interval_days=7,
             facts_provenance={},
         ),
@@ -106,7 +110,9 @@ def test_unregistered_item_dosage_blocked() -> None:
     """反例：药剂条目的 `dosage_min` 有值但未登记，字段路径含索引。"""
     ctx = gate_context(
         prescription=prescription(
-            items=[pesticide_item(dosage_min=20.0, dosage_max=None, safety_interval_days=None, max_uses_per_season=None)],
+            items=[
+                pesticide_item(dosage_min=20.0, dosage_max=None, safety_interval_days=None, max_uses_per_season=None)
+            ],
             safety_interval_days=None,
             facts_provenance={},
         ),

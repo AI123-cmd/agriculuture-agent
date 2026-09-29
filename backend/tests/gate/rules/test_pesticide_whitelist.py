@@ -74,9 +74,7 @@ def test_unknown_knowledge_id_blocked() -> None:
 
 def test_suspended_entry_blocked() -> None:
     """反例 2：条目存在但被暂停使用，属"知识库状态变更"，消息带出实际状态。"""
-    knowledge = FakeKnowledge(
-        {"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", status="suspended")}
-    )
+    knowledge = FakeKnowledge({"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", status="suspended")})
     ctx = gate_context(
         knowledge=knowledge,
         prescription=prescription(items=[pesticide_item(knowledge_id="K-1001", name="吡虫啉")]),
@@ -106,9 +104,7 @@ def test_name_mismatch_blocked() -> None:
 
 def test_deprecated_entry_blocked() -> None:
     """`deprecated` 保留用于历史追溯、不可用于新处方，因此本规则同样拦截。"""
-    knowledge = FakeKnowledge(
-        {"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", status="deprecated")}
-    )
+    knowledge = FakeKnowledge({"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", status="deprecated")})
     ctx = gate_context(
         knowledge=knowledge,
         prescription=prescription(items=[pesticide_item(knowledge_id="K-1001", name="吡虫啉")]),

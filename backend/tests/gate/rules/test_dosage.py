@@ -110,10 +110,7 @@ def test_max_use_within_declared_limit_passes() -> None:
 
 def test_max_use_ignores_records_before_season_start() -> None:
     """正例：5 条用药史全部早于 `season_start`，不计入本季累计。"""
-    history = [
-        medication_record(pesticide_name="吡虫啉", used_on=date(2025, 4, day))
-        for day in (1, 2, 3, 4, 5)
-    ]
+    history = [medication_record(pesticide_name="吡虫啉", used_on=date(2025, 4, day)) for day in (1, 2, 3, 4, 5)]
     ctx = gate_context(
         knowledge=_knowledge(max_uses=2),
         prescription=prescription(items=[pesticide_item(max_uses_per_season=2)]),
@@ -125,10 +122,14 @@ def test_max_use_ignores_records_before_season_start() -> None:
 
 
 def test_max_use_declared_exceeds_limit_blocked() -> None:
-    """反例：登记上限 3 次，处方声明 4 次。"""
+    """反例：登记上限 3 次，处方声明 4 次。
+
+    上限来自红线配置 `R-MAX-USE.limit`（TEA-03 分支），配置侧应保证 `limit <= 登记值`。
+    """
     ctx = gate_context(
         knowledge=_knowledge(max_uses=3),
         prescription=prescription(items=[pesticide_item(max_uses_per_season=4)]),
+        rule_configs={GateRuleId.MAX_USE.value: {"limit": 3}},
     )
 
     violations = MaxUsePerSeasonRule().check(ctx)

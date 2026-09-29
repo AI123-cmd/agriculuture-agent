@@ -27,9 +27,7 @@ def _run(ctx):
 
 def test_province_scope_covers_city() -> None:
     """正例 1：条目范围 330000 覆盖农户 330100（省覆盖市）。"""
-    knowledge = FakeKnowledge(
-        {"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="330000")}
-    )
+    knowledge = FakeKnowledge({"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="330000")})
     ctx = gate_context(
         region_code="330100",
         knowledge=knowledge,
@@ -51,9 +49,7 @@ def test_no_scope_and_no_config_passes() -> None:
 
 def test_scope_mismatch_degrades() -> None:
     """反例 1：条目范围 320000 不覆盖农户 330100。"""
-    knowledge = FakeKnowledge(
-        {"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="320000")}
-    )
+    knowledge = FakeKnowledge({"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="320000")})
     ctx = gate_context(
         region_code="330100",
         knowledge=knowledge,
@@ -100,9 +96,7 @@ def test_export_standard_not_referenced_degrades() -> None:
 
 def test_severity_is_degrade_and_engine_degrades() -> None:
     """仅此违规时引擎 decision=degrade、passed=False，且 degrade_output 为标准文案。"""
-    knowledge = FakeKnowledge(
-        {"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="320000")}
-    )
+    knowledge = FakeKnowledge({"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="320000")})
     ctx = gate_context(
         region_code="330100",
         knowledge=knowledge,
@@ -132,9 +126,7 @@ def test_matches_prefix_semantics() -> None:
 
 def test_no_region_code_disables_all_branches() -> None:
     """`region_code=None` 时三条分支均不触发。"""
-    knowledge = FakeKnowledge(
-        {"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="320000")}
-    )
+    knowledge = FakeKnowledge({"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", region_scope="320000")})
     ctx = gate_context(
         region_code=None,
         knowledge=knowledge,

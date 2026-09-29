@@ -80,10 +80,12 @@ def test_rule_metadata_and_registration() -> None:
 
 
 def test_precheck_rule_sorts_first() -> None:
-    """本规则在 `build_rules()` 返回列表里排第一位（`_PRECHECK_RULE_IDS` 生效）。"""
-    rules = build_rules()
+    """引擎把本规则排到执行顺序第一位（`_PRECHECK_RULE_IDS` 生效）。"""
+    from app.gate.engine import GateEngine
 
-    assert rules[0].rule_id == GateRuleId.REDLINE_LOAD.value
+    engine = GateEngine(rules=build_rules())
+
+    assert engine._rules[0].rule_id == GateRuleId.REDLINE_LOAD.value
 
 
 def test_context_has_no_generic_fallback_switch() -> None:

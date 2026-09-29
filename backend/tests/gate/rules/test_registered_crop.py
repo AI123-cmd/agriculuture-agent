@@ -75,9 +75,7 @@ def test_tea_not_registered_blocked() -> None:
 
 def test_empty_registered_crops_reports_none() -> None:
     """反例 2：水稻流程条目 `registered_crops=()`，提示语用"无"与"未登记"区分开。"""
-    knowledge = FakeKnowledge(
-        {"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", registered_crops=())}
-    )
+    knowledge = FakeKnowledge({"K-1001": FakeEntry(knowledge_id="K-1001", name="吡虫啉", registered_crops=())})
     ctx = gate_context(
         process_id=ProcessId.RICE,
         knowledge=knowledge,

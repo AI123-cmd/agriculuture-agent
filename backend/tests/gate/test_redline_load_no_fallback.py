@@ -70,14 +70,23 @@ def test_uncovered_ids_empty_when_short_circuited() -> None:
 
 def test_uncovered_ids_reports_removed_declared_rule() -> None:
     """`loaded=True` 且人为移除一个声明规则时，`uncovered_rule_ids` 返回该 id。"""
+    from tests.gate.fixtures.factories import prescription
     from tests.gate.fixtures.fake_knowledge import loaded_redlines
 
     engine = GateEngine()
-    ctx = gate_context(process_id=ProcessId.TEA, redlines=loaded_redlines(ProcessId.TEA, forbidden=["乐果"]))
+    # 用无药剂、无顶层数值字段的处方，避免其它规则产生 block 而触发短路，
+    # 从而使 R-REDLINE 真正进入 checked_rules。
+    ctx = gate_context(
+        process_id=ProcessId.TEA,
+        redlines=loaded_redlines(ProcessId.TEA, forbidden=["乐果"]),
+        prescription=prescription(items=[], safety_interval_days=None),
+    )
 
     result = engine.evaluate(ctx)
     assert GateRuleId.REDLINE.value in result.checked_rules
 
-    trimmed = result.model_copy(update={"checked_rules": [r for r in result.checked_rules if r != GateRuleId.REDLINE.value]})
+    trimmed = result.model_copy(
+        update={"checked_rules": [r for r in result.checked_rules if r != GateRuleId.REDLINE.value]}
+    )
 
     assert engine.uncovered_rule_ids(ctx, trimmed) == [GateRuleId.REDLINE.value]
