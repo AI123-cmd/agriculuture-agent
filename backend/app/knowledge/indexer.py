@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from importlib.resources import files
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from sqlalchemy import delete, update
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # 全国兜底行政区编码与层级。回退链最后一级的语义基础（T2-50）。
 NATIONAL_CODE = "000000"
-NATIONAL_LEVEL = "national"
+NATIONAL_LEVEL: Literal["national"] = "national"
 
 SEEDS_PACKAGE = "app.knowledge.seeds"
 
@@ -219,7 +220,7 @@ def load_seed_dir(directory: Path | None = None) -> list[KnowledgeSeedItem]:
     items: list[KnowledgeSeedItem] = []
     if directory is None:
         base = files(SEEDS_PACKAGE)
-        paths = sorted(p for p in base.iterdir() if p.name.endswith(".jsonl"))
+        paths = sorted((p for p in base.iterdir() if p.name.endswith(".jsonl")), key=lambda p: p.name)
         for path in paths:
             text = path.read_text(encoding="utf-8")
             items.extend(_parse_jsonl(text, path.name))

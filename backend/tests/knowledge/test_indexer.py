@@ -141,9 +141,7 @@ async def test_undeclared_region_falls_back_to_national(session_factory) -> None
     regions = await _count(session_factory, KnowledgeRegion, knowledge_id="K-1023")
     assert regions == 1
     async with session_factory() as db:
-        row = (
-            await db.execute(select(KnowledgeRegion).where(KnowledgeRegion.knowledge_id == "K-1023"))
-        ).scalar_one()
+        row = (await db.execute(select(KnowledgeRegion).where(KnowledgeRegion.knowledge_id == "K-1023"))).scalar_one()
     assert row.region_code == "000000"
     assert row.region_level == "national"
 
@@ -195,9 +193,7 @@ async def test_content_change_triggers_rebuild(session_factory) -> None:
     """正文变化改变指纹：第二次构建 upserted=1、skipped=0，且地区挂载随之同步。"""
     await _build(session_factory, [_item()])
 
-    report = await _build(
-        session_factory, [_item(content="改写后的正文，包含更多症状描述。", regions=[_AREA])]
-    )
+    report = await _build(session_factory, [_item(content="改写后的正文，包含更多症状描述。", regions=[_AREA])])
     assert report.upserted == 1
     assert report.skipped == 0
 
