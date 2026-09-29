@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.knowledge.embedding import EMBEDDING_DIM, Embedder
 from app.knowledge.schema import NATIONAL_CODE, NATIONAL_LEVEL, KnowledgeRegionSpec, KnowledgeSeedItem
+from app.knowledge.status import KnowledgeStatus
 from app.models.knowledge import KnowledgeItem, KnowledgeRegion
 from app.process_config.loader import load_all_configs
 from app.repositories.knowledge import KnowledgeRepository
@@ -39,9 +40,34 @@ logger = logging.getLogger(__name__)
 
 SEEDS_PACKAGE = "app.knowledge.seeds"
 
+# 通用流程允许的条目类型（方案 9.5：通用流程无专属阈值、无药剂条目）。从数据源头不放
+# 这两类，比在闸门拦更根本——判定智能体若检索到通用阈值条目，会给出无登记依据的阈值数字。
+_GENERAL_ALLOWED_KINDS = frozenset({"disease", "pest", "cultivation"})
+
+# 油菜流程允许放行的组合（产品说明书 5.4：调研补齐前不得输出药剂推荐）。
+# 落库的药剂条目即使是 `draft` 也允许存在（"录入但不放行"），但不允许出现 `approved` 药剂条目。
+_RAPESEED_BLOCKED_KIND = "pesticide"
+
 
 class IndexBuildError(Exception):
     """单条条目构建失败（向量维度不符等）。收集进报告而非直接中断整轮。"""
+
+
+def flow_constraint_error(item: KnowledgeSeedItem) -> str | None:
+    """流程级内容约束。违反返回带 `knowledge_id` 的错误消息，合规返回 None。
+
+    两条约束都来自内容建设任务（T2-53），做成构建期校验而不是仅写在文档里，让"数据文件的
+    约束"成为"构建时会被拦住的事实"。返回消息带 `knowledge_id`，便于从报告直接定位到行。
+    """
+    if item.process_id.value == "general" and item.kind.value not in _GENERAL_ALLOWED_KINDS:
+        return f"{item.knowledge_id}: 通用流程不允许 kind={item.kind.value} 条目（无专属阈值与药剂）"
+    if (
+        item.process_id.value == "rapeseed"
+        and item.kind.value == _RAPESEED_BLOCKED_KIND
+        and item.status is KnowledgeStatus.APPROVED
+    ):
+        return f"{item.knowledge_id}: 油菜流程在调研补齐前不允许放行 kind=pesticide 条目（RAPE-01）"
+    return None
 
 
 @dataclass(slots=True)
@@ -86,6 +112,11 @@ class KnowledgeIndexer:
             if known_processes is not None and item.process_id.value not in known_processes:
                 # 防止"知识库有条目但流程没建"的悬空状态：检索侧永远召不到它。
                 report.errors.append(f"{item.knowledge_id}: process_id={item.process_id.value} 无对应流程配置")
+                continue
+
+            constraint = flow_constraint_error(item)
+            if constraint is not None:
+                report.errors.append(constraint)
                 continue
 
             existing = await self._repo.get_by_id(item.knowledge_id)
@@ -249,5 +280,6 @@ __all__ = [
     "BuildReport",
     "IndexBuildError",
     "KnowledgeIndexer",
+    "flow_constraint_error",
     "load_seed_dir",
 ]
