@@ -229,6 +229,10 @@ async def test_resume_after_reopening_postgres_checkpointer(monkeypatch, require
     assert resumed["slots"]["symptom"].value == "x"
     assert resumed["budget"]["interview_rounds"] == 1
 
+    # 收尾必须关闭：模块级单例会残留，其内部 asyncio.Lock 绑定在本用例的事件循环上，
+    # 后续经 TestClient(lifespan) 在另一个循环复用会抛 "bound to a different event loop"。
+    await close_checkpointer()
+
 
 # ---- 4. 闸门确认中断 ----
 
