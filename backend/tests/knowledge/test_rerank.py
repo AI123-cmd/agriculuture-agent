@@ -135,6 +135,39 @@ async def test_empty_candidates_return_empty() -> None:
     assert await HeuristicReranker().rerank("查询", [], top_k=8) == []
 
 
+async def test_repository_passes_at_most_candidate_limit(monkeypatch) -> None:
+    """`KnowledgeRepository` 交给重排的候选不超过 30：两路各 25 条（去重后 50）会被截到 30。
+
+    两路召回整体替换成假实现（各返回 25 条不同 id），因此本用例不碰数据库；重排注入记录
+    替身读取实际收到的候选数。
+    """
+
+    def _hits(prefix: str, count: int) -> list[KnowledgeHit]:
+        return [_hit(f"{prefix}-{i:02d}", score=1.0 - i * 0.01) for i in range(count)]
+
+    async def fake_vector(self, text, clauses, top_k):  # type: ignore[no-untyped-def]
+        return _hits("V", 25)
+
+    async def fake_keyword(self, text, clauses, top_k):  # type: ignore[no-untyped-def]
+        return _hits("W", 25)
+
+    monkeypatch.setattr(KnowledgeRepository, "_vector_recall", fake_vector)
+    monkeypatch.setattr(KnowledgeRepository, "_keyword_recall", fake_keyword)
+
+    recorded = _RecordingReranker()
+    repo = KnowledgeRepository(
+        session_factory=None,  # type: ignore[arg-type]  召回被替换，不会用到会话
+        embedder=None,  # type: ignore[arg-type]  召回被替换，不会用到向量化
+        reranker=recorded,
+    )
+    query = EvidenceQuery(process_id=ProcessId.TEA, keywords=["茶小绿叶蝉"], top_k=8)
+
+    await repo.search(query)
+
+    assert RERANK_LIMIT == RERANK_CANDIDATE_LIMIT
+    assert recorded.seen == RERANK_CANDIDATE_LIMIT
+
+
 # ---- 规则打分 ----
 
 
