@@ -88,5 +88,72 @@ class KnowledgeRepository:
         stmt = stmt.order_by(KnowledgeItem.knowledge_id)
         return list((await self._session.execute(stmt)).scalars().all())
 
+    # ---- 混合检索的两路召回（T2-49）----
+    #
+    # 这里只负责把 SQL 打出去：过滤条件（`where` 子句）由 `app/knowledge/filters.py` 构造后
+    # 传入，融合与组装在 `app/knowledge/repository.py`。两路均返回 `(条目, 原始分)` 列表，
+    # 分值尺度不同，故只在各自通路内有意义，跨路比较由 RRF 按名次完成。
+
+    def vector_recall_stmt(self, vector: list[float], clauses: Sequence[ColumnElement[bool]], top_k: int) -> Select:
+        """向量召回语句：pgvector 余弦距离，元数据过滤在同一条 SQL 内（技术方案 4.3）。
+
+        `embedding IS NOT NULL` 是防御性的：索引构建器已保证写入的条目都有向量，但历史
+        数据或人工插入可能留下空向量，空向量参与距离计算会得到无意义结果。余弦距离越小越
+        相似，故按 `distance` 升序；`knowledge_id` 作次序键，保证同距离时结果确定。
+        """
+        distance = KnowledgeItem.embedding.cosine_distance(vector).label("distance")
+        return (
+            select(KnowledgeItem, distance)
+            .where(*clauses)
+            .where(KnowledgeItem.embedding.is_not(None))
+            .order_by(distance, KnowledgeItem.knowledge_id)
+            .limit(top_k)
+        )
+
+    async def vector_recall(
+        self, vector: list[float], clauses: Sequence[ColumnElement[bool]], top_k: int
+    ) -> list[tuple[KnowledgeItem, float]]:
+        """执行向量召回。返回 `(条目, 相似度)`，相似度 = 1 - 余弦距离，落在 0~1。"""
+        rows = (await self._session.execute(self.vector_recall_stmt(vector, clauses, top_k))).all()
+        return [(item, 1.0 - float(distance)) for item, distance in rows]
+
+    def keyword_recall_stmt(self, tokens: Sequence[str], clauses: Sequence[ColumnElement[bool]], top_k: int) -> Select:
+        """关键词召回语句：按分词命中数与命中字段加权打分。
+
+        环境未装 `zhparser`，`tsvector('simple', ...)` 会把整段中文当成一个词条，`@@` 对中文
+        查询恒不命中；`pg_trgm` / `pg_bigm` 也未安装。因此关键词通路改为**分词后逐个包含匹配**：
+        用项目已有的 `jieba` 切词，SQL 侧统计命中词数与命中字段。命中标题权重大于正文（标题更
+        能代表条目主题），分值标签沿用 `rank`，使两路语句形态与合同一致、便于断言。
+
+        `token` 均小于下限时没有任何过滤条件会命中，语句退化为空结果——这由调用方在分词阶段
+        处理（无有效分词则不发起关键词召回），本语句不做隐式兜底。
+        """
+        score = sum(
+            (
+                case((_like_any(KnowledgeItem.title, token), 2), else_=0)
+                + case((_like_any(KnowledgeItem.content, token), 1), else_=0)
+                for token in tokens
+            ),
+            start=0,
+        ).label("rank")
+        matched = or_(*[_like_any(KnowledgeItem.title, t) for t in tokens], *[_like_any(KnowledgeItem.content, t) for t in tokens])
+        return (
+            select(KnowledgeItem, score)
+            .where(*clauses)
+            .where(matched)
+            .order_by(score.desc(), KnowledgeItem.knowledge_id)
+            .limit(top_k)
+        )
+
+    async def keyword_recall(
+        self, tokens: Sequence[str], clauses: Sequence[ColumnElement[bool]], top_k: int
+    ) -> list[tuple[KnowledgeItem, float]]:
+        """执行关键词召回。返回 `(条目, 命中得分)`；无有效分词时不发查询。"""
+        valid = [t for t in tokens if len(t) >= _MIN_TOKEN_LEN]
+        if not valid:
+            return []
+        rows = (await self._session.execute(self.keyword_recall_stmt(valid, clauses, top_k))).all()
+        return [(item, float(rank or 0.0)) for item, rank in rows]
+
 
 __all__ = ["KnowledgeRepository"]
