@@ -56,6 +56,13 @@ _TABLES = (
     "user",
 )
 
+# 非 public schema 下的表：TRUNCATE 必须带 schema 前缀，否则按 search_path 找不到。
+# knowledge_region 先于 knowledge_item（子表在前，语义上被引用者靠后）。
+_SCHEMA_TABLES = (
+    ("knowledge", "knowledge_region"),
+    ("knowledge", "knowledge_item"),
+)
+
 
 def _make_engine():
     """NullPool：测试进程内跨事件循环复用同一引擎不会串连接。"""
@@ -132,6 +139,8 @@ def clean_tables(request):
         async with eng.begin() as conn:
             for table in _TABLES:
                 await conn.execute(text(f'TRUNCATE TABLE "{table}" RESTART IDENTITY CASCADE'))
+            for schema, table in _SCHEMA_TABLES:
+                await conn.execute(text(f'TRUNCATE TABLE "{schema}"."{table}" RESTART IDENTITY CASCADE'))
 
     asyncio.run(_truncate())
     yield

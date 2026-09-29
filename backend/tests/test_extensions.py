@@ -102,18 +102,18 @@ async def test_knowledge_item_embedding_accepts_1024_dim_vector(engine) -> None:
         await conn.execute(
             text(
                 "INSERT INTO knowledge.knowledge_item "
-                "(id, process_id, category, status, title, content, embedding) "
-                "VALUES ('k1', 'wheat', 'pest', 'published', 't', 'c', :vec)"
+                "(knowledge_id, process_id, kind, status, title, content, embedding) "
+                "VALUES ('K-1023', 'rice', 'pest', 'approved', 't', 'c', :vec)"
             ),
             {"vec": vec},
         )
         similarity = (
             await conn.execute(
-                text("SELECT 1 - (embedding <=> :probe) FROM knowledge.knowledge_item WHERE id = 'k1'"),
+                text("SELECT 1 - (embedding <=> :probe) FROM knowledge.knowledge_item WHERE knowledge_id = 'K-1023'"),
                 {"probe": vec},
             )
         ).scalar_one()
-        await conn.execute(text("DELETE FROM knowledge.knowledge_item WHERE id = 'k1'"))
+        await conn.execute(text("DELETE FROM knowledge.knowledge_item WHERE knowledge_id = 'K-1023'"))
 
     assert similarity == pytest.approx(1.0, abs=1e-6)
 
