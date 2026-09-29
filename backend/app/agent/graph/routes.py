@@ -25,7 +25,6 @@ path_map 里指向 `handoff` 节点，在子图 path_map 里必须指向子图�
 """
 
 from collections.abc import Hashable, Mapping
-from typing import Any
 
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, SlotValue
 
@@ -63,11 +62,11 @@ class UnroutedStateError(RuntimeError):
         super().__init__(f"{func_name} 未覆盖的 state 组合: {self.state_snapshot}")
 
 
-def _slot_status(slot: SlotValue | dict[str, Any]) -> str:
+def _slot_status(slot: SlotValue | Mapping[str, object]) -> str:
     """取槽位状态。state 里是 `SlotValue`，检查点反序列化后可能是同形 dict。"""
-    if isinstance(slot, dict):
-        return slot.get("status", "missing")
-    return slot.status
+    if isinstance(slot, SlotValue):
+        return slot.status
+    return str(slot.get("status", "missing"))
 
 
 def slots_ready(state: ConsultationState) -> bool:

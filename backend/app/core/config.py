@@ -93,7 +93,6 @@ class Settings(BaseSettings):
     LLM_DEFAULT_MODEL: str = "deepseek-v4-flash"
     CONFIDENCE_HIGH_THRESHOLD: int = 3
     CONFIDENCE_MEDIUM_THRESHOLD: int = 2
-    MAX_COLLECT_ROUNDS: int = 3
     MCP_ENABLED: bool = True
 
     # 流程配置热加载（T2-05）
