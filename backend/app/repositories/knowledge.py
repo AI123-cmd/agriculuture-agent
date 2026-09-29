@@ -41,6 +41,10 @@ class KnowledgeRepository:
         stmt = select(KnowledgeItem).where(KnowledgeItem.knowledge_id == knowledge_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    async def get_by_id(self, knowledge_id: str) -> KnowledgeItem | None:
+        """`get` 的别名，供增量构建等读起来更明确的调用点使用。"""
+        return await self.get(knowledge_id)
+
     async def list_by_status(
         self,
         status: KnowledgeStatus | str = KnowledgeStatus.APPROVED,

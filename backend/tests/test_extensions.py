@@ -102,8 +102,8 @@ async def test_knowledge_item_embedding_accepts_1024_dim_vector(engine) -> None:
         await conn.execute(
             text(
                 "INSERT INTO knowledge.knowledge_item "
-                "(knowledge_id, process_id, kind, status, title, content, embedding) "
-                "VALUES ('K-1023', 'rice', 'pest', 'approved', 't', 'c', :vec)"
+                "(knowledge_id, process_id, kind, status, title, content, registered_crops, forbidden_combinations, embedding) "
+                "VALUES ('K-1023', 'rice', 'pest', 'approved', 't', 'c', '[]'::jsonb, '[]'::jsonb, :vec)"
             ),
             {"vec": vec},
         )

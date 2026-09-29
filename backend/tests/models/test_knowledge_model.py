@@ -162,9 +162,7 @@ async def test_knowledge_region_multiple_levels(session_factory) -> None:
 
     async with session_factory() as db:
         rows = (
-            (await db.execute(select(KnowledgeRegion).where(KnowledgeRegion.knowledge_id == "K-1023")))
-            .scalars()
-            .all()
+            (await db.execute(select(KnowledgeRegion).where(KnowledgeRegion.knowledge_id == "K-1023"))).scalars().all()
         )
 
     assert {r.region_code for r in rows} == {"330102", "330000", "000000"}

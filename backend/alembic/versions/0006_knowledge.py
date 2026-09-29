@@ -76,6 +76,8 @@ def upgrade() -> None:
         sa.Column("status", sa.String(20), nullable=False),
         sa.Column("status_reason", sa.Text(), nullable=True, comment="suspended 的理由必填"),
         sa.Column("source_ref", sa.Text(), nullable=True, comment="权威来源引用"),
+        # 内容指纹（T2-48）：仅覆盖影响向量与展示的字段，不含 status/regions。
+        sa.Column("content_hash", sa.String(64), nullable=True, comment="内容指纹，供热加载比对"),
         sa.Column("embedding", Vector(1024), nullable=True, comment="pgvector 列，维度与 EMBEDDING_DIM 一致"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
@@ -93,7 +95,9 @@ def upgrade() -> None:
     op.create_index("ix_knowledge_item_status", "knowledge_item", ["status"], schema=_SCHEMA)
     op.create_index("ix_knowledge_item_pesticide_name", "knowledge_item", ["pesticide_name"], schema=_SCHEMA)
     op.create_index("ix_knowledge_region_scope", "knowledge_item", ["region_scope"], schema=_SCHEMA)
-    op.create_index("ix_knowledge_process_status_kind", "knowledge_item", ["process_id", "status", "kind"], schema=_SCHEMA)
+    op.create_index(
+        "ix_knowledge_process_status_kind", "knowledge_item", ["process_id", "status", "kind"], schema=_SCHEMA
+    )
     op.execute(_HNSW_INDEX_DDL)
 
     op.create_table(

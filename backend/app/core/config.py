@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     CHECKPOINT_POOL_MAX: int = 10
     # 知识条目向量维度，必须与 embedding 模型输出维度一致（T2-56 决定）
     EMBEDDING_DIM: int = 1024
+    # 向量化服务（T2-48）。`USE_MOCK_LLM=true` 时不发起真实请求，改用确定性伪向量。
+    EMBEDDING_API_URL: str = ""
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_TIMEOUT: int = 30
 
     # Redis（生产为核心依赖）
     REDIS_URL: str = ""

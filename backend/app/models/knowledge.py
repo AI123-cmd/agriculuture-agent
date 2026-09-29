@@ -89,7 +89,9 @@ class KnowledgeItem(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False, comment="正文，用于检索与改写")
 
     # ---- 药剂类字段（kind=pesticide 时有值）----
-    pesticide_name: Mapped[str | None] = mapped_column(String(80), nullable=True, comment="药剂名，白名单/冲突规则精确查")
+    pesticide_name: Mapped[str | None] = mapped_column(
+        String(80), nullable=True, comment="药剂名，白名单/冲突规则精确查"
+    )
     registered_crops: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     dosage_min: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
     dosage_max: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
@@ -107,9 +109,14 @@ class KnowledgeItem(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     status_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="suspended 的理由必填")
     source_ref: Mapped[str | None] = mapped_column(Text, nullable=True, comment="权威来源引用")
+    # 内容指纹（T2-48）：仅覆盖影响向量与展示的字段，不含 status/regions。
+    # 增量构建据此判断是否重算向量——只改 status 不应触发重新向量化。
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="内容指纹，供热加载比对")
 
     # ---- 检索 ----
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), nullable=True, comment="pgvector 列，维度与 EMBEDDING_DIM 一致")
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(1024), nullable=True, comment="pgvector 列，维度与 EMBEDDING_DIM 一致"
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
