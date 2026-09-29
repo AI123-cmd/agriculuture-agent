@@ -1,11 +1,11 @@
-"""知识条目仓储：T2-47 只提供基础读取（按 id 批量取、按状态取）。
+"""知识条目仓储：T2-47 提供基础读取（按 id 批量取、按状态取），T2-49 追加混合检索的两路召回。
 
 本仓储与归属类仓储形态不同——知识条目是全局只读数据，没有 `user_id` 归属概念
 （与 `ProcessConfigRepository` 同类），故构造时绑定会话、方法不接受 `user_id`。
 
-混合检索的向量/关键词查询在 T2-49 追加到本文件，地区回退查询在 T2-50 追加；
-此处只落地"能按主键批量取回条目"这个检索链路的最后一步（拿到候选 id 后组装证据），
-以及"按状态取"这个供核准流程与运营核对用的入口。
+这里只放"把一条 SQL 打出去、取回候选"的数据访问职责：过滤条件由 `app/knowledge/filters.py`
+构造后传入，RRF 融合、重排序、证据组装都在 `app/knowledge/repository.py`（业务编排）。
+把 SQL 与编排分层，是为了让"过滤条件"与"检索流程"能被分别单测。
 
 按状态取**默认只放行可检索状态**（`SEARCHABLE_STATUSES`）：调用方要查 `draft` /
 `suspended` 必须显式传入，避免"顺手查全部状态"把未核准条目带进检索结果。
@@ -13,11 +13,25 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, Integer, Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.knowledge.status import SEARCHABLE_STATUSES, KnowledgeStatus
 from app.models.knowledge import KnowledgeItem
+
+# 关键词召回时，单个分词过短（如单字）区分度太低，容易把无关条目拉进来。过滤长度由业务层
+# 决定，这里只做 SQL；常量放在此处表示"数据访问层也认可这个下限"。
+_MIN_TOKEN_LEN = 2
+
+
+def _escape_like(token: str) -> str:
+    """转义 LIKE 通配符。农户口语与药名里出现的 `%`、`_` 不应被当成通配符。"""
+    return token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _like_any(column, token: str) -> ColumnElement[bool]:
+    """单个分词的“包含”匹配，显式指定转义符与 SQLAlchemy 默认保持一致。"""
+    return column.ilike(f"%{_escape_like(token)}%", escape="\\")
 
 
 class KnowledgeRepository:
