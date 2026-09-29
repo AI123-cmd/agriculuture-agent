@@ -53,7 +53,7 @@ from app.agent.state import ConsultationState, ConsultStage, ProcessId
 _Node = StateNode[ConsultationState, None]
 
 
-def _path_map(mapping: Mapping[str, str]) -> dict[Hashable, str]:
+def _path_map(mapping: Mapping[Hashable, str]) -> dict[Hashable, str]:
     """把 `ROUTE_AFTER_*` 转成 `add_conditional_edges` 接受的 `dict[Hashable, str]`。"""
     return {key: value for key, value in mapping.items()}
 

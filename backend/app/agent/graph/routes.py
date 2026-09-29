@@ -24,7 +24,7 @@ path_map 里指向 `handoff` 节点，在子图 path_map 里必须指向子图�
 跑，且导入本模块不会拉起任何外部依赖。
 """
 
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from typing import Any
 
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, SlotValue
@@ -83,7 +83,11 @@ def slots_ready(state: ConsultationState) -> bool:
     return not (required - resolved)
 
 
-ROUTE_AFTER_INTAKE = {"triage": "triage", "enter_process": "subgraph_router", "handoff": "handoff"}
+ROUTE_AFTER_INTAKE: dict[Hashable, str] = {
+    "triage": "triage",
+    "enter_process": "subgraph_router",
+    "handoff": "handoff",
+}
 
 
 def route_after_intake(state: ConsultationState) -> str:
@@ -100,7 +104,7 @@ def route_after_intake(state: ConsultationState) -> str:
     return "triage"
 
 
-ROUTE_AFTER_TRIAGE = {
+ROUTE_AFTER_TRIAGE: dict[Hashable, str] = {
     "confirm_object": "confirm_object",  # 对象待确认，插入一次确认交互
     "report_guard": "report_guard",  # 信号命中，先过主图入口守卫
     "enter_process": "subgraph_router",  # 已确认，落到具体流程子图
@@ -120,7 +124,11 @@ def route_after_triage(state: ConsultationState) -> str:
     return "enter_process"  # 含养猪：其子图入口守卫负责 pre-observe 检查
 
 
-ROUTE_AFTER_CONFIRM_OBJECT = {"triage": "triage", "enter_process": "subgraph_router", "handoff": "handoff"}
+ROUTE_AFTER_CONFIRM_OBJECT: dict[Hashable, str] = {
+    "triage": "triage",
+    "enter_process": "subgraph_router",
+    "handoff": "handoff",
+}
 
 
 def route_after_confirm_object(state: ConsultationState) -> str:
@@ -138,7 +146,11 @@ def route_after_confirm_object(state: ConsultationState) -> str:
     return "enter_process"
 
 
-ROUTE_AFTER_REPORT_GUARD = {"enter_process": "subgraph_router", "confirm_object": "confirm_object", "handoff": "handoff"}
+ROUTE_AFTER_REPORT_GUARD: dict[Hashable, str] = {
+    "enter_process": "subgraph_router",
+    "confirm_object": "confirm_object",
+    "handoff": "handoff",
+}
 
 
 def route_after_report_guard(state: ConsultationState) -> str:
@@ -151,7 +163,7 @@ def route_after_report_guard(state: ConsultationState) -> str:
     return "confirm_object" if state.get("process_id") is None else "enter_process"
 
 
-ROUTE_AFTER_SUBGRAPH_GUARD = {"observe": "observe", "interview": "interview", "handoff": "__end__"}
+ROUTE_AFTER_SUBGRAPH_GUARD: dict[Hashable, str] = {"observe": "observe", "interview": "interview", "handoff": "__end__"}
 
 
 def route_after_subgraph_guard(state: ConsultationState) -> str:
@@ -171,7 +183,7 @@ def route_after_subgraph_guard(state: ConsultationState) -> str:
     return "interview"  # 其余流程：observe 之后的兜底检查
 
 
-ROUTE_AFTER_SUBGRAPH = {"gate": "gate", "handoff": "handoff"}
+ROUTE_AFTER_SUBGRAPH: dict[Hashable, str] = {"gate": "gate", "handoff": "handoff"}
 
 
 def route_after_subgraph(state: ConsultationState) -> str:
@@ -192,7 +204,12 @@ def route_after_subgraph(state: ConsultationState) -> str:
     return "gate" if state.get("stage") == ConsultStage.PRESCRIBE else "handoff"
 
 
-ROUTE_AFTER_INTERVIEW = {"interview": "interview", "verify": "verify", "panel": "panel", "handoff": "__end__"}
+ROUTE_AFTER_INTERVIEW: dict[Hashable, str] = {
+    "interview": "interview",
+    "verify": "verify",
+    "panel": "panel",
+    "handoff": "__end__",
+}
 
 
 def route_after_interview(state: ConsultationState) -> str:
@@ -212,7 +229,7 @@ def route_after_interview(state: ConsultationState) -> str:
     return "interview"
 
 
-ROUTE_AFTER_JUDGE = {"interview": "interview", "prescribe": "prescribe", "handoff": "__end__"}
+ROUTE_AFTER_JUDGE: dict[Hashable, str] = {"interview": "interview", "prescribe": "prescribe", "handoff": "__end__"}
 
 
 def route_after_judge(state: ConsultationState) -> str:
@@ -233,7 +250,7 @@ def route_after_judge(state: ConsultationState) -> str:
     raise UnroutedStateError("route_after_judge", state)
 
 
-ROUTE_AFTER_GATE = {"followup": "followup", "handoff": "handoff"}
+ROUTE_AFTER_GATE: dict[Hashable, str] = {"followup": "followup", "handoff": "handoff"}
 
 
 def route_after_gate(state: ConsultationState) -> str:
@@ -256,7 +273,7 @@ def route_after_gate(state: ConsultationState) -> str:
 
 # 路由函数与其 path_map 的绑定表。新增路由时两处一起改，`test_routes.py` 逐一核对
 # 每个函数的可能返回值集合与对应 path_map 的键集合相等，漏改会当场失败。
-ROUTE_MAPS: tuple[tuple[object, Mapping[str, str]], ...] = (
+ROUTE_MAPS: tuple[tuple[object, Mapping[Hashable, str]], ...] = (
     (route_after_intake, ROUTE_AFTER_INTAKE),
     (route_after_triage, ROUTE_AFTER_TRIAGE),
     (route_after_confirm_object, ROUTE_AFTER_CONFIRM_OBJECT),

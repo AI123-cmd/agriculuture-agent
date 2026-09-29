@@ -23,10 +23,10 @@
 农户要把这份信息读给农技人员听，`tea_last_pick` 这种标识没有意义。
 """
 
-from collections.abc import Awaitable, Callable
 from enum import Enum
 from typing import Any, Literal, Protocol
 
+from langgraph.graph.state import StateNode
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.agent.agents.report_guard import ContactDirectory
@@ -38,7 +38,8 @@ from app.process_config.models import ProcessConfig
 
 # 转人工节点的形态：只吃 state，返回 state 增量。不带 `config` 参数是刻意的——LangGraph 会
 # 把运行时 `RunnableConfig` 按形参名注入，而流程配置在节点构造时就已绑定。
-HandoffNode = Callable[[ConsultationState], Awaitable[dict]]
+# 用 LangGraph 节点协议标注，`StateGraph.add_node` 才能接受该工厂产出（裸 `Callable` 别名不匹配）。
+HandoffNode = StateNode[ConsultationState, None]
 
 # 法定报告情形在守卫未被调用时使用的兜底动作。写法与 T2-22 的守卫文案同源：先隔离、再消毒、
 # 最后报告，顺序即展示顺序；文案里不出现任何疾病名称或"确诊"字样（不做疫情的最终认定）。

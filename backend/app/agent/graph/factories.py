@@ -34,6 +34,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
+from langgraph.graph.state import StateNode
 from langgraph.types import interrupt
 
 from app.agent.agents.base import AgentContext
@@ -58,7 +59,9 @@ from app.process_config.loader import get_process_config
 from app.process_config.models import ProcessConfig
 
 # 工厂产出的节点函数：只读 state（含本轮入参注入），返回本轮改动的键。
-NodeFn = Callable[[ConsultationState], Awaitable[dict]]
+# 用 LangGraph 的节点协议标注而非裸 `Callable` 别名：`StateGraph.add_node` 只接受节点
+# 协议，裸 `Callable[...] -> Awaitable[dict]` 会被 mypy 判为不匹配（见 main.py 同款说明）。
+NodeFn = StateNode[ConsultationState, None]
 
 
 def get_config(process_id: ProcessId) -> ProcessConfig:

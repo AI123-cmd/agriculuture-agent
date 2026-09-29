@@ -1,11 +1,11 @@
 """AI 问诊编排服务：图驱动，落库走 repository，出参为 `ChatResponse`（T2-33）。
 
-本模块整体替换旧实现（只喂一次 state、取一次 `reply` 文本、透传 `db` 进 config）。
+本模块整体替换旧实现（只喂一次 state、取一次 `reply` 文本、把 ORM Session 透传进图 config）。
 两条不变量：
 
-- **不把 `db` 传进图**：旧代码把 ORM Session 塞进 `config["configurable"]["db"]`，让图内
-  节点直接访问数据库，违反 L2（`app/agent/` 不得导入 `app/models/`）与 L4（不得直接
-  `db.query`）。改造后数据由 service 层经 repository 取出，以结构化 `context` 注入。
+- **不把数据库会话传进图**：旧代码把 ORM Session 塞进图 config，让图内节点直接访问
+  数据库，违反 L2（`app/agent/` 不得导入 `app/models/`）与 L4（不得直接查询数据库）。
+  改造后数据由 service 层经 repository 取出，以结构化 `context` 注入。
 - **入口注入流程配置事实**：`redlines_loaded` / `required_slots` / `redlines` /
   `config_version` / `config_hash` 是路由函数（`app/agent/graph/routes.py`）与闸门
   （`gate_graph.build_gate_context`）的判据来源。它们的写入方在生产链路中缺失

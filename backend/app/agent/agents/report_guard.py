@@ -24,8 +24,9 @@
 `degrade` 因此在本类里无正常入口，实现为委托 `fail_closed`，保证万一被调用也落在保守一侧。
 """
 
-from collections.abc import Awaitable, Callable
 from typing import Protocol
+
+from langgraph.graph.state import StateNode
 
 from app.agent.agents.base import AgentContext, BaseAgent, FailureMode
 from app.agent.agents.report_signals import match_signals, resolve_trigger_source
@@ -37,7 +38,8 @@ from app.process_config.models import ProcessConfig
 
 # 守卫节点的形态：只吃 state，返回 state 增量。不带 `config` 参数是刻意的——LangGraph 会把
 # 运行时 `RunnableConfig` 按形参名注入，而流程配置在节点构造时就已绑定，两者不应混在一个参数上。
-ReportGuardNode = Callable[[ConsultationState], Awaitable[dict]]
+# 用 LangGraph 节点协议标注，`StateGraph.add_node` 才能接受该工厂产出（裸 `Callable` 别名不匹配）。
+ReportGuardNode = StateNode[ConsultationState, None]
 
 # 三条基础动作对所有触发等级都成立：先隔离、再消毒、不自行处置病死猪。
 # "不要自行处理或出售病死猪只"是法定义务提示（`pig.yaml` 的 PIG-03 红线同源）。
