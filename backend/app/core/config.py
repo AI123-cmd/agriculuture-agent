@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     EMBEDDING_API_KEY: str = ""
     EMBEDDING_TIMEOUT: int = 30
 
+    # 重排序（T2-51）。默认关闭意味着走规则实现（零远程调用）：重排序在高频路径上
+    # （每次证据核查都调用），cross-encoder 的远程调用会把证据核查延迟抬高一个量级。
+    # 先跑通规则实现，再按评测结果决定是否启用交叉编码器。
+    RERANK_ENABLED: bool = False
+    RERANK_API_URL: str = ""
+    RERANK_API_KEY: str = ""
+    # cross-encoder 的兜底超时。用 `asyncio.wait_for` 包住主实现，避免客户端超时不覆盖
+    # 连接建立阶段。
+    RERANK_TIMEOUT_SECONDS: float = 3.0
+
     # Redis（生产为核心依赖）
     REDIS_URL: str = ""
     REDIS_REQUIRED: bool = False

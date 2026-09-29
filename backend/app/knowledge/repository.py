@@ -23,7 +23,7 @@
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any, cast
 
@@ -36,6 +36,7 @@ from app.knowledge.embedding import Embedder
 from app.knowledge.errors import KnowledgeUnavailableError
 from app.knowledge.filters import build_filters, where_clauses
 from app.knowledge.fusion import CHANNEL_KEYWORD, CHANNEL_VECTOR, KnowledgeHit, dedupe_by_id, reciprocal_rank_fusion
+from app.knowledge.rerank import RERANK_CANDIDATE_LIMIT, HeuristicReranker, Reranker
 from app.knowledge.schema import NATIONAL_LEVEL
 from app.repositories.knowledge import KnowledgeRepository as _QueryRepository
 
@@ -43,20 +44,9 @@ logger = logging.getLogger(__name__)
 
 # 两路各自召回的候选上限（技术方案 9.3：top_k=20）。
 RECALL_TOP_K = 20
-# 交给重排序的候选上限。RRF 融合后可能远超此数，重排序计算贵，取前 30 条足矣。
-RERANK_LIMIT = 30
-
-# 重排序器接口：吃 (查询文本, 候选, top_k)，吐重排后的候选。默认实现见 `_identity_rerank`。
-Reranker = Callable[[str, list[KnowledgeHit], int], Awaitable[list[KnowledgeHit]]]
-
-
-async def _identity_rerank(text: str, hits: list[KnowledgeHit], top_k: int) -> list[KnowledgeHit]:
-    """默认重排序：保持 RRF 顺序，只做截断。
-
-    cross-encoder 接入是 T2-51 的工作。这里保持一个**可工作的**默认实现，让检索链路在
-    没有重排模型时也能跑通、可测；它不改顺序，因此不影响 RRF 的排序结论。
-    """
-    return hits[:top_k]
+# 传给重排序的候选上限。来自 T2-51 的 `rerank.RERANK_CANDIDATE_LIMIT`，此处重新导出便于
+# 检索侧单测直接断言"交给重排的候选数不超过 30"。
+RERANK_LIMIT = RERANK_CANDIDATE_LIMIT
 
 
 def _to_float(value: Decimal | None) -> float | None:

@@ -24,15 +24,25 @@ RRF_K = 60
 
 @dataclass(slots=True)
 class KnowledgeHit:
-    """一次召回命中的条目。`score` 在融合后是 RRF 分值，融合前是单路原始分。"""
+    """一次召回命中的条目。`score` 在融合后是 RRF 分值，融合前是单路原始分。
+
+    `rank` 是重排序后的名次前缀（从 1 开始），由 `knowledge.rerank._truncate` 写入。召回
+    与融合阶段不设名次（保持 0），因为名次只在最终输出时才确定——下游取样（如处方只取
+    药剂类前 6 条）依赖的是重排后的名次而非融合名次。
+    """
 
     row: KnowledgeItem
     score: float
     channel: str
+    rank: int = 0
 
     def with_score(self, score: float) -> "KnowledgeHit":
         """换一个分值、保留其余字段。融合时用它把单路分替换成 RRF 分。"""
-        return KnowledgeHit(row=self.row, score=score, channel=self.channel)
+        return KnowledgeHit(row=self.row, score=score, channel=self.channel, rank=self.rank)
+
+    def with_rank(self, rank: int) -> "KnowledgeHit":
+        """换一个名次、保留其余字段。重排序截断时用它标注最终名次。"""
+        return KnowledgeHit(row=self.row, score=self.score, channel=self.channel, rank=rank)
 
 
 def reciprocal_rank_fusion(
