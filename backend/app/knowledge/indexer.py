@@ -24,23 +24,18 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from importlib.resources import files
 from pathlib import Path
-from typing import Literal
 from uuid import uuid4
 
 from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.knowledge.embedding import EMBEDDING_DIM, Embedder
-from app.knowledge.schema import KnowledgeRegionSpec, KnowledgeSeedItem
+from app.knowledge.schema import NATIONAL_CODE, NATIONAL_LEVEL, KnowledgeRegionSpec, KnowledgeSeedItem
 from app.models.knowledge import KnowledgeItem, KnowledgeRegion
 from app.process_config.loader import load_all_configs
 from app.repositories.knowledge import KnowledgeRepository
 
 logger = logging.getLogger(__name__)
-
-# 全国兜底行政区编码与层级。回退链最后一级的语义基础（T2-50）。
-NATIONAL_CODE = "000000"
-NATIONAL_LEVEL: Literal["national"] = "national"
 
 SEEDS_PACKAGE = "app.knowledge.seeds"
 
@@ -250,8 +245,6 @@ def _parse_jsonl(text: str, filename: str) -> list[KnowledgeSeedItem]:
 
 
 __all__ = [
-    "NATIONAL_CODE",
-    "NATIONAL_LEVEL",
     "SEEDS_PACKAGE",
     "BuildReport",
     "IndexBuildError",

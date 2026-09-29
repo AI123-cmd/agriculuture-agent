@@ -21,6 +21,12 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from app.agent.state import EvidenceKind, ProcessId
 from app.knowledge.status import KnowledgeStatus
 
+# 全国兜底行政区编码与层级。回退链最后一级的语义基础（T2-48 挂载、T2-49 过滤、T2-50 回退）。
+# 放在本模块是因为它被索引构建器、检索过滤与地区回退三处共同引用，且本模块只依赖
+# pydantic 与核心枚举，不会引入数据库或配置加载的传递依赖。
+NATIONAL_CODE = "000000"
+NATIONAL_LEVEL: Literal["national"] = "national"
+
 
 class KnowledgeRegionSpec(BaseModel):
     """条目的一个地区挂载点。`region_level` 决定它在回退链的哪一级被命中。"""
@@ -105,4 +111,4 @@ class KnowledgeSeedItem(BaseModel):
         return f"{self.title}\n{self.content}"
 
 
-__all__ = ["KnowledgeRegionSpec", "KnowledgeSeedItem"]
+__all__ = ["NATIONAL_CODE", "NATIONAL_LEVEL", "KnowledgeRegionSpec", "KnowledgeSeedItem"]
