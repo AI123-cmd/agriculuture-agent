@@ -57,10 +57,12 @@ _TABLES = (
 )
 
 # 非 public schema 下的表：TRUNCATE 必须带 schema 前缀，否则按 search_path 找不到。
-# knowledge_region 先于 knowledge_item（子表在前，语义上被引用者靠后）。
+# knowledge_region 先于 knowledge_item、knowledge_item 先于 knowledge_review_log
+# （子表/引用者在前，语义上被引用者靠后）。
 _SCHEMA_TABLES = (
     ("knowledge", "knowledge_region"),
     ("knowledge", "knowledge_item"),
+    ("knowledge", "knowledge_review_log"),
 )
 
 

@@ -120,6 +120,16 @@ class KnowledgeIndexer:
                 continue
 
             existing = await self._repo.get_by_id(item.knowledge_id)
+            # 状态边界（T2-54）：构建器不改已有条目的 status——状态只能经核准流程变更。
+            # 文件里声明的 status 只在首次插入时生效；重跑时若与库中不一致，以库中为准并
+            # 记一条 warn，提示"文件里的状态声明被忽略，请通过核准流程变更"。
+            if existing is not None and existing.status != item.status.value:
+                logger.warning(
+                    "条目 %s 的文件状态 %s 与库中 %s 不一致，以库中为准（请通过核准流程变更）",
+                    item.knowledge_id,
+                    item.status.value,
+                    existing.status,
+                )
             if existing is not None and existing.content_hash == item.content_fingerprint():
                 report.skipped += 1
                 continue
@@ -207,7 +217,11 @@ class KnowledgeIndexer:
         )
 
     def _to_update_values(self, item: KnowledgeSeedItem, vector: list[float]) -> dict:
-        """增量更新的列集合。与 `_to_row` 覆盖同一批字段，保持两条路径一致。"""
+        """增量更新的列集合。与 `_to_row` 覆盖同一批字段，但**不含 `status` /
+        `status_reason`**（T2-54）：状态只能经 `KnowledgeReviewService.apply` 变更，
+        构建器重跑不得把人工核准的裁决覆盖掉——否则内容建设阶段反复跑构建会让所有已核准
+        条目退回 `draft`，检索立即空掉。文件里的状态声明只在首次插入时生效。
+        """
         return {
             "process_id": item.process_id.value,
             "kind": item.kind.value,
@@ -224,8 +238,6 @@ class KnowledgeIndexer:
             "region_scope": item.region_scope,
             "effective_date": item.effective_date,
             "expire_date": item.expire_date,
-            "status": item.status.value,
-            "status_reason": item.status_reason,
             "source_ref": item.source_ref,
             "content_hash": item.content_fingerprint(),
             "embedding": vector,

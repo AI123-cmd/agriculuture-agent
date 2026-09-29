@@ -60,6 +60,30 @@ class KnowledgeRepository:
         """`get` 的别名，供增量构建等读起来更明确的调用点使用。"""
         return await self.get(knowledge_id)
 
+    async def update_status(self, knowledge_id: str, status: KnowledgeStatus, reason: str | None = None) -> None:
+        """按状态机裁决后的目标状态改写主表（T2-54）。
+
+        只改 `status` 与 `status_reason` 两列：其余内容字段由索引构建器负责，状态迁移
+        不应顺带触碰内容——那是两条独立的写路径（"内容变更"与"人工裁决"），混在一起会让
+        增量构建的指纹比对失真。
+
+        `reason` 同时写入主表 `status_reason`：`suspended` 时它是当前状态说明（供检索侧
+        排查），非 `suspended` 时清空——避免"恢复为 approved 后仍留着旧暂停理由"这种
+        "当前状态与说明不符"的脏数据。完整历史在 `knowledge_review_log`，主表只存当前值。
+
+        用「取回对象后改属性」而非 Core `update()`：会话的 `expire_on_commit=False` 下，
+        Core 批量更新的同步语义依赖 `synchronize_session` 推断，而调用方（服务层）紧接着
+        要读回该行；改属性再由会话 flush 能保证内存视图与库内一致，不依赖推断。
+        """
+        item = await self.get(knowledge_id)
+        if item is None:
+            return
+        raw = status.value if isinstance(status, KnowledgeStatus) else status
+        item.status = raw
+        # 非 suspended 一律清空理由；suspended 必须带理由（由服务层保证非空）。
+        item.status_reason = reason if raw == KnowledgeStatus.SUSPENDED.value else None
+        await self._session.flush()
+
     async def list_by_status(
         self,
         status: KnowledgeStatus | str = KnowledgeStatus.APPROVED,

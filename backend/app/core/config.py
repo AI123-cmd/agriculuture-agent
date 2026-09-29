@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     TOKEN_EXPIRE_SECONDS: int = 7 * 24 * 3600
 
+    # 知识条目核准接口的后台运营账号白名单（T2-54，技术方案 9.2 与 15.6）。
+    # 核准是"人工审核后方可上架"这条红线的执行口，必须与农户侧接口分离：农户令牌
+    # 验签通过也不得调用，故用显式白名单而非"登录即可"。逗号分隔的账号 id；空串 =
+    # 谁都不能调用，避免"忘了配置就默认放行"（fail-closed）。
+    KNOWLEDGE_REVIEW_OPERATOR_IDS: str = ""
+
     # 安全闸门
     GATE_MODE: Literal["shadow", "enforce"] = "shadow"
 
@@ -147,6 +153,12 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         return v
+
+    @field_validator("KNOWLEDGE_REVIEW_OPERATOR_IDS", mode="after")
+    @classmethod
+    def _normalize_operator_ids(cls, v: str) -> str:
+        """规范化白名单串：去掉空白项，避免 "a, ,b" 里混入空 id。"""
+        return ",".join(item.strip() for item in v.split(",") if item.strip())
 
 
 @lru_cache

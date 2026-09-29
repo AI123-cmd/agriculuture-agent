@@ -71,6 +71,8 @@ ignore = ["E501"]
 "app/process_config/rule_ids.py" = ["UP042"]
 "app/gate/enums.py" = ["UP042"]
 "app/knowledge/status.py" = ["UP042"]
+# app/services/knowledge_review.py 的 KnowledgeAction 同样按技术方案明文继承 `str, Enum`。
+"app/services/knowledge_review.py" = ["UP042"]
 "app/agent/budget.py" = ["UP042"]
 "app/agent/agents/base.py" = ["UP042"]
 "app/llm/tiers.py" = ["UP042"]

@@ -42,6 +42,18 @@ class NotFound(AppException):
         super().__init__(404, message)
 
 
+class Forbidden(AppException):
+    """已认证但无权访问该接口。
+
+    取 403 而非 401：401 表示"身份未确认"（前端应重新登录），403 表示"身份已知但不被
+    允许"（前端重新登录也没用）。知识条目核准接口只对后台运营账号开放（T2-54），农户
+    令牌验签通过但不具备该权限，故用 403，避免前端误触发重新登录。
+    """
+
+    def __init__(self, message: str = "无权访问该接口"):
+        super().__init__(403, message)
+
+
 class BadRequest(AppException):
     """请求参数或上传内容不合规。
 
