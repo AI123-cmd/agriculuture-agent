@@ -106,7 +106,9 @@ class AIService:
 
         return response
 
-    async def _resume_or_start(self, db: AsyncSession, session_id: str, user_id: str, req: ChatRequest) -> dict[str, Any]:
+    async def _resume_or_start(
+        self, db: AsyncSession, session_id: str, user_id: str, req: ChatRequest
+    ) -> dict[str, Any]:
         """新会话 / 中断恢复 两分支。恢复判据是检查点上是否还有待跑节点。"""
         from app.agent import get_agent, resume_graph  # 延迟导入，避免与 services 形成循环依赖
 

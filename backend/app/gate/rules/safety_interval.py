@@ -27,9 +27,7 @@ class SafetyIntervalRule(Rule):
 
         # 1. 安全间隔期必须显式给出（杂草流程允许依据标签，但标签本身即知识条目）
         if ctx.prescription.pesticide_items and ctx.prescription.safety_interval_days is None:
-            violations.append(
-                self.violation(field="safety_interval_days", message="涉及用药但未给出安全间隔期")
-            )
+            violations.append(self.violation(field="safety_interval_days", message="涉及用药但未给出安全间隔期"))
 
         # 2. 茶流程：与下一轮采摘计划核对。槽位经 slot_date 归一，非日期一律视为缺失。
         if ctx.process_id == ProcessId.TEA:
@@ -61,10 +59,7 @@ class SafetyIntervalRule(Rule):
                 violations.append(
                     self.violation(
                         field="safety_interval_days",
-                        message=(
-                            f"安全间隔期 {ctx.prescription.safety_interval_days} 天"
-                            f"短于本流程配置下限 {floor} 天"
-                        ),
+                        message=(f"安全间隔期 {ctx.prescription.safety_interval_days} 天短于本流程配置下限 {floor} 天"),
                     )
                 )
         return violations

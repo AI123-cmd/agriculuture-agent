@@ -74,9 +74,7 @@ class NoDataSupportRule(Rule):
         for path in ctx.prescription.numeric_paths():
             if path in provenance and str(provenance[path]).strip():
                 continue
-            violations.append(
-                self.violation(field=path, message=f"数值字段 {path} 缺少事实来源登记")
-            )
+            violations.append(self.violation(field=path, message=f"数值字段 {path} 缺少事实来源登记"))
         violations.extend(self._scan_text(ctx, provenance))
         return violations
 

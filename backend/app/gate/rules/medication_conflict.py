@@ -36,8 +36,7 @@ class MedicationConflictRule(Rule):
                     self.violation(
                         field=f"pesticide_items[{i}]",
                         message=(
-                            f"《{item.name}》与 {prev.used_on.isoformat()} 的用药重复，"
-                            f"连续使用同一药剂会加速抗药性"
+                            f"《{item.name}》与 {prev.used_on.isoformat()} 的用药重复，连续使用同一药剂会加速抗药性"
                         ),
                     )
                 )

@@ -36,8 +36,7 @@ class PesticideWhitelistRule(Rule):
                     self.violation(
                         field=f"pesticide_items[{item.knowledge_id}]",
                         message=(
-                            f"药剂《{item.name}》引用的条目 {item.knowledge_id} 当前状态为 "
-                            f"{entry.status}，不可用于处方"
+                            f"药剂《{item.name}》引用的条目 {item.knowledge_id} 当前状态为 {entry.status}，不可用于处方"
                         ),
                     )
                 )
@@ -47,8 +46,7 @@ class PesticideWhitelistRule(Rule):
                     self.violation(
                         field=f"pesticide_items[{item.knowledge_id}].name",
                         message=(
-                            f"药剂名与知识库不一致：处方为《{item.name}》，"
-                            f"条目 {item.knowledge_id} 为《{entry.name}》"
+                            f"药剂名与知识库不一致：处方为《{item.name}》，条目 {item.knowledge_id} 为《{entry.name}》"
                         ),
                     )
                 )

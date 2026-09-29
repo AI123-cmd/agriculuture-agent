@@ -38,10 +38,7 @@ class RegisteredCropRule(Rule):
                 violations.append(
                     self.violation(
                         field=f"pesticide_items[{item.knowledge_id}]",
-                        message=(
-                            f"药剂《{item.name}》未在{registered}上登记"
-                            f"（登记作物：{'、'.join(crops) or '无'}）"
-                        ),
+                        message=(f"药剂《{item.name}》未在{registered}上登记（登记作物：{'、'.join(crops) or '无'}）"),
                     )
                 )
         return violations

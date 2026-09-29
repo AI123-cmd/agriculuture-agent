@@ -30,8 +30,7 @@ class RedlineLoadRule(Rule):
             self.violation(
                 field="process_redlines_loaded",
                 message=(
-                    f"流程 {ctx.process_id.value} 的红线配置未成功加载"
-                    f"（{reason}），按不可用处置，不降级为通用规则"
+                    f"流程 {ctx.process_id.value} 的红线配置未成功加载（{reason}），按不可用处置，不降级为通用规则"
                 ),
             )
         ]

@@ -31,7 +31,6 @@ handoff 两个结构节点，全部以「工厂闭包 + 流程配置」的形式
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
 from langgraph.graph.state import StateNode

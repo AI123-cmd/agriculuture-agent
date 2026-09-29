@@ -171,8 +171,18 @@ def test_subgraph_exit_at_prescribe_enters_gate() -> None:
 
 @pytest.mark.parametrize(
     "stage",
-    [ConsultStage.INTAKE, ConsultStage.TRIAGE, ConsultStage.OBSERVE, ConsultStage.INTERVIEW, ConsultStage.VERIFY,
-     ConsultStage.JUDGE, ConsultStage.GATE, ConsultStage.FOLLOWUP, ConsultStage.HANDOFF, ConsultStage.BLOCKED],
+    [
+        ConsultStage.INTAKE,
+        ConsultStage.TRIAGE,
+        ConsultStage.OBSERVE,
+        ConsultStage.INTERVIEW,
+        ConsultStage.VERIFY,
+        ConsultStage.JUDGE,
+        ConsultStage.GATE,
+        ConsultStage.FOLLOWUP,
+        ConsultStage.HANDOFF,
+        ConsultStage.BLOCKED,
+    ],
 )
 def test_subgraph_exit_before_prescribe_goes_to_handoff(stage: ConsultStage) -> None:
     """只有走到 prescribe 算正常完成，其余十余种提前退出原因一律转人工。"""

@@ -52,7 +52,9 @@ def build_pig_subgraph() -> CompiledStateGraph:
     # 入口守卫：命中即出子图（handoff 键在 ROUTE_AFTER_SUBGRAPH_GUARD 里映射 __end__）
     graph.add_edge(START, "report_guard_entry")
     graph.add_conditional_edges(
-        "report_guard_entry", route_after_subgraph_guard, ROUTE_AFTER_SUBGRAPH_GUARD,
+        "report_guard_entry",
+        route_after_subgraph_guard,
+        ROUTE_AFTER_SUBGRAPH_GUARD,
     )
 
     # observe 之后再做一次兜底检查（方案 5.3.7：observe 与 interview 之后各挂一次）

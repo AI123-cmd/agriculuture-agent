@@ -51,9 +51,7 @@ class ProcessRedlineRule(Rule):
         if _find(text, label):
             return "gate_payload.rendered_text", _snippet(text, label)
         for i, action in enumerate(ctx.prescription.actions):
-            joined = " ".join(
-                [action.action, action.timing, action.method, *action.cautions, *action.stop_conditions]
-            )
+            joined = " ".join([action.action, action.timing, action.method, *action.cautions, *action.stop_conditions])
             if _find(joined, label):
                 return f"actions[{i}]", _snippet(joined, label)
         for term, rewritten in ctx.prescription.detail_terms.items():

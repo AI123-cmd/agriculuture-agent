@@ -40,10 +40,7 @@ class RegionFitnessRule(Rule):
                 out.append(
                     self.violation(
                         field=f"pesticide_items[{item.knowledge_id}].region_scope",
-                        message=(
-                            f"《{item.name}》的适用范围为 {entry.region_scope}，"
-                            f"不覆盖你所在的 {ctx.region_code}"
-                        ),
+                        message=(f"《{item.name}》的适用范围为 {entry.region_scope}，不覆盖你所在的 {ctx.region_code}"),
                     )
                 )
         return out
@@ -76,9 +73,7 @@ class RegionFitnessRule(Rule):
             return [
                 self.violation(
                     field="facts_provenance",
-                    message=(
-                        f"出口茶园处方未引用输入国/地区标准 {'、'.join(missing)}，无法确认残留限量合规"
-                    ),
+                    message=(f"出口茶园处方未引用输入国/地区标准 {'、'.join(missing)}，无法确认残留限量合规"),
                 )
             ]
         return []
