@@ -200,7 +200,9 @@ def test_flow_constraint_allows_rapeseed_draft_pesticide() -> None:
 
 def test_flow_constraint_passes_real_seed_data() -> None:
     """真实的两份数据文件全部通过流程级约束——文件与构建器约束一致。"""
-    offenders = [item.knowledge_id for item in [*_load("general.jsonl"), *_load("rapeseed.jsonl")] if flow_constraint_error(item)]
+    offenders = [
+        item.knowledge_id for item in [*_load("general.jsonl"), *_load("rapeseed.jsonl")] if flow_constraint_error(item)
+    ]
 
     assert offenders == []
 
@@ -343,9 +345,7 @@ async def test_full_build_persists_general_and_rapeseed(session_factory) -> None
 
     async with session_factory() as db:
         stmt = (
-            select(func.count())
-            .select_from(KnowledgeItem)
-            .where(KnowledgeItem.process_id.in_(["general", "rapeseed"]))
+            select(func.count()).select_from(KnowledgeItem).where(KnowledgeItem.process_id.in_(["general", "rapeseed"]))
         )
         stored = (await db.execute(stmt)).scalar_one()
 
