@@ -91,6 +91,17 @@ class _SlowReranker:
         return candidates[:top_k]
 
 
+class _RecordingReranker:
+    """记录收到的候选数，供断言"交给重排的候选不超过 30"。返回空集以免触发证据组装。"""
+
+    def __init__(self) -> None:
+        self.seen: int | None = None
+
+    async def rerank(self, query: str, candidates: list[KnowledgeHit], top_k: int) -> list[KnowledgeHit]:
+        self.seen = len(candidates)
+        return []
+
+
 # ---- 候选上限与截断 ----
 
 
