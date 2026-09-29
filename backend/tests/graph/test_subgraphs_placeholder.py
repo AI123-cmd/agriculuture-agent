@@ -197,10 +197,24 @@ async def test_rapeseed_never_searches_pesticides() -> None:
         trace_id="t-1",
     )
 
-    candidates = await agent.fetch_pesticide_candidates(
-        state=cast(ConsultationState, {"messages": [{"role": "user", "content": "叶片出现水渍状病斑，要不要打药"}]}),
-        ctx=ctx,
+    state = cast(
+        ConsultationState,
+        {
+            "messages": [{"role": "user", "content": "叶片出现水渍状病斑，要不要打药"}],
+            "diagnosis": {
+                "conclusion": "菌核病",
+                "confidence_level": "preliminary",
+                "basis": ["茎秆出现水渍状病斑并生白色菌丝"],
+                "uncertainty_source": [],
+                "excluded": [],
+                "terminology_profile": "rapeseed",
+                "needs_more_info": [],
+                "out_of_scope": False,
+            },
+        },
     )
+
+    candidates = await agent.fetch_pesticide_candidates(state, ctx)
 
     assert candidates == []
     assert knowledge.calls == []
@@ -255,7 +269,9 @@ def _rapeseed_gate_context(rendered_text: str) -> GateContext:
 
 def test_rapeseed_gate_checks_redline_rule_without_output() -> None:
     """未涉用药的油菜输出：放行，且 `R-REDLINE` 确实执行过（红线已加载，非同"缺失"）。"""
-    ctx = _rapeseed_gate_context("油菜茎秆出现水渍状病斑，建议先清沟排水并通风，观察菌核病的发展，必要时联系当地农技站确认。")
+    ctx = _rapeseed_gate_context(
+        "油菜茎秆出现水渍状病斑，建议先清沟排水并通风，观察菌核病的发展，必要时联系当地农技站确认。"
+    )
 
     result = GateEngine().evaluate(ctx)
 
