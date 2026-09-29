@@ -13,7 +13,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import ColumnElement, Integer, Select, or_, select
+from sqlalchemy import ColumnElement, Select, case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.knowledge.status import SEARCHABLE_STATUSES, KnowledgeStatus
