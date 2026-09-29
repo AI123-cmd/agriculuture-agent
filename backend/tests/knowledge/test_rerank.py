@@ -87,8 +87,6 @@ class _SlowReranker:
         self._delay = delay
 
     async def rerank(self, query: str, candidates: list[KnowledgeHit], top_k: int) -> list[KnowledgeHit]:
-        import asyncio
-
         await asyncio.sleep(self._delay)
         return candidates[:top_k]
 
