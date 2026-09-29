@@ -17,6 +17,7 @@ from typing import Any
 from langgraph.checkpoint.memory import InMemorySaver
 
 from app.agent.graph import main as main_graph
+from app.agent.state import ProcessId
 from app.schemas.consult import ChatResponse
 from app.services.ai_service import AIService, build_environment_note
 
@@ -152,7 +153,11 @@ async def _in_memory_checkpointer() -> InMemorySaver:
 
 
 async def test_process_hint_weed_skips_triage(monkeypatch) -> None:
-    """`processHint="weed"` 直达 `subgraph_weed`，trace 里没有 `triage`。"""
+    """`processHint="weed"` 直达 `subgraph_weed`，trace 里没有 `triage`。
+
+    真实杂草子图会在 `interview` 节点 `interrupt`，此时 `stream_mode="updates"` 只发
+    顶层键 `__interrupt__`（子图名不出现），故"进入哪个子图"用跑完后的 `process_id` 佐证。
+    """
     monkeypatch.setattr(main_graph, "get_checkpointer", _in_memory_checkpointer)
     graph = await main_graph.build_graph()
 
@@ -173,7 +178,11 @@ async def test_process_hint_weed_skips_triage(monkeypatch) -> None:
     assert trace[0] == "intake"
     assert trace[1] == "subgraph_router"
     assert "triage" not in trace
-    assert "subgraph_weed" in trace
+    # 受理即分流锁定杂草流程，问诊节点中断（`__interrupt__`），说明已进入杂草子图。
+    assert "__interrupt__" in trace
+    snapshot = await graph.aget_state(config)
+    assert snapshot.values["process_id"] == ProcessId.WEED
+    assert snapshot.next  # 线程停在问诊中断处，仍未跑完
 
 
 # ---- 归属校验 ----

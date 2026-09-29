@@ -13,8 +13,9 @@
   否则每条条件边都会 fail-closed 转人工。
 """
 
-from typing import Any
+from typing import Any, cast
 
+from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.blackboard import progress_of
@@ -101,14 +102,12 @@ class AIService:
 
         return response
 
-    async def _resume_or_start(
-        self, db: AsyncSession, session_id: str, user_id: str, req: ChatRequest
-    ) -> dict:
+    async def _resume_or_start(self, db: AsyncSession, session_id: str, user_id: str, req: ChatRequest) -> ConsultationState:
         """新会话 / 中断恢复 两分支。恢复判据是检查点上是否还有待跑节点。"""
         from app.agent import get_agent, resume_graph  # 延迟导入，避免与 services 形成循环依赖
 
         graph = await get_agent()
-        config = {"configurable": {"thread_id": session_id}}
+        config: RunnableConfig = {"configurable": {"thread_id": session_id}}
         if req.sessionId is not None:
             snapshot = await graph.aget_state(config)
             if snapshot.next:  # 中断中，携带答案恢复
