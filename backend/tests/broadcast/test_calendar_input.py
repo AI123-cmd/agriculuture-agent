@@ -90,7 +90,9 @@ async def test_weed_and_general_entries_produce_no_calendar_items() -> None:
     matcher = RegionMatcher(searcher)
     profile = _profile("浙江省", "杭州市", "上城区")
     entries = [_entry(ProcessId.WEED), _entry(ProcessId.GENERAL)]
-    tasks = await collect_calendar_tasks(profile, TODAY, entries=entries, matcher=matcher, env=EnvFacts(source="sensor"))
+    tasks = await collect_calendar_tasks(
+        profile, TODAY, entries=entries, matcher=matcher, env=EnvFacts(source="sensor")
+    )
     assert [t for t in tasks if t.source_kind == "calendar"] == []
 
 

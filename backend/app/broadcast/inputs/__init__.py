@@ -11,13 +11,21 @@ from app.broadcast.inputs.calendar import (
     load_calendar_entries,
     resolve_stage,
 )
+from app.broadcast.inputs.consult import (
+    build_followup_prompt,
+    build_followup_rule,
+    collect_consult_signals,
+)
 from app.broadcast.inputs.env_facts import EnvFacts, collect_env_facts, is_env_risk_blocked
 
 __all__ = [
     "NO_CALENDAR_PROCESSES",
     "CalendarEntry",
     "EnvFacts",
+    "build_followup_prompt",
+    "build_followup_rule",
     "collect_calendar_tasks",
+    "collect_consult_signals",
     "collect_env_facts",
     "is_env_risk_blocked",
     "load_calendar_entries",

@@ -92,7 +92,7 @@ class Consultation(Base, TimestampMixin, OwnedMixin):
         """
         last = self.update_time or self.create_time
         last_date = last.date() if isinstance(last, datetime) else last
-        return max((today or date.today()) - last_date).days
+        return max(((today or date.today()) - last_date).days, 0)
 
     def needs_followup_check(self, today: date, observation_days: int) -> bool:
         """观察期问诊是否已到期该跟进。

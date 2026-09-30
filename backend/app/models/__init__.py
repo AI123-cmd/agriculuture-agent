@@ -1,6 +1,6 @@
 from .broadcast import BroadcastLog
-from .conversation import AIConversation, AIMessage
 from .consultation import Consultation, FollowupTask, PrescriptionCard
+from .conversation import AIConversation, AIMessage
 from .crop import Crop
 from .device import Device
 from .enums import (
