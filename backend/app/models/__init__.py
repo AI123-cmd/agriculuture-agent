@@ -1,11 +1,15 @@
 from .broadcast import BroadcastLog
 from .conversation import AIConversation, AIMessage
+from .consultation import Consultation, FollowupTask, PrescriptionCard
 from .crop import Crop
 from .device import Device
 from .enums import (
     Channel,
+    ConsultStatus,
     EnvSource,
     FailReason,
+    FollowupKind,
+    FollowupStatus,
     ReachStatus,
     Severity,
     SourceKind,
@@ -53,10 +57,16 @@ __all__ = [
     "PromptItem",
     "SubscriptionQuota",
     "ReachRecord",
+    "Consultation",
+    "PrescriptionCard",
+    "FollowupTask",
     "EnvSource",
     "SourceKind",
     "Severity",
     "Channel",
     "ReachStatus",
     "FailReason",
+    "ConsultStatus",
+    "FollowupStatus",
+    "FollowupKind",
 ]

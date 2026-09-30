@@ -71,6 +71,37 @@ class FailReason(str, Enum):
     QUIET_HOURS = "quiet_hours"
 
 
+class ConsultStatus(str, Enum):
+    """问诊会话状态（技术方案 12.4）。
+
+    `observing` 是"有结论但未闭环"的观察期，T3-04 据此把问诊转为首页跟进提示。
+    """
+
+    OBSERVING = "observing"
+    RESOLVED = "resolved"
+    FOLLOWUP = "followup"
+    ESCALATED = "escalated"
+    BLOCKED = "blocked"
+
+
+class FollowupStatus(str, Enum):
+    """回访任务状态（技术方案 12.4）。"""
+
+    PENDING = "pending"
+    DONE = "done"
+    SKIPPED = "skipped"
+
+
+class FollowupKind(str, Enum):
+    """回访任务种类（对齐 T2-11 处方契约 `FollowupKindValue` 五值）。"""
+
+    EFFECT_CHECK = "effect_check"
+    RISK_CHECK = "risk_check"
+    PRESERVE_SCENE = "preserve_scene"
+    OBSERVE = "observe"
+    COMPLIANCE_CHECK = "compliance_check"
+
+
 def coerce_enum(enum_cls: type[Enum], value: Any) -> Any:
     """把字符串/枚举成员收敛为枚举的字符串取值；非法值抛 `ValueError`。
 
@@ -87,8 +118,11 @@ def coerce_enum(enum_cls: type[Enum], value: Any) -> Any:
 
 __all__ = [
     "Channel",
+    "ConsultStatus",
     "EnvSource",
     "FailReason",
+    "FollowupKind",
+    "FollowupStatus",
     "ReachStatus",
     "Severity",
     "SourceKind",
