@@ -25,6 +25,7 @@ from app.repositories.location import LocationRepository, location_repo
 from app.repositories.memory import MemorySummaryRepository, memory_repo
 from app.repositories.message import ConversationScopedRepository, message_repo
 from app.repositories.profile import FarmerProfileRepository, profile_repo
+from app.repositories.snapshot import SnapshotRepository, snapshot_repo
 from app.repositories.tag import ProfileTagRepository, tag_repo
 from app.repositories.user import UserRepository, user_repo
 
@@ -52,6 +53,7 @@ class Repositories:
     message: ConversationScopedRepository = message_repo
     consult: ConsultationRepository = consult_repo
     followup: FollowupRepository = followup_repo
+    snapshot: SnapshotRepository = snapshot_repo
     user: UserRepository = user_repo
 
 
@@ -70,6 +72,7 @@ __all__ = [
     "LocationRepository",
     "MemorySummaryRepository",
     "ProfileTagRepository",
+    "SnapshotRepository",
     "UserRepository",
     "Repositories",
     "conversation_repo",
@@ -84,6 +87,7 @@ __all__ = [
     "field_repo",
     "location_repo",
     "memory_repo",
+    "snapshot_repo",
     "tag_repo",
     "user_repo",
 ]
