@@ -51,9 +51,7 @@ class SubscriptionQuota(Base, OwnedMixin):
     remaining: Mapped[int] = mapped_column(Integer, nullable=False, default=0, comment="剩余额度（冗余，原子扣减）")
     last_grant_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_consume_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    reject_streak: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, comment="连续拒绝次数，用于降级索要"
-    )
+    reject_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0, comment="连续拒绝次数，用于降级索要")
 
 
 class ReachRecord(Base, OwnedMixin):

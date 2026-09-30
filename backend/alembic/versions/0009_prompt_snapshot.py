@@ -57,9 +57,7 @@ def upgrade() -> None:
         sa.Column("revision", sa.Integer(), nullable=False, comment="同日第几次更新"),
         sa.Column("invalidated", sa.Boolean(), nullable=False, comment="逻辑失效标记，不物理删除"),
         # 幂等键的唯一约束：并发写入同一日的两条快照会同时存在，幂等检查在提交后才生效就来不及了。
-        sa.UniqueConstraint(
-            "user_id", "farm_entry_id", "snapshot_date", "revision", name="uq_prompt_snapshot_daily"
-        ),
+        sa.UniqueConstraint("user_id", "farm_entry_id", "snapshot_date", "revision", name="uq_prompt_snapshot_daily"),
         comment=_SNAPSHOT_TABLE_COMMENT,
     )
     # OwnedMixin 自动带的 user_id 单列索引（全局约定"所有业务表带 user_id，索引必建"）。

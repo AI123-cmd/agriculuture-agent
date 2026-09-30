@@ -144,9 +144,7 @@ class PromptItem(Base, OwnedMixin):
         JSONB, nullable=False, default=dict, comment="事实来源映射，形如 {字段路径: 来源标识}"
     )
     rule_id: Mapped[str] = mapped_column(String(40), nullable=False)
-    priority_score: Mapped[Decimal] = mapped_column(
-        Numeric(8, 3), nullable=False, comment="排序键，三维拼接为稳定分数"
-    )
+    priority_score: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False, comment="排序键，三维拼接为稳定分数")
     suppressed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="被条数控制截断")
     executed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="执行勾选（北极星指标）")
     executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
