@@ -19,13 +19,15 @@
 的口径一致。
 """
 
+from collections.abc import Sequence
 from datetime import date
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.ownership import OwnershipError
 from app.db.base import new_id
-from app.models import PromptSnapshot
+from app.models import PromptItem, PromptSnapshot
 from app.repositories.base import OwnedRepository
 
 
@@ -57,6 +59,33 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
             stmt = stmt.where(PromptSnapshot.farm_entry_id == farm_entry_id)
         stmt = stmt.order_by(PromptSnapshot.revision.desc())
         return (await db.execute(stmt)).scalars().first()
+
+    async def list_items(self, db: AsyncSession, user_id: str, snapshot_id: str) -> Sequence[PromptItem]:
+        """取某份快照内的全部条目（含被压制项），按归属过滤。
+
+        合并去重（T3-08 第二节）需要"快照已含哪些 `rule_id`"，故这里也要把
+        `suppressed=True` 的条目一并取出——否则被压制过的信号会在下次点击时被
+        当成新信号重复合并进来，同日条目数凭空增长。
+        """
+        uid = self._require_user(user_id)
+        stmt = select(PromptItem).where(
+            PromptItem.user_id == uid,
+            PromptItem.snapshot_id == snapshot_id,
+        )
+        return (await db.execute(stmt)).scalars().all()
+
+    async def add_item(self, db: AsyncSession, user_id: str, item: PromptItem) -> PromptItem:
+        """向已存在的快照追加一条条目（不提交，由调用方 commit）。
+
+        归属由本方法强制写入，与基类 `add` 同一口径；单列出来是因为基类的 `add`
+        类型上绑定 `PromptSnapshot`，而快照生成链路要写入的是 `PromptItem`。
+        """
+        uid = self._require_user(user_id)
+        if getattr(item, "user_id", None) not in (None, uid):
+            raise OwnershipError("新增对象的 user_id 与当前用户不一致")
+        item.user_id = uid
+        db.add(item)
+        return item
 
     async def save(self, db: AsyncSession, user_id: str, snapshot: PromptSnapshot) -> PromptSnapshot:
         """写入快照并级联写入其 `items`（不提交，由调用方 commit）。
