@@ -238,11 +238,7 @@ def test_router_source_has_no_hardcoded_model_name() -> None:
     """模型名只能来自构造注入的 TierSpec：源码不得出现具体模型名硬编码。"""
     source = pathlib.Path("app/llm/router.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
-    strings = [
-        node.value
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Constant) and isinstance(node.value, str)
-    ]
+    strings = [node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str)]
     model_like = re.compile(r"(deepseek|gpt|claude|qwen|glm|gemini|ernie|moonshot|kimi)", re.IGNORECASE)
     offenders = [text for text in strings if model_like.search(text)]
     assert offenders == [], f"router.py 出现硬编码模型名: {offenders}"

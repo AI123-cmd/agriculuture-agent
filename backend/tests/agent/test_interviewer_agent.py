@@ -24,9 +24,10 @@ import respx
 
 from app.agent.agents.base import AgentContext
 from app.agent.agents.exceptions import AgentDegraded, ContractViolation
-from app.agent.agents.interviewer import TOP_K, TEMPLATE_WHY, InterviewerAgent
+from app.agent.agents.interviewer import TEMPLATE_WHY, InterviewerAgent
 from app.agent.budget import ConsultBudget
 from app.agent.contracts import InterviewBatch
+from app.agent.prompts.interviewer import TOP_K
 from app.agent.state import ConsultationState, ProcessId, SlotValue, TaskType
 from app.llm import ModelGateway, build_gateway
 from app.llm.providers.base import ModelResponse

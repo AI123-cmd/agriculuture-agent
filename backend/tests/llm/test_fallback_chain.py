@@ -68,7 +68,9 @@ class _ScriptedProvider:
         self._response = response
         self.calls = 0
 
-    async def chat(self, model: str, messages: list[dict], response_schema: object = None, timeout: float = 30.0) -> ModelResponse:
+    async def chat(
+        self, model: str, messages: list[dict], response_schema: object = None, timeout: float = 30.0
+    ) -> ModelResponse:
         self.calls += 1
         return self._response
 
@@ -134,7 +136,11 @@ async def test_first_provider_failure_falls_to_second() -> None:
     decision = _decision(("A", False), ("B", False), ("private", True))
     gateway, _ = _gateway(
         decision,
-        {"A": _ScriptedProvider(_fail(provider="A")), "B": _ScriptedProvider(_ok(provider="B")), "private": _ScriptedProvider(_ok(provider="private"))},
+        {
+            "A": _ScriptedProvider(_fail(provider="A")),
+            "B": _ScriptedProvider(_ok(provider="B")),
+            "private": _ScriptedProvider(_ok(provider="private")),
+        },
     )
     response = await gateway.chat(TaskType.DIAGNOSE, [{"role": "user", "content": "x"}], _Contract)
     assert response.provider == "B"
@@ -145,7 +151,11 @@ async def test_second_provider_failure_falls_to_private() -> None:
     decision = _decision(("A", False), ("B", False), ("private", True))
     gateway, _ = _gateway(
         decision,
-        {"A": _ScriptedProvider(_fail(provider="A")), "B": _ScriptedProvider(_fail(provider="B")), "private": _ScriptedProvider(_ok(provider="private"))},
+        {
+            "A": _ScriptedProvider(_fail(provider="A")),
+            "B": _ScriptedProvider(_fail(provider="B")),
+            "private": _ScriptedProvider(_ok(provider="private")),
+        },
     )
     response = await gateway.chat(TaskType.DIAGNOSE, [{"role": "user", "content": "x"}], _Contract)
     assert response.provider == "private"
@@ -173,7 +183,9 @@ async def test_last_candidate_is_marked_degraded_in_decision() -> None:
 
 async def test_first_candidate_is_not_fallback() -> None:
     decision = _decision(("A", False), ("B", False))
-    gateway, _ = _gateway(decision, {"A": _ScriptedProvider(_ok(provider="A")), "B": _ScriptedProvider(_ok(provider="B"))})
+    gateway, _ = _gateway(
+        decision, {"A": _ScriptedProvider(_ok(provider="A")), "B": _ScriptedProvider(_ok(provider="B"))}
+    )
     response = await gateway.chat(TaskType.DIAGNOSE, [{"role": "user", "content": "x"}], _Contract)
     assert response.provider == "A"
     assert response.is_fallback is False

@@ -17,28 +17,23 @@
 里的 `display_label`（已由配置作者口语化），不在降级路径上做任何语言加工——技术方案 10.3
 的"模板必须本身可读，不能假设后续一定有模型润色"。
 
-提示词按技术方案 9.4 的七段结构组织。与 T2-14、T2-15 一致，构造留在智能体模块内（公开的
-`build_interviewer_prompt` 加若干私有 `_format_*` 纯函数），由 T2-60 统一迁移到模板目录。
+提示词构造已由 T2-60 迁移到 `app/agent/prompts/interviewer.py`，本模块只保留智能体行为：
+候选池计算、候选域校验、进度提示与模板降级。`build_messages` 调用模板包的构造入口。
 """
 
-import json
 from contextvars import ContextVar
 from typing import Any, cast
 
 from app.agent.agents.base import AgentContext, BaseAgent, FailureMode
 from app.agent.agents.candidate_pool import CandidatePool, select_candidate_slots
 from app.agent.agents.exceptions import AgentDegraded, ContractViolation
-from app.agent.blackboard import slot_summary
 from app.agent.budget import ConsultBudget
 from app.agent.contracts import InterviewBatch, InterviewQuestion
+from app.agent.prompts.interviewer import TOP_K, build_interviewer_prompt
 from app.agent.state import ConsultationState, TaskType
 from app.llm import ModelGateway
 from app.observability import log
-from app.process_config.models import ConfusablePair, ProcessConfig, RedlineSpec, SlotSpec
-
-# 候选池容量。技术方案 5.3.3 定为 6：每轮最多问两个，六个候选足够两轮；更长的候选列表会让
-# 模型的选择变发散（技术方案 10.4 指出长上下文会降低指令遵循度）。
-TOP_K = 6
+from app.process_config.models import ProcessConfig, SlotSpec
 
 # 模板问题的"为什么问"。按 `SlotGroup` 的值索引（配置里的中文分类），与 `SlotSpec.group`
 # 一一对应；缺失分类回落到 `_DEFAULT_WHY`，新增槽位分类时不必同步改这里。
@@ -67,112 +62,6 @@ _NOTE_UNKNOWN = "有几项您不太确定，我会把把握程度说清楚。"
 # 属性，是因为节点在多个会话间并发执行——asyncio 任务各自持有上下文副本，实例属性会被
 # 互相覆盖。
 _pool: ContextVar[CandidatePool | None] = ContextVar("interviewer_pool", default=None)
-
-
-def build_interviewer_prompt(
-    config: ProcessConfig,
-    state: ConsultationState,
-    ctx: AgentContext,
-    candidates: CandidatePool,
-) -> list[dict]:
-    """按技术方案 9.4 的七段结构拼装提示词。
-
-    前六段进 system（角色定位、输出契约、硬规则、术语规范、禁用输出、易混淆项），第七段
-    （候选问题池）进 user。第 6 段从 `confusable_items` 生成鉴别点，是"一份配置驱动三处
-    行为"中问诊这一处的落实。
-
-    候选方向以文本注入而不是让模型自己看 `slots` 推断，是这条链路能收敛的前提：模型只需
-    在给定的几个方向里挑，不必自己算"哪些还没问过"。
-    """
-    system = [
-        f"你是{config.role_definition}。",
-        f"你必须输出符合以下 JSON Schema 的内容：{json.dumps(InterviewBatch.model_json_schema(), ensure_ascii=False)}",
-        "每轮最多问 2 个问题。每个问题必须说明为什么问。",
-        "不得询问已经知道答案的信息。",
-        "农户表示不清楚的项目不要换个说法再问一遍。",
-        f"使用以下术语：{_format_terms(config.terminology.display_metrics)}",
-        f"面向农户的表述必须口语化：{_format_colloquial(config.terminology.colloquial_map)}",
-        f"严禁输出：{_format_redlines(config.redlines)}",
-        f"你必须主动追问下列鉴别点：{_format_confusables(config.confusable_items)}",
-    ]
-    user = [
-        f"农户所在地区：{ctx.region_code or '未知'}",
-        f"已确认信息：{_format_slots(config, state)}",
-        f"当前环境事实：{_format_observations(state.get('observations'))}",
-        f"候选追问方向（从中选择，不得超出）：\n{_format_candidates(candidates)}",
-    ]
-    return [
-        {"role": "system", "content": "\n".join(system)},
-        {"role": "user", "content": "\n".join(user)},
-    ]
-
-
-def _format_terms(metrics: list[str]) -> str:
-    """本流程优先使用的指标口径。空列表给"无"，避免出现"使用以下术语："这类空段。"""
-    return "、".join(metrics) or "无"
-
-
-def _format_colloquial(mapping: dict[str, str]) -> str:
-    """内部术语 → 农户说法。展示层的替换表在这里作为表述约束注入。"""
-    return "；".join(f"{term}说成「{spoken}」" for term, spoken in mapping.items()) or "无"
-
-
-def _format_redlines(redlines: list[RedlineSpec]) -> str:
-    """流程红线。只给编号与说明：规则细节属闸门职责，此处的作用是让模型不做无谓尝试。"""
-    return "；".join(f"{item.id} {item.desc}" for item in redlines) or "无"
-
-
-def _format_confusables(pairs: list[ConfusablePair]) -> str:
-    """易混淆项及其决定性特征。特征必须一起给出：只给候选名，模型只会反复问"是哪一种"。"""
-    if not pairs:
-        return "无"
-    parts: list[str] = []
-    for pair in pairs:
-        features = "；".join(f"{name}：{'、'.join(pair.decisive_features.get(name, []))}" for name in pair.candidates)
-        parts.append(f"{'与'.join(pair.candidates)}（{features}）")
-    return " / ".join(parts)
-
-
-def _format_slots(config: ProcessConfig, state: ConsultationState) -> str:
-    """已确认与"答不出"的槽位。用口语标签而不是槽位键：键名对模型是噪声，对农户不可读。
-
-    `unknown` 也一并注入（`slot_summary` 已处理），这样模型知道"问过了但答不出"，才会降低
-    确定性表述而不是继续追问。
-    """
-    summary = slot_summary(state)
-    if not summary:
-        return "无"
-    parts: list[str] = []
-    for key, value in summary.items():
-        spec = config.slot_spec(key)
-        parts.append(f"{spec.display_label if spec else key}={value}")
-    return "；".join(parts)
-
-
-def _format_observations(observations: object) -> str:
-    """环境事实摘要。state 里存的是 `ObservationResult` 序列化后的字典。"""
-    if not isinstance(observations, dict) or not observations:
-        return "无"
-    parts = [f"环境数据来源={observations.get('env_source') or '未知'}"]
-    facts = observations.get("observed_facts")
-    if isinstance(facts, dict) and facts:
-        parts.append("现场事实：" + "；".join(f"{key}={value}" for key, value in facts.items()))
-    note = observations.get("note")
-    if note:
-        parts.append(f"环境说明：{note}")
-    return "；".join(parts)
-
-
-def _format_candidates(pool: CandidatePool) -> str:
-    """候选方向清单。每项带槽位键与选项，模型才知道答案该落到哪个槽位、给哪些快捷选项。"""
-    if not pool.candidates:
-        return "无可用方向，本轮无需提问"
-    lines: list[str] = []
-    for candidate in pool.candidates:
-        kind = "必问" if candidate.required else "选问"
-        options = f"，选项：{'、'.join(candidate.options)}" if candidate.options else ""
-        lines.append(f"- {candidate.display_label}（槽位 {candidate.slot_key}，{candidate.group}，{kind}{options}）")
-    return "\n".join(lines)
 
 
 class InterviewerAgent(BaseAgent[InterviewBatch]):
@@ -210,9 +99,14 @@ class InterviewerAgent(BaseAgent[InterviewBatch]):
     # ---- 输入构造 ----
 
     def build_messages(self, state: ConsultationState, ctx: AgentContext) -> list[dict]:
-        """拼装提示词。候选池来自本轮 `run` 算出的结果。"""
+        """拼装提示词。候选池来自本轮 `run` 算出的结果，构造入口在模板包。"""
         pool = _pool.get() or select_candidate_slots(ctx.process_config, state, top_k=TOP_K)
-        return build_interviewer_prompt(ctx.process_config, state, ctx, pool)
+        return build_interviewer_prompt(
+            ctx.process_config,
+            state,
+            candidates=pool.candidates,
+            region_code=ctx.region_code,
+        )
 
     # ---- 候选域校验（模型只能在给定范围内选择） ----
 
@@ -355,4 +249,4 @@ class InterviewerAgent(BaseAgent[InterviewBatch]):
         return specs
 
 
-__all__ = ["TOP_K", "TEMPLATE_WHY", "InterviewerAgent", "build_interviewer_prompt"]
+__all__ = ["TEMPLATE_WHY", "InterviewerAgent"]

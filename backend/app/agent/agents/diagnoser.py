@@ -16,29 +16,20 @@
 `terminology_profile` 由代码从 `process_id` 填入而不是让模型生成：问诊已经在某流程内进行，
 这个值就是确定的，让模型生成只会引入不一致。
 
-与 T2-14/15/16/18 一致，提示词构造留在智能体模块内（公开的 `build_diagnoser_prompt` 加
-若干私有 `_format_*` 纯函数），由 T2-60 统一迁移到模板目录。
+提示词构造已由 T2-60 迁移到 `app/agent/prompts/diagnoser.py`，本模块只保留智能体行为：
+排除项校验、不确定性来源补全、内部置信度与降级。`build_messages` 调用模板包的构造入口。
 """
 
-import json
 from typing import Any, cast
 
 from app.agent.agents.base import AgentContext, BaseAgent, FailureMode
 from app.agent.agents.exceptions import ContractViolation
-from app.agent.blackboard import slot_summary
 from app.agent.budget import ConsultBudget
 from app.agent.contracts import DiagnosisResult
+from app.agent.prompts.diagnoser import build_diagnoser_prompt
 from app.agent.state import ConsultationState, TaskType
 from app.llm import ModelGateway
-from app.process_config.models import ConfusablePair, ProcessConfig, RedlineSpec
-
-# 提示词里注入的证据条数上限。技术方案 10.4 要求"只注入相关槽位与证据"，全量注入会让
-# 长上下文稀释指令遵循度，而判定恰恰是最需要模型严格按 Schema 输出的环节。
-_MAX_EVIDENCE_ROWS = 6
-# 单条证据的内容摘要长度。判定要看的是判据而不是整篇条目，截断由后端做，不留给模型自己取舍。
-_CONTENT_CAP = 120
-# 档案用药史注入条数上限。用药史越久远对本次判断越无参考价值，且它是最易失控的字段。
-_MAX_HISTORY_ROWS = 5
+from app.process_config.models import ProcessConfig
 
 # 超边界原因。技术方案 6.7 要求超边界时向农户解释"为什么不能给建议"，这句话由代码给出，
 # 不由模型生成——它是路由结果的说明，不是判断内容。
@@ -50,123 +41,6 @@ _NEEDS_MORE_INFO_DEFAULT = ["建议补充症状照片或到农技站咨询"]
 
 # `basis` 意外为空时的观察要点兜底。同上是防御性的：契约要求 `basis` 必填且逐条非空。
 _DEFAULT_OBSERVATION_POINT = "记录症状出现时间与范围变化"
-
-
-def build_diagnoser_prompt(
-    config: ProcessConfig,
-    state: ConsultationState,
-    evidence: list[dict],
-) -> list[dict]:
-    """拼装判定提示词。system 九段、user 四段。
-
-    system 里显式禁止百分比，与契约层不含分数字段形成双保险：技术方案 5.3.4 要求把握
-    程度用农户听得懂的话表达，而模型在自由生成时很容易写出"大约 70% 的可能是"。
-    易混淆项的鉴别点逐条注入，是"一份配置驱动三处行为"中判定这一处的落实。
-
-    user 只注入已确认槽位、现场事实、检索到的证据与用药史。证据由调用方裁剪后传入
-    （见 `_MAX_EVIDENCE_ROWS`），这里不做二次筛选。
-    """
-    system = [
-        f"你是{config.role_definition}，负责给出判断结论。",
-        f"你必须输出符合以下 JSON Schema 的内容：{json.dumps(DiagnosisResult.model_json_schema(), ensure_ascii=False)}",
-        "判断依据必须逐条列出，每条对应证据中的具体条目。",
-        "把握程度只能取 likely、preliminary、uncertain 三者之一，不得输出百分比或分数。",
-        "下列候选必须显式鉴别，不能只给结论：",
-        _format_confusables(config.confusable_items),
-        f"使用术语：{_format_terms(config.terminology.display_metrics)}",
-        f"严禁输出：{_format_redlines(config.redlines)}",
-        "证据不足以支撑结论时，选择 uncertain 并说明需要补什么，不要用模糊表述掩盖。",
-    ]
-    user = [
-        f"已确认信息：{_format_slots(config, state)}",
-        f"现场事实：{_format_observations(state.get('observations'))}",
-        f"检索到的证据：{_format_evidence(evidence)}",
-        f"档案用药史：{_format_history(state.get('prescription_history'))}",
-    ]
-    return [
-        {"role": "system", "content": "\n".join(system)},
-        {"role": "user", "content": "\n".join(user)},
-    ]
-
-
-def _format_terms(metrics: list[str]) -> str:
-    """本流程优先使用的指标口径。空列表给"无"，避免出现"使用术语："这类空段。"""
-    return "、".join(metrics) or "无"
-
-
-def _format_redlines(redlines: list[RedlineSpec]) -> str:
-    """流程红线。只给编号与说明：规则细节属闸门职责，此处的作用是让模型不做无谓尝试。"""
-    return "；".join(f"{item.id} {item.desc}" for item in redlines) or "无"
-
-
-def _format_confusables(pairs: list[ConfusablePair]) -> str:
-    """易混淆项及其决定性特征。特征必须一起给出：只给候选名，模型只会反复问"是哪一种"。"""
-    if not pairs:
-        return "无"
-    parts: list[str] = []
-    for pair in pairs:
-        features = "；".join(f"{name}：{'、'.join(pair.decisive_features.get(name, []))}" for name in pair.candidates)
-        parts.append(f"{'与'.join(pair.candidates)}（{features}）")
-    return " / ".join(parts)
-
-
-def _format_slots(config: ProcessConfig, state: ConsultationState) -> str:
-    """已确认与"答不出"的槽位。用口语标签而不是槽位键：键名对模型是噪声。
-
-    `unknown` 一并注入（`slot_summary` 已处理），这样模型知道"问过了但答不出"，才会降低
-    确定性表述而不是把它当成没问过。
-    """
-    summary = slot_summary(state)
-    if not summary:
-        return "无"
-    parts: list[str] = []
-    for key, value in summary.items():
-        spec = config.slot_spec(key)
-        parts.append(f"{spec.display_label if spec else key}={value}")
-    return "；".join(parts)
-
-
-def _format_observations(observations: object) -> str:
-    """现场事实摘要。state 里存的是 `ObservationResult` 序列化后的字典。"""
-    if not isinstance(observations, dict) or not observations:
-        return "无"
-    parts = [f"环境数据来源={observations.get('env_source') or '未知'}"]
-    facts = observations.get("observed_facts")
-    if isinstance(facts, dict) and facts:
-        parts.append("现场事实：" + "；".join(f"{key}={value}" for key, value in facts.items()))
-    note = observations.get("note")
-    if note:
-        parts.append(f"环境说明：{note}")
-    return "；".join(parts)
-
-
-def _format_evidence(evidence: list[dict]) -> str:
-    """证据摘要：标题加内容片段。
-
-    只给标题与内容摘要，不给条目 ID 与分值：判定要引用的是判据本身，条目 ID 由代码在
-    组装处方时使用，分值属检索内部信息，注入它会让模型把分数写进结论。
-    """
-    if not evidence:
-        return "无（知识库未命中相关条目）"
-    lines: list[str] = []
-    for item in evidence[:_MAX_EVIDENCE_ROWS]:
-        title = item.get("title") or item.get("knowledge_id") or "未命名条目"
-        content = str(item.get("content") or "")[:_CONTENT_CAP]
-        lines.append(f"- {title}：{content}")
-    return "\n".join(lines)
-
-
-def _format_history(history: object) -> str:
-    """档案用药史。字段形态由档案快照决定，这里只做通用展平而不假设具体键名。"""
-    if not isinstance(history, list) or not history:
-        return "无"
-    parts: list[str] = []
-    for item in history[:_MAX_HISTORY_ROWS]:
-        if isinstance(item, dict):
-            parts.append("；".join(f"{key}={value}" for key, value in item.items()) or "无")
-        else:
-            parts.append(str(item))
-    return " / ".join(parts)
 
 
 def _append_source(updates: dict[str, Any], result: DiagnosisResult, source: str) -> None:
@@ -336,4 +210,4 @@ class DiagnoserAgent(BaseAgent[DiagnosisResult]):
         )
 
 
-__all__ = ["DiagnoserAgent", "build_diagnoser_prompt"]
+__all__ = ["DiagnoserAgent"]

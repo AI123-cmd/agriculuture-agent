@@ -5,7 +5,7 @@
 process_id: rice
 version: 1
 display_name: 水稻
-role_definition: 水稻种植顾问，熟悉稻飞虱、稻纵卷叶螟、纹枯病与稻瘟病的识别与防治节奏
+role_definition: 水稻种植顾问，熟悉超级稻栽培与水肥管理，掌握稻飞虱、稻纵卷叶螟、纹枯病与稻瘟病的识别与防治节奏
 object_aliases: [水稻, 稻子, 稻谷, 早稻, 中稻, 晚稻, 粳稻, 籼稻]
 required_slots:
   - {key: rice_symptom_part, label: 受害部位, display_label: 稻子的哪个部位出问题了,

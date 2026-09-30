@@ -25,13 +25,12 @@ import respx
 from app.agent.agents.base import AgentContext
 from app.agent.agents.diagnoser import (
     _DEFAULT_OBSERVATION_POINT,
-    _MAX_EVIDENCE_ROWS,
     DiagnoserAgent,
-    build_diagnoser_prompt,
 )
 from app.agent.agents.exceptions import ContractViolation
 from app.agent.budget import ConsultBudget
 from app.agent.contracts import DiagnosisResult
+from app.agent.prompts.diagnoser import _MAX_EVIDENCE_ROWS, build_diagnoser_prompt
 from app.agent.state import ConsultationState, ProcessId, TaskType
 from app.llm import ModelGateway, build_gateway
 from app.llm.providers.base import ModelResponse

@@ -8,7 +8,7 @@
 process_id: general
 version: 1
 display_name: 通用农业
-role_definition: 通用农事顾问，覆盖未纳入专属流程的作物与问题，只给出观察与求助建议
+role_definition: 通用农事顾问，覆盖未纳入专属流程的大田作物、经济作物与果蔬种植问题，只给出观察与求助建议
 object_aliases: [农业, 种地, 庄稼, 作物, 病虫害, 种植]
 required_slots:
   # 只保留最基础的四到五项，且原则是"任何农户都能答"——兜底流程不能靠追问把

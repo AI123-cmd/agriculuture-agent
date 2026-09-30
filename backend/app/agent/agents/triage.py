@@ -18,11 +18,11 @@
 能区分"模型说没法归类"与"模型不可用"两种 general 占比。
 """
 
-import json
 from functools import lru_cache
 
 from app.agent.agents.base import AgentContext, BaseAgent, FailureMode
 from app.agent.contracts import ObjectConfirmRequest, TriageResult, dump_contract, match_object_alias
+from app.agent.prompts.triage import build_triage_prompt
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, TaskType
 from app.llm import ModelGateway, build_gateway
 from app.process_config.loader import get_process_config, load_all_configs
@@ -48,45 +48,17 @@ class TriageAgent(BaseAgent[TriageResult]):
     # ---- 输入构造 ----
 
     def build_messages(self, state: ConsultationState, ctx: AgentContext) -> list[dict]:
-        """拼装提示词：识别词与档案条目结构化注入，不拼接自由文本。
+        """拼装提示词。构造入口在模板包，识别词与档案条目结构化注入，不拼接自由文本。
 
         系统提示里显式写出"不得输出问句"是第二道防线，第一道是契约里根本没有问题字段。
         可选流程清单来自流程配置而不是硬编码表：新增一条流程只需加一份 YAML，识别词自动
         进入提示词，这是"流程配置是唯一事实来源"在提示词层的落实。
         """
-        profile = state.get("profile") or {}
-        system = [
-            "你是话农点金的分诊模块，唯一任务是把农户的问题归到七条流程之一。",
-            f"可选流程及其识别词：{self._format_process_keywords()}",
-            "你必须输出符合以下 JSON Schema 的内容：",
-            json.dumps(TriageResult.model_json_schema(), ensure_ascii=False),
-            "硬规则：不得生成任何问题。不得输出问句。",
-            "若无法确定流程，选择 general 并在 fallback_reason 中说明原因。",
-        ]
-        user = [
-            f"农户所在地区：{profile.get('location') or '未知'}",
-            f"档案中的经营条目：{self._format_entries(profile.get('entries'))}",
-            f"农户本次输入：{self._current_message_text(state)}",
-        ]
-        return [
-            {"role": "system", "content": "\n".join(system)},
-            {"role": "user", "content": "\n".join(user)},
-        ]
-
-    def _format_process_keywords(self) -> str:
-        """七条流程的识别词清单。每条别名只取前八个。
-
-        技术方案 10.4 指出长上下文会降低指令遵循度，而流程别名是长列表里最不具区分度的
-        部分：截断到八个既能覆盖主要表述，也不至于让提示词膨胀。
-        """
-        lines: list[str] = []
-        for pid in ProcessId:
-            config = self._configs.get(pid)
-            if config is None:
-                continue
-            aliases = "、".join(config.object_aliases[:8]) or "无"
-            lines.append(f"{pid.value}（{config.display_name}）：{aliases}")
-        return "\n".join(lines)
+        return build_triage_prompt(
+            self._configs,
+            state,
+            current_message=self._current_message_text(state),
+        )
 
     def _display_of(self, process_id: str | ProcessId) -> str:
         """流程的展示名。配置缺失或标识非法时回落到原值，绝不抛异常。
@@ -190,32 +162,6 @@ class TriageAgent(BaseAgent[TriageResult]):
         )
 
     # ---- 提示词输入的形态兼容 ----
-
-    @staticmethod
-    def _format_entries(entries: object) -> str:
-        """档案经营条目的可读摘要。
-
-        档案结构由调用方注入（T3-03 的 `FarmerProfile`），本层不导入它的模型，故只做形态
-        兼容：条目列表、单个条目、或缺失。
-        """
-        if not entries:
-            return "无"
-        items: list[object]
-        if isinstance(entries, dict):
-            items = [entries]
-        elif isinstance(entries, list):
-            items = list(entries)
-        else:
-            return str(entries)
-        parts: list[str] = []
-        for entry in items:
-            if isinstance(entry, dict):
-                process = entry.get("process_id") or "未指定"
-                started = entry.get("start_date") or "未记录"
-                parts.append(f"{process}（起于 {started}）")
-            else:
-                parts.append(str(entry))
-        return "、".join(parts) or "无"
 
     @staticmethod
     def _current_message_text(state: ConsultationState) -> str:

@@ -27,8 +27,12 @@ _MICROS_PER_YUAN = 1_000_000
 
 
 def micros_to_yuan(cost_micros: int) -> float:
-    """微元转元。展示层唯一换算点。"""
-    return cost_micros / _MICROS_PER_YUAN
+    """微元转元。展示层唯一换算点。
+
+    显式 `float(...)`：PostgreSQL 的 `sum()` 对 `BigInteger` 返回 `Decimal`，若直接相除
+    会让看板拿到 `Decimal`，与"金额以 float 展示"的口径不符（且 `Decimal - float` 会抛）。
+    """
+    return float(cost_micros) / _MICROS_PER_YUAN
 
 
 @dataclass(frozen=True, slots=True)

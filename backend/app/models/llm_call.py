@@ -39,7 +39,9 @@ class LlmCall(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # 匿名调用（未登录）可为空；有归属时用于成本按用户分摊。
-    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True, comment="归属用户ID，匿名调用可为空"
+    )
     consultation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     process_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     agent: Mapped[str] = mapped_column(String(30), nullable=False, index=True, comment="智能体名")

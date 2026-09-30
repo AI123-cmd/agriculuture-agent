@@ -18,7 +18,14 @@ from app.llm.errors import (
 )
 from app.llm.factory import build_gateway, get_gateway
 from app.llm.gateway import CallAuditor, ModelGateway
-from app.llm.metering import CallContext, ModelPricing, NullTokenMeter, TokenMeter, TokenMeterImpl, pricing_from_settings
+from app.llm.metering import (
+    CallContext,
+    ModelPricing,
+    NullTokenMeter,
+    TokenMeter,
+    TokenMeterImpl,
+    pricing_from_settings,
+)
 from app.llm.providers.base import ModelProvider, ModelResponse
 from app.llm.providers.mock import MockProvider
 from app.llm.router import ModelCandidate, ModelRouter, RoutingDecision

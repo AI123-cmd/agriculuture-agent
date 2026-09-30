@@ -28,8 +28,9 @@ import respx
 
 from app.agent.agents.base import AgentContext
 from app.agent.agents.followup_builder import HERBICIDE_DAMAGE_BRANCH, build_followup_plan
-from app.agent.agents.prescriber import PrescriberAgent, build_prescriber_prompt
+from app.agent.agents.prescriber import PrescriberAgent
 from app.agent.contracts import DiagnosisResult, EvidenceItem, EvidenceQuery, PesticideItem, Prescription
+from app.agent.prompts.prescriber import build_prescriber_prompt
 from app.agent.state import ConsultationState, ProcessId, TaskType
 from app.llm import ModelGateway, build_gateway
 from app.llm.providers.base import ModelResponse
