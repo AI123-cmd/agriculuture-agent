@@ -78,10 +78,13 @@ ignore = ["E501"]
 "app/llm/tiers.py" = ["UP042"]
 "app/llm/circuit.py" = ["UP042"]
 "app/llm/enums.py" = ["UP042"]
+"app/llm/fallback.py" = ["UP042"]
 # 适配器协议的 `timeout` 参数是技术方案 10.2 的接口原文，也是 httpx 施加超时的
 # 正规做法（`AsyncClient(timeout=...)` 覆盖连接与读取全程）；ASYNC109 想拦的是
-# "自己 sleep 却不设超时"那类漏设超时的写法，与这里的语义不符。
+# "自己 sleep 却不设超时"那类漏设超时的写法，与这里的语义不符。三层保障的
+# `chat_with_structured` 同样把 `timeout` 透传给适配器，不是自行 sleep。
 "app/llm/providers/*.py" = ["ASYNC109"]
+"app/llm/structured.py" = ["ASYNC109"]
 # app/main.py 在 win32 上必须在导入 FastAPI 之前设置事件循环策略（psycopg 异步
 # 连接池不支持 ProactorEventLoop），因此业务导入必须排在该语句之后。
 "app/main.py" = ["E402"]

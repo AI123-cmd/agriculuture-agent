@@ -379,7 +379,9 @@ class _StaticRouter:
         return self._decision
 
 
-def _single_candidate_gateway(provider_name: str, provider: object, threshold: int) -> tuple[ModelGateway, CircuitBreaker]:
+def _single_candidate_gateway(
+    provider_name: str, provider: object, threshold: int
+) -> tuple[ModelGateway, CircuitBreaker]:
     decision = RoutingDecision(
         task_type=TaskType.TRIAGE,
         tier=ModelTier.SMALL,
