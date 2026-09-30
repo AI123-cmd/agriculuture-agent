@@ -4,7 +4,6 @@ from functools import lru_cache
 
 from .ai_service import AIService
 from .auth_service import AuthService
-from .broadcast_service import BroadcastService
 from .environment_service import EnvironmentService
 from .farmer_service import FarmerService
 from .location_service import LocationService
@@ -26,11 +25,6 @@ def get_farmer_service() -> FarmerService:
 @lru_cache
 def get_location_service() -> LocationService:
     return LocationService()
-
-
-@lru_cache
-def get_broadcast_service() -> BroadcastService:
-    return BroadcastService()
 
 
 @lru_cache
@@ -62,7 +56,6 @@ __all__ = [
     "get_auth_service",
     "get_farmer_service",
     "get_location_service",
-    "get_broadcast_service",
     "get_environment_service",
     "get_ai_service",
     "get_memory_service",

@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.main import app as fastapi_app
-from app.models import AIConversation, AIMessage, BroadcastLog, FarmerProfile, UserProfileTag
+from app.models import AIConversation, AIMessage, FarmerProfile, UserProfileTag
 from tests.fixtures.two_users import TwoUsers, two_users  # noqa: F401  夹具需在本模块可见
 
 pytestmark = pytest.mark.usefixtures("requires_postgres")
@@ -199,51 +199,6 @@ async def test_environment_detail_excludes_other_users_devices(two_users: TwoUse
     ids = [d["id"] for d in resp.json()["data"]["devices"]]
     assert ids == [two_users.b_device]
     assert two_users.a_device not in ids
-
-
-# ---------------------------------------------------------------- 播报（读 + 写）
-
-
-async def test_broadcast_today_excludes_other_users_items(two_users: TwoUsers) -> None:
-    """B 的今日播报不含 A 的条目（A 的条目确实存在，故该断言有区分度）。"""
-    factory = two_users.session_factory
-    assert await _count(factory, BroadcastLog, id=two_users.a_broadcast) == 1
-
-    async with _client(two_users.b, factory) as http:
-        resp = await http.get("/api/broadcast/today")
-
-    assert resp.status_code == 200
-    ids = [item["id"] for item in resp.json()["data"]["items"]]
-    assert two_users.a_broadcast not in ids
-    assert two_users.b_broadcast in ids
-
-
-async def test_mark_done_on_other_users_item_changes_nothing(two_users: TwoUsers) -> None:
-    """B 标记 A 的播报完成：请求成功但 A 的 done 仍为 0。"""
-    factory = two_users.session_factory
-    async with _client(two_users.b, factory) as http:
-        resp = await http.post("/api/broadcast/mark-done", json={"itemId": two_users.a_broadcast})
-
-    assert resp.status_code == 200
-    async with factory() as db:
-        done = (
-            await db.execute(select(BroadcastLog.done).where(BroadcastLog.id == two_users.a_broadcast))
-        ).scalar_one()
-    assert done == 0
-
-
-async def test_mark_done_on_own_item_works(two_users: TwoUsers) -> None:
-    """对照：B 标记自己的播报生效，证明上一条的 0 来自归属过滤。"""
-    factory = two_users.session_factory
-    async with _client(two_users.b, factory) as http:
-        resp = await http.post("/api/broadcast/mark-done", json={"itemId": two_users.b_broadcast})
-
-    assert resp.status_code == 200
-    async with factory() as db:
-        done = (
-            await db.execute(select(BroadcastLog.done).where(BroadcastLog.id == two_users.b_broadcast))
-        ).scalar_one()
-    assert done == 1
 
 
 # ------------------------------------------------- 会话接管（真实 token / 真实 lifespan）

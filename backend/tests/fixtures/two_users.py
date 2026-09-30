@@ -6,7 +6,6 @@
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import date
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -14,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.models import (
     AIConversation,
     AIMessage,
-    BroadcastLog,
     Crop,
     Device,
     FarmerProfile,
@@ -23,10 +21,6 @@ from app.models import (
     User,
     UserProfileTag,
 )
-
-# 播报按"今天"落库：`/api/broadcast/today` 只查当日，用今天才能让"跨用户不可见"
-# 这条读断言真正有区分度（否则 B 的条目本来就不在结果里，断言等于没测）。
-BROADCAST_DATE = date.today().isoformat()
 
 
 @dataclass
@@ -38,8 +32,6 @@ class TwoUsers:
     session_factory: async_sessionmaker[AsyncSession]
     a_conversation: str = ""
     b_conversation: str = ""
-    a_broadcast: str = ""
-    b_broadcast: str = ""
     a_device: str = ""
     b_device: str = ""
     a_tag: str = ""
@@ -104,20 +96,6 @@ async def _seed_for(db: AsyncSession, user_id: str, *, key: str, label: str) -> 
         )
     )
     db.add(
-        BroadcastLog(
-            id=f"bc-{key}",
-            user_id=user_id,
-            date=BROADCAST_DATE,
-            time="09:00",
-            title=f"{label}的播报",
-            content=f"{label}的播报内容",
-            type="info",
-            level="normal",
-            source="sensor",
-            done=0,
-        )
-    )
-    db.add(
         Location(
             id=f"loc-{key}",
             user_id=user_id,
@@ -140,7 +118,6 @@ async def _seed_for(db: AsyncSession, user_id: str, *, key: str, label: str) -> 
         "crop": f"crop-{key}",
         "tag": f"tag-{key}",
         "device": f"dev-{key}",
-        "broadcast": f"bc-{key}",
         "location": f"loc-{key}",
         "memory": f"mem-{key}",
     }
@@ -163,8 +140,6 @@ async def two_users(engine) -> AsyncIterator[TwoUsers]:
         session_factory=factory,
         a_conversation=ids_a["conversation"],
         b_conversation=ids_b["conversation"],
-        a_broadcast=ids_a["broadcast"],
-        b_broadcast=ids_b["broadcast"],
         a_device=ids_a["device"],
         b_device=ids_b["device"],
         a_tag=ids_a["tag"],
@@ -174,4 +149,4 @@ async def two_users(engine) -> AsyncIterator[TwoUsers]:
     )
 
 
-__all__ = ["BROADCAST_DATE", "TwoUsers", "two_users"]
+__all__ = ["TwoUsers", "two_users"]
