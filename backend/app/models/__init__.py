@@ -2,6 +2,14 @@ from .broadcast import BroadcastLog
 from .conversation import AIConversation, AIMessage
 from .crop import Crop
 from .device import Device
+from .enums import (
+    Channel,
+    EnvSource,
+    FailReason,
+    ReachStatus,
+    Severity,
+    SourceKind,
+)
 from .env_reading import EnvReading
 from .event_outbox import EventOutbox
 from .farmer_profile import FarmerProfile
@@ -15,6 +23,8 @@ from .location import Location
 from .memory_summary import MemorySummary
 from .process_config import ProcessConfigRow, ProcessRedlineRow
 from .profile_tag import UserProfileTag
+from .reach_record import ReachRecord, SubscriptionQuota
+from .snapshot import PromptItem, PromptSnapshot
 from .user import User
 
 __all__ = [
@@ -39,4 +49,14 @@ __all__ = [
     "ProcessRedlineRow",
     "GateAudit",
     "GateReviewTicket",
+    "PromptSnapshot",
+    "PromptItem",
+    "SubscriptionQuota",
+    "ReachRecord",
+    "EnvSource",
+    "SourceKind",
+    "Severity",
+    "Channel",
+    "ReachStatus",
+    "FailReason",
 ]
