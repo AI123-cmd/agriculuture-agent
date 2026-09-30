@@ -33,9 +33,11 @@ class UnreadableTemplate(Exception):
 
 
 # 方案 10.3 的四条出口与各 TaskType 对齐。每一条都有对应，装配期无需再做"缺项回退"
-# ——缺项本身即配置错误，由测试断言覆盖全量。
+# ——缺项本身即配置错误，由测试断言覆盖全量。`OBSERVE` 与 `TRIAGE` 同为"证据不足"语境：
+# 现场采集的模型候选全部失败时，按不确定处理并引导农户补充照片与关键症状。
 TASK_DEGRADE_EXIT: dict[TaskType, DegradeExit] = {
     TaskType.TRIAGE: DegradeExit.UNCERTAIN_WITH_GUIDE,  # 回退 general 并说明
+    TaskType.OBSERVE: DegradeExit.UNCERTAIN_WITH_GUIDE,  # 引导补充照片与关键症状
     TaskType.INTERVIEW: DegradeExit.TEMPLATE_QUESTION,
     TaskType.DIAGNOSE: DegradeExit.UNCERTAIN_WITH_GUIDE,
     TaskType.PRESCRIBE: DegradeExit.REQUIRE_TECH_STATION,

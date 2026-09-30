@@ -68,10 +68,11 @@ class CircuitBreaker:
         if st.state is CircuitState.CLOSED:
             return True
         if st.state is CircuitState.OPEN:
-            if self._cooled_down(st):
-                self._set_state(provider, st, CircuitState.HALF_OPEN)
-                return True
-            return False
+            if not self._cooled_down(st):
+                return False
+            # 冷却结束：转入 HALF_OPEN。这一次放行本身就是探针，必须计入探针预算，
+            # 否则实际放行数是 1 + half_open_probes，比配置多一个并发请求。
+            self._set_state(provider, st, CircuitState.HALF_OPEN)
         # HALF_OPEN：只放行有限个探针，用完即拒（不再放行，等待结果回写状态）
         return self._half_open_budget(st)
 
