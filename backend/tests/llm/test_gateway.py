@@ -114,6 +114,7 @@ class _RecordingMeter:
 
     def __init__(self) -> None:
         self.calls: list[tuple[object, ModelResponse, ModelCandidate, bool]] = []
+        self.degraded: list[bool] = []
 
     async def record(
         self,
@@ -122,8 +123,12 @@ class _RecordingMeter:
         candidate: ModelCandidate,
         *,
         is_fallback: bool = False,
+        is_degraded: bool = False,
+        ctx: object = None,
+        input_digest: str | None = None,
     ) -> None:
         self.calls.append((task_type, response, candidate, is_fallback))
+        self.degraded.append(is_degraded)
 
 
 def _decision(*providers: str, max_rounds: int = 6) -> RoutingDecision:

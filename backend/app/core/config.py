@@ -123,6 +123,12 @@ class Settings(BaseSettings):
     # 文案直接用模板原文，不发起任何模型调用。维护期主动关闭模型或外部服务全局中断时使用。
     ZERO_MODEL_MODE: bool = False
 
+    # 模型单价表（T2-59）。键是模型名，值是 `[输入单价, 输出单价]`，单位"每千 token 的
+    # 微元"（1e-6 元）。输入与输出分开计价，因为多数供应商的输出单价远高于输入。未配置
+    # 单价的模型记录 token 但成本记 0，而不是报错：单价更新滞后于模型上线是常态。
+    # 环境变量用 JSON 对象传入，如 `{"deepseek-v4-flash": [1000, 2000]}`。
+    LLM_MODEL_PRICING: dict[str, list[int]] = {}
+
     # AI 多轮诊断编排（LangGraph）
     LLM_DEFAULT_MODEL: str = "deepseek-v4-flash"
     CONFIDENCE_HIGH_THRESHOLD: int = 3

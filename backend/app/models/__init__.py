@@ -10,6 +10,7 @@ from .gate_audit import GateAudit
 from .gate_review_ticket import GateReviewTicket
 from .knowledge import KnowledgeItem, KnowledgeRegion
 from .knowledge_review import KnowledgeReviewLog
+from .llm_call import LlmCall
 from .location import Location
 from .memory_summary import MemorySummary
 from .process_config import ProcessConfigRow, ProcessRedlineRow
@@ -32,6 +33,7 @@ __all__ = [
     "KnowledgeItem",
     "KnowledgeRegion",
     "KnowledgeReviewLog",
+    "LlmCall",
     "EventOutbox",
     "ProcessConfigRow",
     "ProcessRedlineRow",

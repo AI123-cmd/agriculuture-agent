@@ -98,7 +98,14 @@ class ModelGateway:
             if response.error is None:
                 self._circuit.record_success(candidate.provider)
                 self._auditor.record_output_digest(digest, response.content)
-                await self._meter.record(task_type, response, candidate, is_fallback=response.is_fallback)
+                await self._meter.record(
+                    task_type,
+                    response,
+                    candidate,
+                    is_fallback=response.is_fallback,
+                    is_degraded=candidate.is_degraded,
+                    input_digest=digest,
+                )
                 return response
             last_error = response.error
             last_candidate = candidate
@@ -109,7 +116,14 @@ class ModelGateway:
         # 可信的 token 数，为每次尝试都写一条会污染成本统计（技术方案 10.4）。失败次数
         # 已由上面的 `record_failure` 计入熔断器，与计量分开。
         if last_response is not None and last_candidate is not None:
-            await self._meter.record(task_type, last_response, last_candidate, is_fallback=last_response.is_fallback)
+            await self._meter.record(
+                task_type,
+                last_response,
+                last_candidate,
+                is_fallback=last_response.is_fallback,
+                is_degraded=last_candidate.is_degraded,
+                input_digest=digest,
+            )
         raise AllProvidersFailedError(str(task_type.value), last_error)
 
     async def _invoke(

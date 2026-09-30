@@ -113,7 +113,17 @@ def _gateway(
 
 
 class _NullMeter:
-    async def record(self, task_type, response, candidate, *, is_fallback: bool = False) -> None:
+    async def record(
+        self,
+        task_type,
+        response,
+        candidate,
+        *,
+        is_fallback: bool,
+        is_degraded: bool = False,
+        ctx=None,
+        input_digest=None,
+    ) -> None:
         return None
 
 

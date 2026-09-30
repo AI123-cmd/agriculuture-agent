@@ -18,7 +18,7 @@ from app.llm.errors import (
 )
 from app.llm.factory import build_gateway, get_gateway
 from app.llm.gateway import CallAuditor, ModelGateway
-from app.llm.metering import NullTokenMeter, TokenMeter
+from app.llm.metering import CallContext, ModelPricing, NullTokenMeter, TokenMeter, TokenMeterImpl, pricing_from_settings
 from app.llm.providers.base import ModelProvider, ModelResponse
 from app.llm.providers.mock import MockProvider
 from app.llm.router import ModelCandidate, ModelRouter, RoutingDecision
@@ -28,12 +28,14 @@ __all__ = [
     "DEFAULT_TIER_MAP",
     "AllProvidersFailedError",
     "CallAuditor",
+    "CallContext",
     "CircuitBreaker",
     "CircuitState",
     "MockProvider",
     "ModelCandidate",
     "ModelError",
     "ModelGateway",
+    "ModelPricing",
     "ModelProvider",
     "ModelResponse",
     "ModelRouter",
@@ -45,8 +47,10 @@ __all__ = [
     "TaskType",
     "TierSpec",
     "TokenMeter",
+    "TokenMeterImpl",
     "TransientModelError",
     "build_gateway",
     "get_gateway",
+    "pricing_from_settings",
     "trim_messages",
 ]
