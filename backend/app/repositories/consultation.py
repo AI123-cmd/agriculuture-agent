@@ -11,7 +11,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import exists
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Consultation, FollowupTask
@@ -31,13 +31,13 @@ class ConsultationRepository(OwnedRepository[Consultation]):
         `followup_task.consultation_id` 索引天然对齐。
         """
         uid = self._require_user(user_id)
-        registered = exists().where(
+        registered = select(FollowupTask.id).where(
             FollowupTask.consultation_id == Consultation.id,
             FollowupTask.user_id == uid,
         )
         stmt = (
             self._owned_query(uid)
-            .where(Consultation.status == ConsultStatus.OBSERVING.value, ~registered)
+            .where(Consultation.status == ConsultStatus.OBSERVING.value, ~registered.exists())
             .order_by(Consultation.update_time)
         )
         return (await db.execute(stmt)).scalars().all()
