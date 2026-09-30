@@ -111,12 +111,19 @@ class FollowupTaskSpec(BaseModel):
 
 
 class FollowupPolicy(BaseModel):
-    """流程的回访策略。`window_based=True` 表示按生育期窗口而非固定天数回访。"""
+    """流程的回访策略。`window_based=True` 表示按生育期窗口而非固定天数回访。
+
+    `observation_days` 是"观察期阈值"：处于 `observing` 的问诊（只有观察建议、无处方）
+    距上次交互满该天数后，由 T3-04 转为首页跟进提示。它按流程可配，默认 2 天与
+    "先观察两天再看看"的产品文案一致；此处把它放进流程配置而不是写死在代码里，
+    因为不同流程的观察节奏不同。
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     triggers: list[FollowupTaskSpec]
     window_based: bool = False
+    observation_days: int = 2
 
 
 class OfflineQuestion(BaseModel):

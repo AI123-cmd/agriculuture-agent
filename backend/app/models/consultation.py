@@ -18,9 +18,17 @@
 `prescription_card.consultation_id` 与 `followup_task.consultation_id` /
 `prescription_card_id` 是技术方案 12.7 的两条高优先级外键，用显式命名与迁移逐字对齐，
 `ondelete` 保持默认 `RESTRICT`——处方与回访是审计链路，不允许级联删除。
+
+**T3-04 读取的展示字段**：技术方案 11.2 的 `collect_consult_signals` 直接读
+`c.object_label` / `c.topic_summary` / `c.days_ago()` 与 `f.object_label` / `f.ask` /
+`f.content_rule`，而 12.4 骨架没有这些列。按"逻辑以新文档为主"，这里就地补齐：
+`object_label` 来自 T2-09 分诊结果的对象显示名（如"水稻·3亩"），`topic_summary` 是本次
+问诊的主题摘要，二者在 T2-33 落库时写入；`ask` / `content_rule` 来自 T2-11 处方契约的
+`FollowupTask`，由 T3-09 登记回访任务时写入。`days_ago()` 与 `needs_followup_check()`
+是派生判定（读 `update_time`），不落库。
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
@@ -61,6 +69,8 @@ class Consultation(Base, TimestampMixin, OwnedMixin):
     process_id: Mapped[str] = mapped_column(String(20), nullable=False, comment="七条流程之一")
     process_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="流程是否锁定")
     title: Mapped[str] = mapped_column(String(60), nullable=False, comment="会话标题")
+    object_label: Mapped[str] = mapped_column(String(60), nullable=False, comment="对象显示名，如 水稻·3亩")
+    topic_summary: Mapped[str] = mapped_column(String(120), nullable=False, comment="本次问诊主题摘要")
     stage: Mapped[str] = mapped_column(String(20), nullable=False, comment="当前阶段")
     rounds: Mapped[int] = mapped_column(Integer, nullable=False, default=0, comment="追问轮次")
     status: Mapped[str] = mapped_column(
@@ -72,6 +82,29 @@ class Consultation(Base, TimestampMixin, OwnedMixin):
     @validates("status")
     def _validate_status(self, key: str, value: Any) -> Any:
         return coerce_enum(ConsultStatus, value)
+
+    def days_ago(self, today: date | None = None) -> int:
+        """距上次交互（`update_time`）的整天数，负值归零。
+
+        `update_time` 由 `TimestampMixin` 维护，每轮追问都会刷新，因此它就是
+        "上次交互"的时点。列带时区，这里只取其日期部分与 `today` 相减——跨时区
+        的边界误差在"第几天该回访"这一粒度上可忽略，且不引入额外时区依赖。
+        """
+        last = self.update_time or self.create_time
+        last_date = last.date() if isinstance(last, datetime) else last
+        return max((today or date.today()) - last_date).days
+
+    def needs_followup_check(self, today: date, observation_days: int) -> bool:
+        """观察期问诊是否已到期该跟进。
+
+        判定是两段：`status == observing` 且距上次交互天数已达该流程的观察期阈值
+        （`observation_days` 由调用方从流程配置取，模型不自行读取配置）。"未到
+        T3-09 登记的回访时点"这一段由 `list_observing` 在查询层排除已有回访任务的
+        会话来保证——两处合起来才是不与到期回访来源重复的完整条件。
+        """
+        if self.status != ConsultStatus.OBSERVING.value:
+            return False
+        return self.days_ago(today) >= observation_days
 
 
 class PrescriptionCard(Base, OwnedMixin):
@@ -144,6 +177,11 @@ class FollowupTask(Base, OwnedMixin):
     )
     kind: Mapped[str] = mapped_column(
         String(30), nullable=False, comment="effect_check/risk_check/preserve_scene/observe/compliance_check"
+    )
+    object_label: Mapped[str] = mapped_column(String(60), nullable=False, comment="对象显示名，如 水稻·3亩")
+    ask: Mapped[str] = mapped_column(String(120), nullable=False, comment="回访询问语，来自处方契约")
+    content_rule: Mapped[str | None] = mapped_column(
+        String(60), nullable=True, comment="内容规则标识，如 weed.damage_evidence_checklist"
     )
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, comment="到期时点")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", comment="pending/done/skipped")

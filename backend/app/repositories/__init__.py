@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.base import OwnedRepository
 from app.repositories.broadcast import BroadcastLogRepository, broadcast_repo
+from app.repositories.consultation import ConsultationRepository, consult_repo
 from app.repositories.conversation import (
     ConversationRepository,
     CropRepository,
@@ -19,6 +20,7 @@ from app.repositories.conversation import (
 from app.repositories.device import DeviceRepository, device_repo
 from app.repositories.env import EnvReadingRepository, env_reading_repo
 from app.repositories.field import FieldRepository, field_repo
+from app.repositories.followup import FollowupRepository, followup_repo
 from app.repositories.location import LocationRepository, location_repo
 from app.repositories.memory import MemorySummaryRepository, memory_repo
 from app.repositories.message import ConversationScopedRepository, message_repo
@@ -48,6 +50,8 @@ class Repositories:
     broadcast: BroadcastLogRepository = broadcast_repo
     conversation: ConversationRepository = conversation_repo
     message: ConversationScopedRepository = message_repo
+    consult: ConsultationRepository = consult_repo
+    followup: FollowupRepository = followup_repo
     user: UserRepository = user_repo
 
 
@@ -55,19 +59,23 @@ __all__ = [
     "OwnedRepository",
     "ConversationRepository",
     "ConversationScopedRepository",
+    "ConsultationRepository",
     "CropRepository",
     "FarmerProfileRepository",
     "BroadcastLogRepository",
     "DeviceRepository",
     "EnvReadingRepository",
     "FieldRepository",
+    "FollowupRepository",
     "LocationRepository",
     "MemorySummaryRepository",
     "ProfileTagRepository",
     "UserRepository",
     "Repositories",
     "conversation_repo",
+    "consult_repo",
     "crop_repo",
+    "followup_repo",
     "message_repo",
     "profile_repo",
     "broadcast_repo",

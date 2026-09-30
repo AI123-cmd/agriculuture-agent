@@ -52,6 +52,8 @@ def upgrade() -> None:
         sa.Column("process_id", sa.String(20), nullable=False, comment="七条流程之一"),
         sa.Column("process_locked", sa.Boolean(), nullable=False, comment="流程是否锁定"),
         sa.Column("title", sa.String(60), nullable=False, comment="会话标题"),
+        sa.Column("object_label", sa.String(60), nullable=False, comment="对象显示名，如 水稻·3亩"),
+        sa.Column("topic_summary", sa.String(120), nullable=False, comment="本次问诊主题摘要"),
         sa.Column("stage", sa.String(20), nullable=False, comment="当前阶段"),
         sa.Column("rounds", sa.Integer(), nullable=False, comment="追问轮次"),
         sa.Column(
@@ -117,6 +119,14 @@ def upgrade() -> None:
             sa.String(30),
             nullable=False,
             comment="effect_check/risk_check/preserve_scene/observe/compliance_check",
+        ),
+        sa.Column("object_label", sa.String(60), nullable=False, comment="对象显示名，如 水稻·3亩"),
+        sa.Column("ask", sa.String(120), nullable=False, comment="回访询问语，来自处方契约"),
+        sa.Column(
+            "content_rule",
+            sa.String(60),
+            nullable=True,
+            comment="内容规则标识，如 weed.damage_evidence_checklist",
         ),
         sa.Column("due_at", sa.DateTime(timezone=True), nullable=False, comment="到期时点"),
         sa.Column("status", sa.String(20), nullable=False, comment="pending/done/skipped"),
