@@ -88,7 +88,12 @@ def upgrade() -> None:
         sa.Column("fact", sa.Text(), nullable=False, comment="事实"),
         sa.Column("impact", sa.Text(), nullable=False, comment="影响"),
         sa.Column("action", sa.Text(), nullable=False, comment="行动"),
-        sa.Column("facts_provenance", postgresql.JSONB(), nullable=False, comment="事实来源映射"),
+        sa.Column(
+            "facts_provenance",
+            postgresql.JSONB(),
+            nullable=False,
+            comment="事实来源映射，形如 {字段路径: 来源标识}",
+        ),
         sa.Column("rule_id", sa.String(40), nullable=False),
         sa.Column("priority_score", sa.Numeric(8, 3), nullable=False, comment="排序键，三维拼接为稳定分数"),
         sa.Column("suppressed", sa.Boolean(), nullable=False, comment="被条数控制截断"),
