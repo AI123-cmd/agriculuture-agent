@@ -12,6 +12,8 @@
 结构性保证。
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.agent.state import AnswerType, ProcessId, SlotGroup, ViolationSeverity
@@ -79,6 +81,23 @@ class TimingRule(BaseModel):
     id: str
     when: dict
     prompt: str
+
+
+class UrgencySpec(BaseModel):
+    """紧急判定的双条件规格（T3-06，技术方案 11.3）。
+
+    `severe_ratio` 是"严重偏离"的归一化幅度阈值（如 0.1 表示偏离 10% 以上）；`sensitive_stages`
+    列出该流程的敏感生育期名单。两条同时命中才判 `urgent`，单条件只给 `notice`。这些数值
+    需要农技人员按流程校准，故放在流程配置而非代码里。
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    metric: str
+    threshold: float
+    direction: Literal["above", "below"]
+    severe_ratio: float = 0.1
+    sensitive_stages: list[str] = []
 
 
 class OutputTemplateSpec(BaseModel):
@@ -184,6 +203,8 @@ class ProcessConfig(BaseModel):
     object_aliases: list[str] = []
     confusable_items: list[ConfusablePair]
     banned_topics: list[str] = []
+    # T3-06：紧急判定双条件规格，键为 `rule_id`。未登记即不紧急（fail-safe）。
+    urgency_specs: dict[str, UrgencySpec] = {}
 
     def required_slot_keys(self) -> list[str]:
         """必问槽位的 key 列表（`required=True` 的那些）。"""
@@ -220,4 +241,5 @@ __all__ = [
     "SlotSpec",
     "TerminologySpec",
     "TimingRule",
+    "UrgencySpec",
 ]

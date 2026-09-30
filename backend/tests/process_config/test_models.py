@@ -54,9 +54,9 @@ def _minimal(**overrides) -> dict:
     return base
 
 
-def test_field_count_is_16() -> None:
-    """字段数固定为 16，与技术方案 9.1 逐一对应。"""
-    assert len(ProcessConfig.model_fields) == 16
+def test_field_count_is_17() -> None:
+    """字段数固定为 17：技术方案 9.1 的 16 项 + T3-06 的 `urgency_specs`（紧急双条件）。"""
+    assert len(ProcessConfig.model_fields) == 17
 
 
 def test_valid_config_loads() -> None:
