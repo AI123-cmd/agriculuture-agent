@@ -73,6 +73,9 @@ ignore = ["E501"]
 "app/knowledge/status.py" = ["UP042"]
 # app/models/enums.py 的六个提示与触达枚举同样按技术方案明文继承 `str, Enum`。
 "app/models/enums.py" = ["UP042"]
+# app/domain/metrics.py 的 StandardMetric 与其余流程枚举同风格继承 `str, Enum`：
+# 取值即落库字符串，`str` 混入让 `StandardMetric.AIR_TEMP == "air_temp"` 成立。
+"app/domain/metrics.py" = ["UP042"]
 # app/services/knowledge_review.py 的 KnowledgeAction 同样按技术方案明文继承 `str, Enum`。
 "app/services/knowledge_review.py" = ["UP042"]
 "app/agent/budget.py" = ["UP042"]

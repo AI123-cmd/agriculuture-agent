@@ -17,6 +17,7 @@ from app.repositories.conversation import (
     crop_repo,
 )
 from app.repositories.device import DeviceRepository, device_repo
+from app.repositories.env import EnvReadingRepository, env_reading_repo
 from app.repositories.field import FieldRepository, field_repo
 from app.repositories.location import LocationRepository, location_repo
 from app.repositories.memory import MemorySummaryRepository, memory_repo
@@ -40,6 +41,7 @@ class Repositories:
     crop: CropRepository = crop_repo
     tag: ProfileTagRepository = tag_repo
     device: DeviceRepository = device_repo
+    env_reading: EnvReadingRepository = env_reading_repo
     location: LocationRepository = location_repo
     field: FieldRepository = field_repo
     memory: MemorySummaryRepository = memory_repo
@@ -57,6 +59,7 @@ __all__ = [
     "FarmerProfileRepository",
     "BroadcastLogRepository",
     "DeviceRepository",
+    "EnvReadingRepository",
     "FieldRepository",
     "LocationRepository",
     "MemorySummaryRepository",
@@ -69,6 +72,7 @@ __all__ = [
     "profile_repo",
     "broadcast_repo",
     "device_repo",
+    "env_reading_repo",
     "field_repo",
     "location_repo",
     "memory_repo",
