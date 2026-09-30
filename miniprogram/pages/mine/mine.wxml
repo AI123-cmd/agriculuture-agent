@@ -2,11 +2,18 @@
 <view class="mine-page">
   <!-- 顶部用户信息 -->
   <view class="header">
-    <view class="user-card" bindtap="showProfileActions">
-      <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
-      <view class="user-info">
-        <view class="nickname">{{nickName}}</view>
-        <view class="farmer-tag" wx:if="{{farmerName}}">农户：{{farmerName}}</view>
+    <view class="header-deco deco-1"></view>
+    <view class="header-deco deco-2"></view>
+    <view class="header-main">
+      <view class="user-card" bindtap="showProfileActions">
+        <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
+        <view class="user-info">
+          <view class="nickname">{{nickName}}</view>
+          <view class="farmer-tag" wx:if="{{farmerName}}">农户：{{farmerName}}</view>
+        </view>
+      </view>
+      <view class="mascot-wrap">
+        <sprout-mascot size="{{96}}" />
       </view>
     </view>
   </view>

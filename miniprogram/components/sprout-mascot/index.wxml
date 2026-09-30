@@ -1,0 +1,24 @@
+<!--小禾 IP 形象：绿芽精灵 + 草帽-->
+<view class="mascot" style="width: {{size}}rpx; height: {{size}}rpx;">
+  <view class="mascot-inner" style="transform: scale({{scale}});">
+    <!-- 两片嫩叶（泛指作物幼苗） -->
+    <view class="leaf leaf-l"></view>
+    <view class="leaf leaf-r"></view>
+
+    <!-- 草帽 -->
+    <view class="hat">
+      <view class="hat-top"></view>
+      <view class="hat-band"></view>
+      <view class="hat-brim"></view>
+    </view>
+
+    <!-- 脸蛋 -->
+    <view class="face">
+      <view class="eye eye-l"><view class="eye-hl"></view></view>
+      <view class="eye eye-r"><view class="eye-hl"></view></view>
+      <view class="blush blush-l"></view>
+      <view class="blush blush-r"></view>
+      <view class="mouth"></view>
+    </view>
+  </view>
+</view>

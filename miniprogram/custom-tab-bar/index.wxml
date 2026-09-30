@@ -1,14 +1,33 @@
 <view class="tab-bar">
   <view class="tab-item {{selected === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0">
+    <view class="tab-icon home-icon">
+      <view class="home-roof"></view>
+      <view class="home-body"></view>
+    </view>
     <text class="tab-label">首页</text>
   </view>
-  <view class="tab-item {{selected === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">
-    <text class="tab-label">咨询</text>
+
+  <!-- 中央凸起的小禾咨询入口 -->
+  <view class="tab-item tab-center {{selected === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1">
+    <view class="center-btn">
+      <sprout-mascot size="{{72}}" />
+    </view>
+    <text class="tab-label">问小禾</text>
   </view>
+
   <view class="tab-item {{selected === 2 ? 'active' : ''}}" bindtap="switchTab" data-index="2">
+    <view class="tab-icon history-icon">
+      <view class="clock-hand-h"></view>
+      <view class="clock-hand-m"></view>
+    </view>
     <text class="tab-label">历史</text>
   </view>
+
   <view class="tab-item {{selected === 3 ? 'active' : ''}}" bindtap="switchTab" data-index="3">
+    <view class="tab-icon mine-icon">
+      <view class="mine-head"></view>
+      <view class="mine-body"></view>
+    </view>
     <text class="tab-label">我的</text>
   </view>
 </view>

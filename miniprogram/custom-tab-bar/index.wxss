@@ -3,10 +3,11 @@
   left: 0;
   bottom: 0;
   width: 100%;
-  height: 100rpx;
+  height: 110rpx;
   display: flex;
   background: #ffffff;
-  border-top: 1rpx solid #eee;
+  border-top: 1rpx solid #e8ece4;
+  box-shadow: 0 -4rpx 20rpx rgba(46, 125, 50, 0.06);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 100;
   box-sizing: content-box;
@@ -15,18 +16,153 @@
 .tab-item {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16rpx 0;
+  gap: 4rpx;
+  padding: 10rpx 0;
 }
 
 .tab-label {
-  font-size: 26rpx;
-  color: #999;
-  line-height: 1.5;
+  font-size: 24rpx;
+  color: #9aa39a;
+  line-height: 1.4;
 }
 
 .tab-item.active .tab-label {
   color: #2e7d32;
   font-weight: 600;
+}
+
+/* —— 通用图标 —— */
+.tab-icon {
+  position: relative;
+  width: 44rpx;
+  height: 44rpx;
+}
+
+/* 首页：小房子 */
+.home-icon .home-roof {
+  position: absolute;
+  left: 6rpx;
+  top: 4rpx;
+  width: 32rpx;
+  height: 32rpx;
+  background: #9aa39a;
+  transform: rotate(45deg);
+  border-radius: 4rpx;
+}
+
+.home-icon .home-body {
+  position: absolute;
+  left: 9rpx;
+  top: 18rpx;
+  width: 26rpx;
+  height: 20rpx;
+  background: #ffffff;
+  border-radius: 2rpx;
+}
+
+.active .home-icon .home-roof {
+  background: #2e7d32;
+}
+
+/* 历史：时钟 */
+.history-icon {
+  border: 4rpx solid #9aa39a;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.active .history-icon {
+  border-color: #2e7d32;
+}
+
+.history-icon .clock-hand-h {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4rpx;
+  height: 12rpx;
+  background: #9aa39a;
+  border-radius: 2rpx;
+  transform: translate(-50%, -100%);
+  transform-origin: bottom center;
+}
+
+.history-icon .clock-hand-m {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4rpx;
+  height: 10rpx;
+  background: #9aa39a;
+  border-radius: 2rpx;
+  transform: translate(-50%, 0) rotate(130deg);
+  transform-origin: top center;
+}
+
+.active .history-icon .clock-hand-h,
+.active .history-icon .clock-hand-m {
+  background: #2e7d32;
+}
+
+/* 我的：人像 */
+.mine-icon .mine-head {
+  position: absolute;
+  left: 50%;
+  top: 4rpx;
+  width: 16rpx;
+  height: 16rpx;
+  background: #9aa39a;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.mine-icon .mine-body {
+  position: absolute;
+  left: 50%;
+  bottom: 4rpx;
+  width: 30rpx;
+  height: 16rpx;
+  background: #9aa39a;
+  border-radius: 16rpx 16rpx 4rpx 4rpx;
+  transform: translateX(-50%);
+}
+
+.active .mine-icon .mine-head,
+.active .mine-icon .mine-body {
+  background: #2e7d32;
+}
+
+/* —— 中央凸起的小禾按钮 —— */
+.tab-center {
+  position: relative;
+}
+
+.center-btn {
+  position: absolute;
+  top: -44rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 104rpx;
+  height: 104rpx;
+  background: #ffffff;
+  border: 4rpx solid #d8ecd2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 16rpx rgba(46, 125, 50, 0.18);
+  padding-top: 10rpx;
+  box-sizing: border-box;
+}
+
+.tab-center .tab-label {
+  margin-top: 60rpx;
+}
+
+.tab-center.active .center-btn {
+  border-color: #2e7d32;
+  box-shadow: 0 6rpx 20rpx rgba(46, 125, 50, 0.35);
 }

@@ -1,0 +1,172 @@
+/* 小禾 IP 形象 —— 基准尺寸 200rpx，通过 transform: scale 等比缩放 */
+.mascot {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mascot-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 200rpx;
+  height: 200rpx;
+  transform-origin: 0 0;
+}
+
+/* —— 两片嫩叶 —— */
+.leaf {
+  position: absolute;
+  top: 8rpx;
+  width: 62rpx;
+  height: 30rpx;
+  background: linear-gradient(135deg, #66bb6a 0%, #388e3c 100%);
+  border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+  z-index: 1;
+}
+
+/* 叶脉 */
+.leaf::after {
+  content: '';
+  position: absolute;
+  left: 10rpx;
+  right: 10rpx;
+  top: 55%;
+  height: 2rpx;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2rpx;
+}
+
+.leaf-l {
+  left: 46rpx;
+  transform: rotate(-34deg);
+}
+
+.leaf-r {
+  right: 46rpx;
+  transform: rotate(34deg);
+}
+
+/* —— 草帽 —— */
+.hat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 200rpx;
+  height: 90rpx;
+  z-index: 3;
+}
+
+.hat-top {
+  position: absolute;
+  left: 54rpx;
+  top: 2rpx;
+  width: 92rpx;
+  height: 56rpx;
+  background: linear-gradient(180deg, #f6dca0 0%, #e9c877 100%);
+  border-radius: 46rpx 46rpx 10rpx 10rpx;
+  z-index: 1;
+}
+
+.hat-band {
+  position: absolute;
+  left: 54rpx;
+  top: 38rpx;
+  width: 92rpx;
+  height: 15rpx;
+  background: #b98a45;
+  border-radius: 5rpx;
+  z-index: 2;
+}
+
+.hat-brim {
+  position: absolute;
+  left: 24rpx;
+  top: 34rpx;
+  width: 152rpx;
+  height: 36rpx;
+  background: linear-gradient(180deg, #f0d08a 0%, #dcbb6b 100%);
+  border-radius: 50%;
+  box-shadow: 0 4rpx 8rpx rgba(120, 90, 30, 0.18);
+  z-index: 3;
+}
+
+/* —— 脸蛋 —— */
+.face {
+  position: absolute;
+  left: 20rpx;
+  bottom: 0;
+  width: 160rpx;
+  height: 152rpx;
+  background: linear-gradient(160deg, #e2f4cb 0%, #b9e39c 55%, #9bd17e 100%);
+  border-radius: 50% 50% 48% 48%;
+  box-shadow: inset 0 -10rpx 0 rgba(110, 160, 80, 0.15);
+  z-index: 2;
+}
+
+.eye {
+  position: absolute;
+  top: 36rpx;
+  width: 20rpx;
+  height: 26rpx;
+  background: #33402c;
+  border-radius: 50%;
+}
+
+.eye-l {
+  left: 40rpx;
+}
+
+.eye-r {
+  right: 40rpx;
+}
+
+.eye-hl {
+  position: absolute;
+  top: 4rpx;
+  right: 3rpx;
+  width: 7rpx;
+  height: 7rpx;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.blush {
+  position: absolute;
+  top: 70rpx;
+  width: 26rpx;
+  height: 14rpx;
+  background: #f5a97c;
+  opacity: 0.65;
+  border-radius: 50%;
+}
+
+.blush-l {
+  left: 24rpx;
+}
+
+.blush-r {
+  right: 24rpx;
+}
+
+/* 微笑的嘴 + 小舌头 */
+.mouth {
+  position: absolute;
+  left: 65rpx;
+  top: 66rpx;
+  width: 30rpx;
+  height: 18rpx;
+  background: #8a5a3b;
+  border-radius: 6rpx 6rpx 30rpx 30rpx;
+  overflow: hidden;
+}
+
+.mouth::after {
+  content: '';
+  position: absolute;
+  left: 6rpx;
+  bottom: -4rpx;
+  width: 18rpx;
+  height: 12rpx;
+  background: #f0928e;
+  border-radius: 50%;
+}

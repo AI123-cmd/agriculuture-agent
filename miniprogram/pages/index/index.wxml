@@ -2,11 +2,18 @@
 <view class="page">
   <!-- 固定顶部用户栏 -->
   <view class="header">
-    <view class="user-info">
-      <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
-      <view class="user-detail">
-        <view class="crop-name">当前作物：{{currentCrop}}</view>
-        <view class="farmer-name">农户：{{farmerName}}</view>
+    <view class="header-deco deco-1"></view>
+    <view class="header-deco deco-2"></view>
+    <view class="header-main">
+      <view class="user-info">
+        <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
+        <view class="user-detail">
+          <view class="crop-name">当前作物：{{currentCrop}}</view>
+          <view class="farmer-name">农户：{{farmerName}}</view>
+        </view>
+      </view>
+      <view class="mascot-wrap">
+        <sprout-mascot size="{{96}}" />
       </view>
     </view>
   </view>
@@ -24,10 +31,13 @@
 
     <!-- 今日农事播报 -->
     <view class="card item-block">
-      <view class="card-title">今日农事播报</view>
+      <view class="card-header">
+        <view class="card-title">今日农事播报</view>
+        <view class="card-badge">小禾提醒</view>
+      </view>
       <view class="broadcast-list">
         <view class="broadcast-item" wx:for="{{broadcasts}}" wx:key="id">
-          <view class="broadcast-dot"></view>
+          <view class="broadcast-dot {{item.done ? 'dot-done' : ''}}"></view>
           <view class="broadcast-body">
             <view class="broadcast-title">{{item.time}} · {{item.title}}</view>
             <view class="broadcast-text">{{item.content}}</view>
@@ -42,15 +52,24 @@
     <!-- 快捷入口 -->
     <view class="quick-wrap item-block">
       <view class="quick-item" wx:for="{{functions}}" wx:key="id" bindtap="onFuncTap" data-id="{{item.id}}">
+        <view class="quick-icon quick-icon-{{item.id}}">
+          <view wx:if="{{item.id === 'ai'}}" class="icon-ai-bubble"></view>
+          <view wx:elif="{{item.id === 'camera'}}" class="icon-camera-body"><view class="icon-camera-lens"></view></view>
+          <view wx:elif="{{item.id === 'env'}}" class="icon-leaf"></view>
+          <view wx:else class="icon-book"><view class="icon-book-line"></view><view class="icon-book-line"></view></view>
+        </view>
         <text class="quick-label">{{item.label}}</text>
       </view>
     </view>
 
     <!-- 环境摘要 -->
     <view class="card item-block">
-      <view class="card-title">环境摘要</view>
+      <view class="card-header">
+        <view class="card-title">环境摘要</view>
+      </view>
       <view class="env-grid">
         <view class="env-item" wx:for="{{envData}}" wx:key="id">
+          <view class="env-dot env-dot-{{index}}"></view>
           <view class="env-value">{{item.value}}</view>
           <view class="env-label">{{item.label}}</view>
         </view>

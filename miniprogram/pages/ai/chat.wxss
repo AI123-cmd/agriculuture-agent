@@ -1,18 +1,19 @@
 /* pages/ai/chat.wxss */
 page {
-  background: #ffffff; /* 整个页面填白，消除输入栏下方的浅绿色空白 */
+  background: #ffffff;
 }
 
 .chat-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #ffffff; /* 填白，输入栏和 tab-bar 之间视觉上无缝 */
+  background: #ffffff;
 }
 
-/* 头部 —— 和首页面积完全一致 */
+/* 头部 */
 .header {
-  background: #2e7d32;
+  position: relative;
+  background: linear-gradient(150deg, #43a047 0%, #2e7d32 55%, #1f5c24 100%);
   padding-top: calc(110rpx + env(safe-area-inset-top));
   padding-bottom: 32rpx;
   padding-left: 30rpx;
@@ -21,14 +22,57 @@ page {
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 0 0 36rpx 36rpx;
+}
+
+.header-deco {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.deco-1 {
+  width: 200rpx;
+  height: 200rpx;
+  right: -40rpx;
+  top: -60rpx;
+}
+
+.deco-2 {
+  width: 100rpx;
+  height: 100rpx;
+  right: 120rpx;
+  bottom: -30rpx;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
 }
 
 .header-title {
-  font-size: 32rpx;
-  font-weight: 600;
+  font-size: 36rpx;
+  font-weight: 700;
   color: #fff;
+  letter-spacing: 2rpx;
+}
+
+.header-sub {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
 }
 
 /* —— 作物标签条 —— */
@@ -54,7 +98,7 @@ page {
 }
 
 .crop-tag-current {
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 600;
   color: #2e7d32;
   background: #e8f5e9;
@@ -84,10 +128,8 @@ page {
 .chat-scroll {
   flex: 1;
   width: 100%;
-  /* 明确给一个计算后的有效高度，保证 scroll-view 内部可滚动 */
   height: calc(100vh - 310rpx - env(safe-area-inset-top));
-  background: #eef5ec; /* 只有消息区域是浅绿，周围全白 */
-  /* 预留固定输入栏+底部导航的总高度，内容不会被遮挡 */
+  background: #f0f4ea;
   padding: 24rpx 24rpx calc(260rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -111,8 +153,8 @@ page {
 }
 
 .msg-avatar {
-  width: 72rpx;
-  height: 72rpx;
+  width: 80rpx;
+  height: 80rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -121,11 +163,9 @@ page {
 }
 
 .ai-avatar {
-  background: #4a7c59;
-}
-
-.avatar-icon {
-  font-size: 36rpx;
+  background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+  border: 2rpx solid rgba(67, 160, 71, 0.15);
+  overflow: hidden;
 }
 
 .msg-content {
@@ -161,25 +201,24 @@ page {
 }
 
 .user-bubble {
-  background: #2e7d32;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
   color: #fff;
   border-top-right-radius: 8rpx;
 }
 
-/* AI消息旁的语音播放按钮 —— CSS喇叭图标 */
+/* AI消息旁的语音播放按钮 */
 .voice-play-btn {
   margin-left: 12rpx;
   width: 52rpx;
   height: 52rpx;
   border-radius: 50%;
-  background: #2e7d32;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-/* 喇叭图标容器 */
 .vp-icon {
   position: relative;
   width: 36rpx;
@@ -188,7 +227,6 @@ page {
   align-items: center;
 }
 
-/* 喇叭主体：小梯形 */
 .vp-speaker {
   width: 0;
   height: 0;
@@ -202,7 +240,6 @@ page {
   margin-left: 2rpx;
 }
 
-/* 喇叭左侧竖条 */
 .vp-speaker::before {
   content: '';
   position: absolute;
@@ -215,7 +252,6 @@ page {
   border-radius: 1rpx;
 }
 
-/* 声波弧线 */
 .vp-wave {
   position: absolute;
   border: 2rpx solid #fff;
@@ -243,12 +279,12 @@ page {
   height: 24rpx;
 }
 
-/* 常用问题按钮（固定在输入栏上方） */
+/* 常用问题按钮 */
 .quick-questions-btn {
   position: fixed;
   left: 24rpx;
   bottom: calc(230rpx + env(safe-area-inset-bottom));
-  background: #2e7d32;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
   border-radius: 32rpx;
   padding: 16rpx 24rpx;
   display: flex;
@@ -276,11 +312,11 @@ page {
   font-size: 26rpx;
 }
 
-/* 输入栏 —— 固定在屏幕底部（tab-bar上方），不随消息滚动 */
+/* 输入栏 */
 .input-bar {
   position: fixed;
   left: 0;
-  bottom: calc(100rpx + env(safe-area-inset-bottom));
+  bottom: calc(110rpx + env(safe-area-inset-bottom));
   width: 100%;
   display: flex;
   align-items: center;
@@ -300,17 +336,17 @@ page {
   min-width: 64rpx;
 }
 
-/* 输入栏左侧的语音按钮（实心填充，非镂空风格） */
 .voice-btn .voice-icon {
   width: 48rpx;
   height: 48rpx;
   border-radius: 50%;
-  background: #2e7d32;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
   font-size: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .voice-btn .voice-icon::before {
   content: "讲";
   font-size: 22rpx;
@@ -352,7 +388,7 @@ page {
 }
 
 .send-btn.active {
-  background: #2e7d32;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
 }
 
 .send-icon {

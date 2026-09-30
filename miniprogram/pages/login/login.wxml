@@ -2,14 +2,16 @@
 <view class="login-container">
   <view class="logo-area">
     <view class="logo-card">
-      <image class="logo-image" src="/images/logo.jpg" mode="aspectFit"></image>
+      <sprout-mascot size="{{200}}" />
     </view>
     <view class="app-name">话农点金</view>
-    <view class="app-slogan">种地有难题，找话农点金</view>
+    <view class="app-slogan">小禾陪你，种好每一块田</view>
   </view>
 
   <view class="login-section">
-    <view class="login-btn" bindtap="onWxLogin">微信用户一键登录</view>
+    <view class="login-btn {{logging ? 'btn-loading' : ''}}" bindtap="onWxLogin">
+      {{logging ? '登录中...' : '微信用户一键登录'}}
+    </view>
 
     <view class="agreement-wrapper">
       <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgree">

@@ -1,6 +1,8 @@
 {
   "navigationStyle": "custom",
   "navigationBarTextStyle": "white",
-  "backgroundColor": "#eef5ec",
-  "usingComponents": {}
+  "backgroundColor": "#f0f4ea",
+  "usingComponents": {
+    "sprout-mascot": "../../components/sprout-mascot/index"
+  }
 }

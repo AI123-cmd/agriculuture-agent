@@ -1,5 +1,7 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "sprout-mascot": "../../components/sprout-mascot/index"
+  },
   "navigationStyle": "custom",
   "navigationBarTextStyle": "white"
 }

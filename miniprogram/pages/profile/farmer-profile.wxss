@@ -1,13 +1,13 @@
 .page {
   min-height: 100vh;
-  background: #eef5ec;
+  background: #f0f4ea;
   display: flex;
   flex-direction: column;
 }
 
 /* 顶部标题区 */
 .header {
-  background: #2e7d32;
+  background: linear-gradient(150deg, #43a047 0%, #2e7d32 55%, #1f5c24 100%);
   color: #fff;
   padding: calc(80rpx + env(safe-area-inset-top)) 48rpx 40rpx;
 }
@@ -53,19 +53,19 @@
 /* 卡片 */
 .card {
   background: #fff;
-  border-radius: 20rpx;
+  border-radius: 24rpx;
   padding: 36rpx 32rpx 12rpx;
-  box-shadow: 0 4rpx 20rpx rgba(46, 125, 50, 0.05);
+  box-shadow: 0 4rpx 20rpx rgba(46, 125, 50, 0.06);
 }
 
 .card-title {
   font-size: 34rpx;
   font-weight: 700;
-  color: #2c2c2c;
+  color: #2e4632;
   line-height: 1.5;
   margin-bottom: 32rpx;
   padding-left: 16rpx;
-  border-left: 6rpx solid #2e7d32;
+  border-left: 8rpx solid #2e7d32;
 }
 
 .card-hint {
@@ -327,8 +327,8 @@
 
 .submit-btn {
   height: 100rpx;
-  border-radius: 12rpx;
-  background: #2e7d32;
+  border-radius: 50rpx;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
   color: #fff;
   font-size: 34rpx;
   font-weight: 700;
@@ -336,6 +336,7 @@
   text-align: center;
   width: 100%;
   letter-spacing: 2rpx;
+  box-shadow: 0 8rpx 20rpx rgba(46, 125, 50, 0.25);
 }
 
 .submit-btn[disabled],
