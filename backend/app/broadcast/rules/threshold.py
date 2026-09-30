@@ -13,11 +13,9 @@
 3. **级别由 T3-06 的 `is_urgent` 双条件判定**：命中阈值只代表"越过临界"，是否升到
    `urgent` 要同时满足"严重偏离"与"处于敏感生育期"。规则层不自行拍级别，参数来自流程配置。
 
-规则不硬编码流程分支（`if process_id == ...`），流程差异一律落在配置里。
+规则不硬编码流程分支（按流程标识逐条判断），流程差异一律落在配置里。
 """
 
-from app.agent.state import ProcessId
-from app.broadcast.inputs.env_facts import EnvFacts
 from app.broadcast.rules.base import BaseRule, RuleResult
 from app.broadcast.rules.engine import RuleContext
 from app.broadcast.rules.urgency import is_urgent
@@ -203,4 +201,11 @@ def default_threshold_rules() -> list[BaseRule]:
     ]
 
 
-__all__ = ["SOURCE_TIMELINESS", "ThresholdRule", "callout_of", "default_threshold_rules", "resolve_threshold", "unit_of"]
+__all__ = [
+    "SOURCE_TIMELINESS",
+    "ThresholdRule",
+    "callout_of",
+    "default_threshold_rules",
+    "resolve_threshold",
+    "unit_of",
+]

@@ -75,21 +75,25 @@ def merge_and_rank(items: list[RuleResult]) -> list[RuleResult]:
     return sorted(by_rule.values(), key=priority_key)
 
 
-def apply_limit(items: list[RuleResult]) -> tuple[list[RuleResult], list[RuleResult]]:
-    """普通提示限 3 条，紧急不受限；被截断条目仍返回并标 `suppressed`。
+def apply_limit(items: list[RuleResult]) -> tuple[list[RuleResult], list[tuple[RuleResult, bool]]]:
+    """普通提示限 3 条，紧急不受限；被截断条目仍返回并携带 `suppressed=True` 标记。
 
     返回 `(kept, dropped)`。`kept` 与 `dropped` 都需落库：`dropped` 的条目在快照里以
     `suppressed=True` 保存，供产品复盘"哪些内容长期被压制"，但不出现在接口返回的展示列表中。
+
+    `RuleResult` 是 `frozen=True` 的不可变对象且没有 `suppressed` 字段，抑制标记因此随条目
+    以 `(条目, True)` 二元组一并返回，由消费方（T3-08）在建 `PromptItem` 时写入该列——不在
+    此处就地改对象，与"结果不可变、被抑制可复现"的设计一致。
     """
     ordered = sorted(items, key=priority_key)
     urgent = [i for i in ordered if i.severity == "urgent"]
     normal = [i for i in ordered if i.severity != "urgent"]
     kept = urgent + normal[:NORMAL_LIMIT]
-    dropped = normal[NORMAL_LIMIT:]
+    dropped = [(i, True) for i in normal[NORMAL_LIMIT:]]
     return kept, dropped
 
 
-def rank_and_limit(items: Sequence[RuleResult]) -> tuple[list[RuleResult], list[RuleResult]]:
+def rank_and_limit(items: Sequence[RuleResult]) -> tuple[list[RuleResult], list[tuple[RuleResult, bool]]]:
     """合并去重 → 排序 → 截断的组合入口，供 T3-08 一次调用。"""
     return apply_limit(merge_and_rank(list(items)))
 

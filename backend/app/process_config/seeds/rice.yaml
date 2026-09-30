@@ -42,6 +42,22 @@ timing_rules:
   - {id: rice_boot_window, when: {growth_stage: booting}, prompt: 孕穗期对稻瘟病与螟虫敏感，注意预防}
   - {id: rice_rain_alert, when: {weather: continuous_rain}, prompt: 连续阴雨，纹枯病与稻瘟病易流行}
   - {id: rice_high_temp, when: {air_temp_above: 35}, prompt: 高温期间稻飞虱增殖快，注意查虫}
+# T3-06 紧急判定双条件规格：键为规则层产出的 `rule_id`。只有"严重偏离阈值"且"处于敏感
+# 生育期"两条同时命中才判 urgent（绕过 3 条上限），单条件一律降为 notice。这些数值需农技
+# 人员按流程校准：水稻高温阈值与茶不同，且抽穗扬花期/灌浆期的热害损失量级最大。
+urgency_specs:
+  env_risk.heat:
+    metric: air_temp
+    threshold: 35
+    direction: above
+    severe_ratio: 0.1
+    sensitive_stages: [孕穗期, 抽穗期, 抽穗扬花期, 灌浆期]
+  env_risk.cold:
+    metric: air_temp
+    threshold: 5
+    direction: below
+    severe_ratio: 0.2
+    sensitive_stages: [苗期, 分蘖期, 孕穗期]
 redlines:
   # TODO(待确认): 抗药性暂停名单以当地植保部门最新公告为准
   - id: RICE-01

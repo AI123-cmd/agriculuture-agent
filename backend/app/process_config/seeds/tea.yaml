@@ -44,6 +44,21 @@ terminology:
 timing_rules:
   - {id: tea_pick_window, when: {season: spring_pick}, prompt: 春茶采摘期临近，注意采摘前安全间隔期}
   - {id: tea_rain_alert, when: {weather: continuous_rain}, prompt: 连续降雨，注意茶园排水与病害预防}
+# T3-06 紧急判定双条件规格：键为规则层产出的 `rule_id`。茶树的热害阈值与敏感期名单和水稻
+# 不同（茶树 35℃ 即构成热害胁迫，新梢生长期最敏感），因此数值必须落在流程配置而非代码。
+urgency_specs:
+  env_risk.heat:
+    metric: air_temp
+    threshold: 35
+    direction: above
+    severe_ratio: 0.1
+    sensitive_stages: [新梢生长期, 采摘期, 春梢期]
+  env_risk.cold:
+    metric: air_temp
+    threshold: 4
+    direction: below
+    severe_ratio: 0.2
+    sensitive_stages: [新梢生长期, 采摘期]
 redlines:
   - {id: TEA-01, desc: 不得推荐未在茶树上登记的农药, rule: R-REGISTERED-CROP, severity: block}
   # TODO(待确认): 禁用品种清单与引用标准号需农技人员按最新版公告核定

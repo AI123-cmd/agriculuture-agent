@@ -39,7 +39,9 @@ class PestRiskRule(BaseRule):
         if temp is None or humidity is None:
             return []  # 必须双指标可用，缺一即沉默（不做"缺失=0"的错误比较）
 
-        temp_threshold = resolve_threshold(ctx.process_config, StandardMetric.AIR_TEMP.value, "above", _DEFAULT_TEMP_HIGH)
+        temp_threshold = resolve_threshold(
+            ctx.process_config, StandardMetric.AIR_TEMP.value, "above", _DEFAULT_TEMP_HIGH
+        )
         humidity_threshold = resolve_threshold(
             ctx.process_config, StandardMetric.AIR_HUMIDITY.value, "above", _DEFAULT_HUMIDITY_HIGH
         )
@@ -55,8 +57,7 @@ class PestRiskRule(BaseRule):
                 severity=severity,
                 callout=callout_of(ctx),
                 fact=(
-                    f"气温 {temp:.1f}{temp_unit} 且空气湿度 {humidity:.1f}{humidity_unit}，"
-                    "处于病害易流行的温湿组合区间"
+                    f"气温 {temp:.1f}{temp_unit} 且空气湿度 {humidity:.1f}{humidity_unit}，处于病害易流行的温湿组合区间"
                 ),
                 impact="高温高湿利于病原菌繁殖与侵染，密闭或通风不良地块风险更高",
                 action="加强通风降湿，巡查病斑，必要时按流程要点预防",

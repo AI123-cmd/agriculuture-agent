@@ -38,7 +38,7 @@ class RuleResult:
 
 
 class BaseRule(ABC):
-    """规则基类。按流程筛选靠类属性声明，不用 `if process_id ==` 分支。
+    """规则基类。按流程筛选靠类属性声明，不用按流程标识逐条判断的分支。
 
     `process_ids` 为 `None` 表示全流程适用；`requires_env=True` 的规则在
     `EnvFacts.source == "none"` 时被引擎整体跳过（技术方案 11.2）。
