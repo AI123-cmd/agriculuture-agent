@@ -4,16 +4,27 @@
   <view class="header">
     <view class="header-deco deco-1"></view>
     <view class="header-deco deco-2"></view>
+    <view class="header-deco deco-3"></view>
     <view class="header-main">
       <view class="user-card" bindtap="showProfileActions">
-        <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
+        <view class="avatar-wrap">
+          <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
+          <view class="avatar-edit">
+            <view class="cam-body"></view>
+            <view class="cam-lens"></view>
+          </view>
+        </view>
         <view class="user-info">
           <view class="nickname">{{nickName}}</view>
-          <view class="farmer-tag" wx:if="{{farmerName}}">农户：{{farmerName}}</view>
+          <view class="farmer-tag" wx:if="{{farmerName}}">
+            <view class="tag-leaf"></view>
+            <text>农户 · {{farmerName}}</text>
+          </view>
+          <view class="user-slogan">智慧种植 · 小禾相伴</view>
         </view>
       </view>
       <view class="mascot-wrap">
-        <sprout-mascot size="{{96}}" />
+        <sprout-mascot size="{{104}}" />
       </view>
     </view>
   </view>
@@ -21,6 +32,7 @@
   <!-- 修改头像弹层 -->
   <view class="profile-edit-mask" wx:if="{{showProfileEdit}}" bindtap="hideProfileEdit">
     <view class="profile-edit-sheet" catchtap="noop">
+      <view class="sheet-bar"></view>
       <view class="edit-title">修改头像</view>
       <view class="avatar-preview-wrap">
         <image class="avatar-preview" src="{{pendingAvatar || userAvatar}}" mode="aspectFill"></image>
@@ -36,21 +48,23 @@
   </view>
 
   <!-- 功能列表 -->
+  <view class="section-label">常用功能</view>
   <view class="menu-section">
-    <view class="menu-item" bindtap="goProfile">
-      <view class="menu-icon profile-icon">
-        <view class="icon-body"></view>
-        <view class="icon-head"></view>
+    <view class="menu-item" hover-class="menu-item-hover" bindtap="goProfile">
+      <view class="menu-icon mi-profile">
+        <view class="mi-person-head"></view>
+        <view class="mi-person-body"></view>
       </view>
       <view class="menu-text">农户档案</view>
       <view class="menu-arrow">›</view>
     </view>
     <view class="menu-divider"></view>
 
-    <view class="menu-item" bindtap="goHistory">
-      <view class="menu-icon history-icon">
-        <view class="icon-clock">
-          <view class="clock-hand"></view>
+    <view class="menu-item" hover-class="menu-item-hover" bindtap="goHistory">
+      <view class="menu-icon mi-history">
+        <view class="mi-clock">
+          <view class="mi-hand-h"></view>
+          <view class="mi-hand-m"></view>
         </view>
       </view>
       <view class="menu-text">咨询历史</view>
@@ -59,22 +73,24 @@
   </view>
 
   <!-- 其他设置 -->
+  <view class="section-label">其他</view>
   <view class="menu-section">
-    <view class="menu-item" bindtap="showAbout">
-      <view class="menu-icon about-icon">
-        <view class="icon-info"></view>
+    <view class="menu-item" hover-class="menu-item-hover" bindtap="showAbout">
+      <view class="menu-icon mi-about">
+        <view class="mi-info-dot"></view>
+        <view class="mi-info-bar"></view>
       </view>
       <view class="menu-text">关于我们</view>
       <view class="menu-arrow">›</view>
     </view>
     <view class="menu-divider"></view>
 
-    <view class="menu-item" bindtap="showAgreement">
-      <view class="menu-icon doc-icon">
-        <view class="icon-lines">
-          <view class="line"></view>
-          <view class="line"></view>
-          <view class="line"></view>
+    <view class="menu-item" hover-class="menu-item-hover" bindtap="showAgreement">
+      <view class="menu-icon mi-doc">
+        <view class="mi-doc-paper">
+          <view class="mi-doc-line"></view>
+          <view class="mi-doc-line short"></view>
+          <view class="mi-doc-line"></view>
         </view>
       </view>
       <view class="menu-text">用户协议与隐私政策</view>
@@ -84,7 +100,14 @@
 
   <!-- 退出登录 / 注销账号 -->
   <view class="logout-section">
-    <view class="logout-btn" bindtap="logout">退出登录</view>
+    <view class="logout-btn" hover-class="logout-btn-hover" bindtap="logout">退出登录</view>
     <view class="cancel-account-btn" bindtap="cancelAccount">注销账号</view>
+  </view>
+
+  <!-- 页脚 -->
+  <view class="page-footer">
+    <view class="footer-dot"></view>
+    <text>话农点金 v1.0.0 · 小禾伴你种好田</text>
+    <view class="footer-dot"></view>
   </view>
 </view>
