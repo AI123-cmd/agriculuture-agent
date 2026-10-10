@@ -18,6 +18,7 @@ from datetime import UTC, date, datetime, time
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.base import new_id
 from app.models import FollowupTask
 from app.models.enums import FollowupStatus
 from app.repositories.base import OwnedRepository
@@ -26,6 +27,25 @@ from app.repositories.base import OwnedRepository
 class FollowupRepository(OwnedRepository[FollowupTask]):
     def __init__(self) -> None:
         super().__init__(FollowupTask)
+
+    async def bulk_save(self, db: AsyncSession, tasks: Sequence[FollowupTask]) -> Sequence[FollowupTask]:
+        """批量登记回访任务（不提交，由调用方 commit）。
+
+        `prescription.created` 的消费者一次登记一条处方卡的全部回访任务，逐条 `add`
+        让 SQLAlchemy 在同一事务里排队 INSERT。`user_id` 由基类 `add` 强制校验：
+        缺失（`None` / 空串）即抛 `MissingOwnerError`，调用方无法登记无归属的任务。
+
+        与 `snapshot_repo.save` 一致地补 `new_id`：调用方只关心内容时也能落库。此处
+        不做 `flush`——登记时引用的 `consultation` / `prescription_card` 由反查得到，
+        是已落库的行，不存在同一次 flush 内的外键顺序问题。
+        """
+        saved: list[FollowupTask] = []
+        for task in tasks:
+            if not task.id:
+                task.id = new_id("fu")
+            await self.add(db, task.user_id, task)
+            saved.append(task)
+        return saved
 
     async def list_due(self, db: AsyncSession, user_id: str, today: date) -> Sequence[FollowupTask]:
         """到期未回访的任务：`status='pending'` 且 `due_at <= 今天结束`。
@@ -45,6 +65,22 @@ class FollowupRepository(OwnedRepository[FollowupTask]):
     async def list_by_user(self, db: AsyncSession, user_id: str) -> Sequence[FollowupTask]:
         """某用户全部回访任务，按到期时点升序（回访管理页用）。"""
         return await self.list_all(db, user_id, order_by=FollowupTask.due_at)
+
+    async def list_due_all(self, db: AsyncSession, today: date) -> Sequence[FollowupTask]:
+        """全库到期未回访的任务：`status='pending'` 且 `due_at <= 今天结束`。
+
+        这是本仓储唯一不带 `user_id` 的查询（见模块注释）：它服务 worker 的每日到期
+        扫描，要横跨全部农户挑出该触达的任务，再按人分派 `followup.due` 事件。判定口径
+        与 `list_due` 完全一致（到"当天结束"而非"此刻"，理由同上），差异只在是否按归属
+        过滤。走 `ix_followup_task_status_due` 复合索引。
+        """
+        end_of_day = datetime.combine(today, time.max)
+        stmt = (
+            select(FollowupTask)
+            .where(FollowupTask.status == FollowupStatus.PENDING.value, FollowupTask.due_at <= end_of_day)
+            .order_by(FollowupTask.due_at)
+        )
+        return (await db.execute(stmt)).scalars().all()
 
     async def mark_done(self, db: AsyncSession, user_id: str, task_id: str, *, result: str, note: str | None) -> int:
         """回填结果并关闭任务：置 `done`、写结果、记关闭时点。
