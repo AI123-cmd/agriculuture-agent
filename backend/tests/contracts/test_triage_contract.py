@@ -209,10 +209,17 @@ def test_resolve_process_hint_longest_alias_wins(configs) -> None:
     assert resolve_process_hint("油菜花", configs) is ProcessId.RAPESEED
 
 
-def test_resolve_process_hint_unmatched_returns_none(configs) -> None:
-    """「通用农业」及未登记作物不属于任何专属流程，返回 `None` 由调用方兜底。"""
-    assert resolve_process_hint("通用农业", configs) is None
+def test_resolve_process_hint_general_model_locks_general(configs) -> None:
+    """农户显式选「通用农业」时命中兜底流程的 `object_aliases`（含"农业"），锁定通用流程。"""
+    assert resolve_process_hint("通用农业", configs) is ProcessId.GENERAL
+
+
+def test_resolve_process_hint_unregistered_crop_returns_none(configs) -> None:
+    """无专属流程的作物（小程序里存在但未登记）返回 `None`，交由调用方走分诊兜底。"""
     assert resolve_process_hint("番茄", configs) is None
+    assert resolve_process_hint("小麦", configs) is None
+    assert resolve_process_hint("玉米", configs) is None
+    assert resolve_process_hint("烟草", configs) is None
 
 
 def test_resolve_process_hint_blank_returns_none(configs) -> None:

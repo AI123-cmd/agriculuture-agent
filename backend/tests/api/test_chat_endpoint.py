@@ -239,8 +239,8 @@ def test_process_hint_crop_name_locks_that_process(client, auth_headers) -> None
 
 
 def test_process_hint_unknown_crop_falls_back_without_error(client, auth_headers) -> None:
-    """未登记专属流程的作物（如「番茄」「通用农业」）不锁定流程，走分诊兜底且不报错。"""
-    for hint in ("番茄", "通用农业"):
+    """未登记专属流程的作物（如「番茄」「小麦」）不锁定流程，走分诊兜底且不报错。"""
+    for hint in ("番茄", "小麦"):
         resp = client.post(
             "/api/ai/chat",
             json={"processHint": hint, "message": "叶子发黄"},
