@@ -59,12 +59,10 @@ class ConsultationRepository(OwnedRepository[Consultation]):
         自带 `user_id`），与卡片的 `user_id` 必须一致，否则说明事件与数据不匹配。
         """
         uid = self._require_user(user_id)
-        stmt = (
-            select(PrescriptionCard)
-            .where(PrescriptionCard.user_id == uid, PrescriptionCard.consultation_id == consultation_id)
+        stmt = select(PrescriptionCard).where(
+            PrescriptionCard.user_id == uid, PrescriptionCard.consultation_id == consultation_id
         )
         return (await db.execute(stmt)).scalars().first()
-
 
 
 consult_repo = ConsultationRepository()

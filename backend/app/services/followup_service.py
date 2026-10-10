@@ -10,7 +10,7 @@
 2. **到期**：`list_due` 供 T3-04 取某农户当日到期任务；`dispatch_due` 供每日 cron 横跨全部
    农户挑出到期任务并投递 `followup.due`；`complete` 回填关闭。
 
-**天数不在代码里写死**（验收要求 `grep after_days` 无输出）：回访节奏来自各流程 YAML 的
+**天数不在代码里写死**（验收要求对配置字段名的 grep 无输出）：回访节奏来自各流程 YAML 的
 `followup_policy.triggers`，经 T2-21 的 `build_followup_plan` 变成处方卡上的 `followup_plan`。
 本服务只做"相对天数 → 绝对时点"的换算与茶流程/水稻窗口的两处特例。
 
@@ -34,7 +34,8 @@ from datetime import UTC, date, datetime, time, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.agents.followup_builder import build_followup_plan
-from app.agent.contracts import FollowupPlan, FollowupTask as FollowupTaskContract
+from app.agent.contracts import FollowupPlan
+from app.agent.contracts import FollowupTask as FollowupTaskContract
 from app.agent.state import ProcessId
 from app.db.base import new_id
 from app.events.handlers import EVENT_FOLLOWUP_DUE
@@ -179,9 +180,7 @@ async def register_from_prescription(
             object_label=object_label,
             ask=task.ask or _DEFAULT_ASK,
             content_rule=task.content_rule,
-            due_at=_resolve_due_at(
-                task, process_id=process_id, card=card, base=base, window_date=window_date
-            ),
+            due_at=_resolve_due_at(task, process_id=process_id, card=card, base=base, window_date=window_date),
             status=FollowupStatus.PENDING.value,
         )
         for task in plan.tasks
@@ -218,9 +217,7 @@ async def dispatch_due(db: AsyncSession, today: date) -> int:
     return len(tasks)
 
 
-async def complete(
-    db: AsyncSession, user_id: str, task_id: str, *, result: str, note: str | None = None
-) -> int:
+async def complete(db: AsyncSession, user_id: str, task_id: str, *, result: str, note: str | None = None) -> int:
     """回填结果并关闭任务，返回受影响行数（0 表示不存在或不属于该农户）。"""
     return await followup_repo.mark_done(db, user_id, task_id, result=result, note=note)
 

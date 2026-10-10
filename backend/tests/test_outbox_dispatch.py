@@ -514,11 +514,24 @@ def test_unknown_event_falls_back_to_unhandled_task() -> None:
 
 
 def test_worker_registers_dispatch_cron() -> None:
-    """worker 上挂了投递 cron，且间隔为 5 秒粒度。"""
-    from app.worker import WorkerSettings, dispatch_outbox
+    """worker 上挂了两个 cron：发件箱投递（5 秒粒度）与每日到期扫描。
+
+    T3-09 起 `cron_jobs` 从 1 条增至 2 条：`dispatch_outbox` 每 5 秒投一轮发件箱，
+    `scan_due_followups` 每天 7 点横跨全部农户挑出到期回访。断言按协程对象定位而非
+    下标，注册顺序变动不会误判。
+    """
+    from app.worker import WorkerSettings, dispatch_outbox, scan_due_followups
 
     assert dispatch_outbox in WorkerSettings.functions
+    assert scan_due_followups in WorkerSettings.functions
     assert WorkerSettings.cron_jobs, "缺少投递 cron，事件会永远停在 pending"
-    assert len(WorkerSettings.cron_jobs) == 1
+    assert len(WorkerSettings.cron_jobs) == 2
+
+    dispatch_cron = next(job for job in WorkerSettings.cron_jobs if job.coroutine is dispatch_outbox)
     # 每轮的秒位集合：12 个元素即每 5 秒一次
-    assert WorkerSettings.cron_jobs[0].second == {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
+    assert dispatch_cron.second == {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
+
+    scan_cron = next(job for job in WorkerSettings.cron_jobs if job.coroutine is scan_due_followups)
+    # 每天 7:00（UTC）跑一次：落在最佳触达窗口内，农户起床即可看到当天回访
+    assert scan_cron.hour == 7
+    assert scan_cron.minute == 0
