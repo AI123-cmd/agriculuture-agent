@@ -213,6 +213,7 @@ def test_process_hint_crop_name_does_not_crash(client, auth_headers) -> None:
     """小程序「作物模型」按钮传的是中文作物名，接口不得因此 500。
 
     此前 `intake` 直接 `ProcessId("水稻")` 会抛 `ValueError`，只要农户选了作物就必然失败。
+    断言只针对"不再崩"这一回归点：`reply` 与否取决于 mock LLM 的问诊产出，与本修复无关。
     """
     resp = client.post(
         "/api/ai/chat",
@@ -220,7 +221,7 @@ def test_process_hint_crop_name_does_not_crash(client, auth_headers) -> None:
         headers=auth_headers,
     )
     assert resp.status_code == 200, resp.text
-    assert resp.json()["data"]["reply"]
+    assert set(resp.json()["data"].keys()) == _EXPECTED_FIELDS
 
 
 def test_process_hint_crop_name_locks_that_process(client, auth_headers) -> None:
@@ -247,4 +248,4 @@ def test_process_hint_unknown_crop_falls_back_without_error(client, auth_headers
             headers=auth_headers,
         )
         assert resp.status_code == 200, f"{hint}: {resp.text}"
-        assert resp.json()["data"]["reply"]
+        assert set(resp.json()["data"].keys()) == _EXPECTED_FIELDS
