@@ -1,15 +1,21 @@
-"""回访任务仓储（T3-04，技术方案 11.2 / 12.4）。
+"""回访任务仓储（T3-04 读取入口 + T3-09 登记入口，技术方案 11.2 / 12.4）。
 
-T3-09（回访调度服务）负责登记回访任务（`register_from_prescription`），本项只提供
-T3-04 读取到期任务所需的 `list_due`，以及回填关闭任务所需的 `mark_done` / `list_by_user`。
+T3-09（回访调度服务）负责登记回访任务（`register_from_prescription`），本项提供：
+T3-04 读取到期任务所需的 `list_due`、回填关闭任务所需的 `mark_done` / `list_by_user`，
+以及 T3-09 的写入入口 `bulk_save` 与每日扫描入口 `list_due_all`。
 
 `due_at` 用绝对时间戳存（契约层是相对的 `due_offset_days`），因此到期扫描是纯时间范围
 查询，走 `ix_followup_task_status_due` 复合索引。
+
+**`list_due_all` 是唯一不带 `user_id` 的查询**：它服务 worker 的每日到期扫描，是全库
+范围而非某个农户的查询，因此无法按归属过滤。归属仍由基类保证其余全部方法，孤立这一条
+是为了让"唯一的例外"显式可见，而不是散落成多处无归属过滤的裸查询。
 """
 
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, time
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import FollowupTask
