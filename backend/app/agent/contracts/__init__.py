@@ -91,4 +91,5 @@ __all__ = [
     "dump_contract",
     "load_contract",
     "match_object_alias",
+    "resolve_process_hint",
 ]
