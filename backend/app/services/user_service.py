@@ -11,11 +11,11 @@ from app.core.validators import validate_image
 from app.db.uow import unit_of_work
 from app.integrations.storage import get_storage
 from app.repositories import (
-    broadcast_repo,
     conversation_repo,
     crop_repo,
     device_repo,
     field_repo,
+    ledger_repo,
     location_repo,
     memory_repo,
     message_repo,
@@ -79,7 +79,7 @@ class UserService:
             await message_repo.delete_by_user(db, user_id)
             await conversation_repo.delete_all(db, user_id)
             await memory_repo.delete_all(db, user_id)
-            await broadcast_repo.delete_all(db, user_id)
+            await ledger_repo.delete_all(db, user_id)
             await location_repo.delete_all(db, user_id)
             await device_repo.delete_all(db, user_id)
             await crop_repo.delete_all(db, user_id)

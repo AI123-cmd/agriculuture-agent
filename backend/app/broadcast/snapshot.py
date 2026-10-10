@@ -245,6 +245,8 @@ async def _build_snapshot(db: AsyncSession, user_id: str, farm_entry_id: str | N
         generated_at=datetime.now(UTC),
         env_source=facts.source,
         revision=1,
+        # T3-15：执行率需按流程分别统计（产品说明书 6.3），故落库时记下本次生成所用的流程。
+        process_id=process_id.value,
     )
     # `items` 不是 ORM 列，是生成链路挂在对象上的待落库条目列表（见 `_attach_items`）。
     _attach_items(snapshot, kept_items + dropped_items)

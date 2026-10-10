@@ -21,7 +21,7 @@ from tests.conftest import TEST_DATABASE_URL
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
-# 技术方案 12.1 的 11 张现有业务表
+# 技术方案 12.1 的现有业务表（`broadcast_log` 已由 T3-15 的 0013 迁移废弃，故为 10 张）
 BASELINE_TABLES = (
     "user",
     "farmer_profile",
@@ -29,7 +29,6 @@ BASELINE_TABLES = (
     "field",
     "device",
     "location",
-    "broadcast_log",
     "ai_conversation",
     "ai_message",
     "memory_summary",
@@ -51,7 +50,7 @@ def sync_engine(migrated_db):
 
 
 def test_baseline_tables_all_created(sync_engine) -> None:
-    """迁移后 public 下 11 张业务表全部存在。"""
+    """迁移后 public 下 10 张基线业务表全部存在。"""
     names = set(inspect(sync_engine).get_table_names(schema="public"))
     missing = set(BASELINE_TABLES) - names
     assert not missing, f"迁移未建出的表：{sorted(missing)}"
@@ -72,7 +71,7 @@ def test_upgrade_head_then_scratch_roundtrip(migrated_db) -> None:
 
 
 def test_downgrade_removes_public_tables(sync_engine, migrated_db) -> None:
-    """downgrade 到 base 后 11 张业务表消失，但扩展不随迁移回滚。"""
+    """downgrade 到 base 后 10 张基线业务表消失，但扩展不随迁移回滚。"""
     command.downgrade(migrated_db, "base")
     names = set(inspect(sync_engine).get_table_names(schema="public"))
     assert not (set(BASELINE_TABLES) & names)

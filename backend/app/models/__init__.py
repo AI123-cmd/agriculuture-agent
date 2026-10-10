@@ -38,7 +38,7 @@ __all__ = [
     "Field",
     "Device",
     "Location",
-    "BroadcastLog",
+    "LedgerEntry",
     "AIConversation",
     "AIMessage",
     "MemorySummary",
