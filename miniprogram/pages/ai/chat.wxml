@@ -136,7 +136,10 @@
 
   <!-- 输入区域：语音为主入口，打字为备选 -->
   <view class="input-bar">
-    <view class="voice-btn tap-88" bindtap="toggleVoice">
+    <view class="voice-btn tap-88 {{recording ? 'recording' : ''}}"
+          bindtouchstart="onVoiceStart"
+          bindtouchend="onVoiceEnd"
+          bindtouchcancel="onVoiceEnd">
       <view class="voice-icon {{recording ? 'recording' : ''}}"></view>
       <text class="voice-label t-caption">{{recording ? '松开' : '语音'}}</text>
     </view>

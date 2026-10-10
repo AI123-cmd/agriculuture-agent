@@ -4,6 +4,7 @@ import { getSummary } from '../../api/environment'
 import { autoLocate, manualInputLocation } from '../../utils/location'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
+import { getTtsAdapter } from '../../utils/voice'
 import type { PromptItem } from '../../types/api'
 
 Page({
@@ -169,6 +170,22 @@ Page({
   /** 核心动作一：我要提问 */
   onAsk() {
     wx.switchTab({ url: '/pages/ai/chat' });
+  },
+
+  /** 朗读一条提示：再点一次停止；朗读不改变提示的任何状态（无副作用） */
+  onReadTip(e: WechatMiniprogram.BaseEvent) {
+    const id = e.currentTarget.dataset.id as string;
+    const item = this.data.tipItems.find((t) => t.itemId === id);
+    if (!item) return;
+    const text = [item.callout, item.fact, item.impact, item.action].filter((s) => s).join('。');
+    const tts = getTtsAdapter();
+    if (tts.isSpeaking()) {
+      tts.stop();
+      return;
+    }
+    tts.speak(text).catch(() => {
+      wx.showToast({ title: '现在读不出来，稍后再试', icon: 'none' });
+    });
   },
 
   /** 加载环境一行状态 */

@@ -405,6 +405,13 @@ page {
 
 .voice-btn .voice-icon.recording {
   background: linear-gradient(135deg, #e53935, #c62828);
+  animation: recording-pulse 1s ease-in-out infinite;
+}
+
+/* 录音态脉冲：给农户明确的“正在听”反馈 */
+@keyframes recording-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.85; }
 }
 
 .voice-btn .voice-icon::before {

@@ -50,8 +50,8 @@
             <view class="tip-action">{{item.action}}</view>
           </view>
           <view class="tip-actions">
-            <!-- 朗读触发位：容器与类名在此定义，行为由 T4-04 实现 -->
-            <view class="tip-read-btn tap-88" data-id="{{item.itemId}}">
+            <!-- 朗读触发位：朗读放在勾选左侧，避免误触把“听”点成“完成” -->
+            <view class="tip-read-btn tap-88" bindtap="onReadTip" data-id="{{item.itemId}}">
               <text class="tip-read-icon">读</text>
             </view>
             <!-- 执行勾选：仅当日快照可操作 -->

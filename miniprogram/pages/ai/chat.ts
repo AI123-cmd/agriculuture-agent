@@ -2,6 +2,7 @@
 import { chat } from '../../api/ai'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
+import { getTtsAdapter, getAsrAdapter } from '../../utils/voice'
 import type { QuestionView, PrescriptionView, HandoffView } from '../../types/api'
 
 interface Message {
@@ -28,6 +29,8 @@ Page({
     questions: [] as QuestionView[],
     prescription: null as PrescriptionView | null,
     handoff: null as HandoffView | null,
+    // 录音态：驱动按钮视觉反馈
+    recording: false,
   },
 
   onLoad() {
@@ -216,10 +219,38 @@ Page({
     });
   },
 
+  /** 朗读一条 AI 消息（普通朗读按钮与转人工朗读按钮共用） */
   playVoice(e: WechatMiniprogram.BaseEvent) {
     const idx = e.currentTarget.dataset.index;
-    const _msg = this.data.messages[idx];
-    wx.showToast({ title: '语音播放中...', icon: 'none', duration: 1000 });
+    const msg = this.data.messages[idx];
+    if (!msg) return;
+    const tts = getTtsAdapter();
+    // 再点一次同一处则停止；朗读中切到其他条目由适配器内部先停后读
+    if (tts.isSpeaking()) {
+      tts.stop();
+      return;
+    }
+    tts.speak(msg.content).catch(() => {
+      wx.showToast({ title: '现在读不出来，稍后再试', icon: 'none' });
+    });
+  },
+
+  /** 朗读转人工卡片（朗读面向农户的文案，不含内部字段） */
+  playHandoff() {
+    const handoff = this.data.handoff;
+    if (!handoff) return;
+    const parts: string[] = [handoff.summary];
+    if (handoff.observationPoints.length > 0) {
+      parts.push(`需要留意：${handoff.observationPoints.join('；')}`);
+    }
+    const tts = getTtsAdapter();
+    if (tts.isSpeaking()) {
+      tts.stop();
+      return;
+    }
+    tts.speak(parts.join('。')).catch(() => {
+      wx.showToast({ title: '现在读不出来，稍后再试', icon: 'none' });
+    });
   },
 
   showQuickQuestions() {
@@ -238,8 +269,37 @@ Page({
     });
   },
 
-  toggleVoice() {
-    wx.showToast({ title: '语音功能开发中', icon: 'none' });
+  /** 语音输入为主入口：按下开始录音，松手结束并识别（不要求点击两次） */
+  onVoiceStart() {
+    this.setData({ recording: true });
+    getAsrAdapter()
+      .recognize({ dialect: false })
+      .then((res) => {
+        // 识别结果先填入输入框等待确认，不直接发送
+        this.setData({ inputValue: res.text, recording: false });
+        if (!res.text) {
+          wx.showToast({ title: '没听清，再说一次，或者打字告诉我', icon: 'none' });
+        }
+      })
+      .catch((err) => {
+        this.setData({ recording: false });
+        wx.showToast({
+          title: (err && err.message) || '需要允许使用麦克风才能语音提问，也可以直接打字',
+          icon: 'none',
+        });
+      });
+  },
+
+  /** 松手结束录音 */
+  onVoiceEnd() {
+    if (!this.data.recording) return;
+    getAsrAdapter().stop();
+  },
+
+  /** 录音中离开页面时取消本次识别 */
+  onUnload() {
+    getAsrAdapter().cancel();
+    getTtsAdapter().stop();
   },
 
   /** 顶部返回按钮：返回首页 */
