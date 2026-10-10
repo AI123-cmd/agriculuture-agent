@@ -9,6 +9,7 @@ from .environment import router as environment_router
 from .farmer import router as farmer_router
 from .knowledge_review import router as knowledge_review_router
 from .location import router as location_router
+from .subscription import router as subscription_router
 from .user import router as user_router
 
 api_router = APIRouter()
@@ -20,3 +21,4 @@ api_router.include_router(ai_api_router)
 api_router.include_router(user_router)
 api_router.include_router(knowledge_review_router)
 api_router.include_router(broadcast_router)
+api_router.include_router(subscription_router)
