@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.base import OwnedRepository
-from app.repositories.broadcast import BroadcastLogRepository, broadcast_repo
 from app.repositories.consultation import ConsultationRepository, consult_repo
 from app.repositories.conversation import (
     ConversationRepository,
@@ -21,9 +20,11 @@ from app.repositories.device import DeviceRepository, device_repo
 from app.repositories.env import EnvReadingRepository, env_reading_repo
 from app.repositories.field import FieldRepository, field_repo
 from app.repositories.followup import FollowupRepository, followup_repo
+from app.repositories.ledger import LedgerRepository, ledger_repo
 from app.repositories.location import LocationRepository, location_repo
 from app.repositories.memory import MemorySummaryRepository, memory_repo
 from app.repositories.message import ConversationScopedRepository, message_repo
+from app.repositories.prescription import PrescriptionRepository, prescription_repo
 from app.repositories.profile import FarmerProfileRepository, profile_repo
 from app.repositories.quota import QuotaRepository, quota_repo
 from app.repositories.reach import ReachRepository, reach_repo
@@ -50,12 +51,13 @@ class Repositories:
     location: LocationRepository = location_repo
     field: FieldRepository = field_repo
     memory: MemorySummaryRepository = memory_repo
-    broadcast: BroadcastLogRepository = broadcast_repo
     conversation: ConversationRepository = conversation_repo
     message: ConversationScopedRepository = message_repo
     consult: ConsultationRepository = consult_repo
+    prescription: PrescriptionRepository = prescription_repo
     followup: FollowupRepository = followup_repo
     snapshot: SnapshotRepository = snapshot_repo
+    ledger: LedgerRepository = ledger_repo
     quota: QuotaRepository = quota_repo
     reach: ReachRepository = reach_repo
     user: UserRepository = user_repo
@@ -68,13 +70,14 @@ __all__ = [
     "ConsultationRepository",
     "CropRepository",
     "FarmerProfileRepository",
-    "BroadcastLogRepository",
     "DeviceRepository",
     "EnvReadingRepository",
     "FieldRepository",
     "FollowupRepository",
+    "LedgerRepository",
     "LocationRepository",
     "MemorySummaryRepository",
+    "PrescriptionRepository",
     "ProfileTagRepository",
     "SnapshotRepository",
     "QuotaRepository",
@@ -85,9 +88,10 @@ __all__ = [
     "consult_repo",
     "crop_repo",
     "followup_repo",
+    "ledger_repo",
     "message_repo",
+    "prescription_repo",
     "profile_repo",
-    "broadcast_repo",
     "device_repo",
     "env_reading_repo",
     "field_repo",

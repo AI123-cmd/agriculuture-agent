@@ -22,13 +22,17 @@
 from collections.abc import Sequence
 from datetime import date
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.ownership import OwnershipError
 from app.db.base import new_id
 from app.models import PromptItem, PromptSnapshot
 from app.repositories.base import OwnedRepository
+
+# 历史快照的 `process_id` 可能为空（本列在 T3-15 才补出）。分组统计时归到该键下，使
+# "取不到流程"的条目可见而非被静默丢弃，供复盘判断是否需要回填。
+UNKNOWN_PROCESS = "unknown"
 
 
 class SnapshotRepository(OwnedRepository[PromptSnapshot]):
@@ -82,6 +86,86 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
         """
         stmt = select(PromptItem).where(PromptItem.id == prompt_item_id)
         return (await db.execute(stmt)).scalars().first()
+
+    async def get_item_for_user(self, db: AsyncSession, user_id: str, item_id: str) -> PromptItem | None:
+        """按归属取单条提示条目，供执行勾选回执使用（T3-15）。
+
+        与 `get_item` 的差别只在是否带归属过滤：勾选是农户对自己条目的操作，必须走归属
+        校验（T1-06），读不到他人的条目。归属不符返回 `None`，由服务层折算为 404，
+        不区分"不存在"与"不属于你"（与基类 `get` 同口径）。
+        """
+        uid = self._require_user(user_id)
+        stmt = select(PromptItem).where(PromptItem.id == item_id, PromptItem.user_id == uid)
+        return (await db.execute(stmt)).scalars().first()
+
+    async def save_item(self, db: AsyncSession, user_id: str, item: PromptItem) -> PromptItem:
+        """保存单条提示条目的改动（不提交，由调用方 commit）。
+
+        与 `add_item` 同口径地强制归属：`item.user_id` 缺失即抛 `MissingOwnerError`，
+        与当前用户不一致即抛 `OwnershipError`。勾选回执改的是 `executed` / `executed_at`
+        两列，调用方改完后交本方法落回会话。
+        """
+        uid = self._require_user(user_id)
+        if getattr(item, "user_id", None) not in (None, uid):
+            raise OwnershipError("保存对象的 user_id 与当前用户不一致")
+        item.user_id = uid
+        db.add(item)
+        return item
+
+    async def count_items(
+        self,
+        db: AsyncSession,
+        since: date,
+        process_id: str,
+        *,
+        suppressed: bool = False,
+        executed: bool | None = None,
+    ) -> int:
+        """统计自 `since` 起、落在指定流程内的提示条目数（T3-15 执行率的分母/分子）。
+
+        `process_id` 是必传的统计维度（产品说明书 6.3"按流程分别统计"），流程落在快照
+        `prompt_snapshot.process_id` 上，故按 `snapshot_id` 内连接快照读取；`prompt_item`
+        本身无流程列（T3-01 的列定义即如此）。`since` 与 `snapshot.snapshot_date` 同为
+        `Date`，按日粒度过滤。
+
+        `suppressed=False` 默认只统计展示过的条目：被抑制条目从未展示，计入分母会把执行率
+        人为压低（11.3）。`executed` 为 `None` 时不加勾选条件（统计全部分母），为 `True` 时
+        只数已勾选的条目（分子）。
+        """
+        stmt = (
+            select(func.count())
+            .select_from(PromptItem)
+            .join(PromptSnapshot, PromptItem.snapshot_id == PromptSnapshot.id)
+            .where(
+                PromptSnapshot.snapshot_date >= since,
+                PromptSnapshot.process_id == process_id,
+                PromptItem.suppressed.is_(suppressed),
+            )
+        )
+        if executed is not None:
+            stmt = stmt.where(PromptItem.executed.is_(executed))
+        return int((await db.execute(stmt)).scalar_one())
+
+    async def count_items_by_process(
+        self, db: AsyncSession, since: date, *, suppressed: bool = False, executed: bool | None = None
+    ) -> dict[str, int]:
+        """按流程分组统计提示条目数（T3-15，不传流程时执行率的分布口径）。
+
+        与 `count_items` 同一套过滤，只是把 `process_id` 从过滤条件改成分组维度：一次查询
+        取全部流程的计数，避免为七条流程各发一次查询。流程为 `NULL` 的历史快照归到
+        `UNKNOWN_PROCESS` 之下，使其可见而非被静默丢弃。
+        """
+        stmt = (
+            select(PromptSnapshot.process_id, func.count())
+            .select_from(PromptItem)
+            .join(PromptSnapshot, PromptItem.snapshot_id == PromptSnapshot.id)
+            .where(PromptSnapshot.snapshot_date >= since, PromptItem.suppressed.is_(suppressed))
+            .group_by(PromptSnapshot.process_id)
+        )
+        if executed is not None:
+            stmt = stmt.where(PromptItem.executed.is_(executed))
+        rows = (await db.execute(stmt)).all()
+        return {(str(process_id) if process_id is not None else UNKNOWN_PROCESS): int(count) for process_id, count in rows}
 
     async def list_items_by_followup_task(self, db: AsyncSession, task_id: str) -> Sequence[PromptItem]:
         """按回访任务 id 取该任务生成的提示条目，供 T3-12 的 `followup.due` 消费者定位推送对象。
@@ -165,4 +249,4 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
 
 snapshot_repo = SnapshotRepository()
 
-__all__ = ["SnapshotRepository", "snapshot_repo"]
+__all__ = ["UNKNOWN_PROCESS", "SnapshotRepository", "snapshot_repo"]
