@@ -290,8 +290,18 @@ def _unregistered_item() -> PromptItem:
     )
 
 
-async def test_gate_check_drops_text_with_unregistered_number(session_factory) -> None:
-    """文案含 "35℃" 但四段无登记：条目被丢弃，`gate_audit` 留一行 block 审计。"""
+async def test_gate_check_drops_text_with_unregistered_number(session_factory, monkeypatch) -> None:
+    """文案含 "35℃" 但四段无登记：条目被丢弃，`gate_audit` 留一行 block 审计。
+
+    `gate_check` 内部以 `GateAuditRepository()` 自管事务写审计，其构造默认绑定应用级
+    `SessionLocal`（连接池）。本用例把它换成 NullPool 的测试工厂：审计照常落测试库，
+    但连接不会跨事件循环被后续 `client` 用例的 TestClient portal 复用（否则报
+    "attached to a different loop"）。
+    """
+    import app.repositories.gate_audit as gate_audit_repo
+
+    monkeypatch.setattr(gate_audit_repo, "SessionLocal", session_factory)
+
     rendered = RenderedItem(item=_unregistered_item(), text="水稻：叶片发黄，当前气温 35℃ 偏高。")
 
     allowed = await gate_check(

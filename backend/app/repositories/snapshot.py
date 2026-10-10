@@ -92,11 +92,17 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
 
         条目通过对象上的 `items` 属性传入；两者都缺主键时在此处补 `new_id`，使调用方可以
         只关心内容。`snapshot_id` 与 `user_id` 由仓储统一填，条目无法挂到别人的快照上。
+
+        **先 `flush` 快照再写条目**：`prompt_item.snapshot_id` 是指向 `prompt_snapshot.id`
+        的外键，而两张表之间没有 ORM `relationship`，单次 flush 的插入顺序不受外键约束保证
+        （`prompt_item` 可能先于 `prompt_snapshot` 落库而撞 `fk_prompt_item_snapshot`）。
+        显式 flush 把父行先推下去，父行不在同一次 flush 里排队，顺序即确定。
         """
         uid = self._require_user(user_id)
         if not snapshot.id:
             snapshot.id = new_id("snap")
         await self.add(db, uid, snapshot)
+        await db.flush()
         for item in getattr(snapshot, "items", ()) or ():
             if not item.id:
                 item.id = new_id("item")
