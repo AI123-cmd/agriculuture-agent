@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import SubscriptionQuota
-from app.repositories.base import require_user_id
+from app.repositories.base import execute_write, require_user_id
 
 
 class QuotaRepository:
@@ -120,6 +120,21 @@ class QuotaRepository:
             .returning(SubscriptionQuota.user_id)
         )
         return (await db.execute(stmt)).first() is not None
+
+    async def zero_out(self, db: AsyncSession, user_id: str) -> int:
+        """把某户剩余额度清零，返回受影响行数（T3-12 的 `43101` 分支调用）。
+
+        触发场景：农户在授权后又关闭了订阅，微信返回 `43101`。此时系统持有的每一份授权都
+        已失效，`remaining` 若不归零会让下次扫描继续拿着失效授权反复失败。`granted_total`
+        与 `consumed_total` 不动——它们是历史事实，不应被追溯修改。
+        """
+        uid = require_user_id("SubscriptionQuota", user_id)
+        stmt = (
+            update(SubscriptionQuota)
+            .where(SubscriptionQuota.user_id == uid)
+            .values(remaining=0)
+        )
+        return await execute_write(db, stmt)
 
 
 quota_repo = QuotaRepository()

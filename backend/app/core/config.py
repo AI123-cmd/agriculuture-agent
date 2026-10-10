@@ -90,6 +90,11 @@ class Settings(BaseSettings):
     # 微信（真实凭证只放在 .env，勿写进代码或提交到仓库）
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
+    # 一次性订阅消息模板 id（T3-12）。模板在微信公众平台申请，属于环境相关配置；
+    # 留空时发送链路抛 `ConfigError`（fail-closed），不会静默发一条没有模板的消息。
+    WECHAT_SUBSCRIBE_TEMPLATE_ID: str = ""
+    # 订阅消息点击后跳转的小程序页面（T3-12）。留空则用微信默认落地页。
+    WECHAT_SUBSCRIBE_PAGE: str = "pages/index/index"
 
     # 农业大模型
     FARM_LLM_API_URL: str = ""

@@ -26,6 +26,7 @@ from app.repositories.memory import MemorySummaryRepository, memory_repo
 from app.repositories.message import ConversationScopedRepository, message_repo
 from app.repositories.profile import FarmerProfileRepository, profile_repo
 from app.repositories.quota import QuotaRepository, quota_repo
+from app.repositories.reach import ReachRepository, reach_repo
 from app.repositories.snapshot import SnapshotRepository, snapshot_repo
 from app.repositories.tag import ProfileTagRepository, tag_repo
 from app.repositories.user import UserRepository, user_repo
@@ -56,6 +57,7 @@ class Repositories:
     followup: FollowupRepository = followup_repo
     snapshot: SnapshotRepository = snapshot_repo
     quota: QuotaRepository = quota_repo
+    reach: ReachRepository = reach_repo
     user: UserRepository = user_repo
 
 
@@ -76,6 +78,7 @@ __all__ = [
     "ProfileTagRepository",
     "SnapshotRepository",
     "QuotaRepository",
+    "ReachRepository",
     "UserRepository",
     "Repositories",
     "conversation_repo",
@@ -92,6 +95,7 @@ __all__ = [
     "memory_repo",
     "snapshot_repo",
     "quota_repo",
+    "reach_repo",
     "tag_repo",
     "user_repo",
 ]

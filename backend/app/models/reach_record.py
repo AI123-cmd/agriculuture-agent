@@ -99,11 +99,11 @@ class ReachRecord(Base, OwnedMixin):
         """
         if key == "status":
             value = coerce_enum(ReachStatus, value)
-            if value == ReachStatus.DELIVERED.value and self.fail_reason is not None:
+            if value == ReachStatus.DELIVERED.value and getattr(self, "fail_reason", None) is not None:
                 raise ValueError("status=delivered 时 fail_reason 必须为 None")
             return value
         value = coerce_enum(FailReason, value)
-        status = self.status
+        status = getattr(self, "status", None)
         if value is None:
             if status == ReachStatus.FAILED.value:
                 raise ValueError("status=failed 时 fail_reason 不能为空")
