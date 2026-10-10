@@ -70,6 +70,16 @@
       <view class="menu-text">咨询历史</view>
       <view class="menu-arrow">›</view>
     </view>
+    <view class="menu-divider"></view>
+
+    <view class="menu-item" hover-class="menu-item-hover" bindtap="goEnv">
+      <view class="menu-icon mi-env">
+        <view class="mi-env-drop"></view>
+        <view class="mi-env-leaf"></view>
+      </view>
+      <view class="menu-text">环境数据</view>
+      <view class="menu-arrow">›</view>
+    </view>
   </view>
 
   <!-- 其他设置 -->

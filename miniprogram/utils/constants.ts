@@ -8,7 +8,4 @@ export const KEY = {
   FARMER_CROPS: 'farmerCrops',
   FARMER_NAME: 'farmerName',
   FARM_LOCATION: 'farmLocation',
-  CONVERSATION_LIST: 'ai_conversation_list',
-  PENDING_SESSION_ID: 'pending_session_id',
-  PENDING_CHAT_MODE: 'pending_chat_mode',
 } as const

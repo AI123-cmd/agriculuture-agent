@@ -41,6 +41,10 @@ Page({
     wx.switchTab({ url: '/pages/history/list' });
   },
 
+  goEnv() {
+    wx.navigateTo({ url: '/pages/env/env' });
+  },
+
   showAbout() {
     wx.showModal({
       title: '关于话农点金',
@@ -75,9 +79,6 @@ Page({
           wx.removeStorageSync(KEY.FARMER_CROPS);
           wx.removeStorageSync(KEY.FARMER_PROFILE);
           wx.removeStorageSync(KEY.FARM_LOCATION);
-          wx.removeStorageSync(KEY.CONVERSATION_LIST);
-          wx.removeStorageSync(KEY.PENDING_SESSION_ID);
-          wx.removeStorageSync(KEY.PENDING_CHAT_MODE);
 
           wx.reLaunch({ url: '/pages/login/login' });
         }

@@ -7,19 +7,19 @@
       <sprout-mascot size="{{88}}" />
       <view class="header-text">
         <view class="header-title">AI 农事顾问</view>
-        <view class="header-sub">小禾随时为您解答种植难题</view>
+        <view class="header-sub">{{stageLabel || '小禾随时为您解答种植难题'}}{{progressText ? ' · ' + progressText : ''}}</view>
       </view>
     </view>
   </view>
 
-  <!-- 作物标签条：显示当前咨询的作物模型，可切换 -->
+  <!-- 作物标签条：作为问诊的流程提示（processHint）传入后端 -->
   <view class="crop-tag-bar">
     <view class="crop-tag-left">
-      <text class="crop-tag-label">当前咨询</text>
-      <view class="crop-tag-current">{{currentCropName}}</view>
+      <text class="crop-tag-label t-caption">当前咨询</text>
+      <view class="crop-tag-current t-body">{{currentCropName}}</view>
     </view>
-    <view class="crop-tag-switch" bindtap="showCropSwitch">
-      <text class="switch-text">切换</text>
+    <view class="crop-tag-switch tap-88" bindtap="showCropSwitch">
+      <text class="switch-text t-caption">切换</text>
       <text class="switch-arrow">›</text>
     </view>
   </view>
@@ -33,8 +33,12 @@
             <sprout-mascot size="{{72}}" />
           </view>
           <view class="msg-content ai-content">
-            <view class="msg-bubble ai-bubble">{{item.content}}</view>
-            <view wx:if="{{item.showVoice}}" class="voice-play-btn" data-index="{{index}}" bindtap="playVoice">
+            <view class="msg-bubble ai-bubble t-body">{{item.content}}</view>
+            <!-- 转人工消息用独立朗读按钮，文案更明确 -->
+            <view wx:if="{{item.speakable}}" class="tip-read-btn tap-88" data-index="{{index}}" bindtap="playVoice">
+              <text class="tip-read-icon">读</text>
+            </view>
+            <view wx:elif="{{item.showVoice}}" class="voice-play-btn tap-88" data-index="{{index}}" bindtap="playVoice">
               <view class="vp-icon">
                 <view class="vp-speaker"></view>
                 <view class="vp-wave vp-wave-1"></view>
@@ -48,27 +52,96 @@
         <!-- 用户消息（右侧） -->
         <view wx:if="{{item.role === 'user'}}" class="msg-row user-row">
           <view class="msg-content user-content">
-            <view class="msg-bubble user-bubble">{{item.content}}</view>
+            <view class="msg-bubble user-bubble t-body">{{item.content}}</view>
           </view>
         </view>
       </block>
+
+      <!-- 追问：选项点选或“说不清”，一次一步 -->
+      <view class="qa-block" wx:if="{{questions.length > 0}}">
+        <view class="qa-item card" wx:for="{{questions}}" wx:key="slotKey">
+          <view class="qa-text t-body">{{item.text}}</view>
+          <view class="qa-why t-caption" wx:if="{{item.why}}">{{item.why}}</view>
+          <view class="qa-options">
+            <view
+              class="qa-option tap-88"
+              wx:for="{{item.options}}"
+              wx:for-item="opt"
+              wx:key="*this"
+              bindtap="onAnswerOption"
+              data-slot="{{item.slotKey}}"
+              data-value="{{opt}}"
+            >{{opt}}</view>
+            <view
+              class="qa-option qa-unknown tap-88"
+              wx:if="{{item.allowUnknown}}"
+              bindtap="onAnswerUnknown"
+              data-slot="{{item.slotKey}}"
+            >说不清</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 处方结论 -->
+      <view class="rx-card card" wx:if="{{prescription}}">
+        <view class="card-title">处置建议</view>
+        <view class="rx-summary t-body">{{prescription.diagnosisSummary}}</view>
+
+        <view class="rx-section" wx:if="{{prescription.actions.length > 0}}">
+          <view class="rx-section-title t-title">怎么做</view>
+          <view class="rx-action" wx:for="{{prescription.actions}}" wx:key="order">
+            <view class="rx-action-main t-body">{{item.order}}. {{item.action}}</view>
+            <view class="rx-action-meta t-caption" wx:if="{{item.timing}}">时间：{{item.timing}}</view>
+            <view class="rx-action-meta t-caption" wx:if="{{item.method}}">方法：{{item.method}}</view>
+            <view class="rx-action-meta t-caption" wx:for="{{item.cautions}}" wx:for-item="c" wx:key="*this">注意：{{c}}</view>
+          </view>
+        </view>
+
+        <view class="rx-section" wx:if="{{prescription.pesticideItems.length > 0}}">
+          <view class="rx-section-title t-title">用药</view>
+          <view class="rx-pesticide" wx:for="{{prescription.pesticideItems}}" wx:key="name">
+            <view class="rx-pesticide-name t-body">{{item.name}}</view>
+            <view class="rx-action-meta t-caption" wx:if="{{item.safetyIntervalDays}}">安全间隔：{{item.safetyIntervalDays}} 天</view>
+            <view class="rx-action-meta t-caption" wx:if="{{item.sourceNote}}">{{item.sourceNote}}</view>
+          </view>
+        </view>
+
+        <view class="rx-section" wx:if="{{prescription.followupPlan.tasks.length > 0}}">
+          <view class="rx-section-title t-title">后续观察</view>
+          <view class="rx-action-meta t-caption" wx:for="{{prescription.followupPlan.tasks}}" wx:key="dueOffsetDays">
+            {{item.dueOffsetDays}} 天后：{{item.ask || '观察效果'}}
+          </view>
+        </view>
+
+        <view class="rx-tech t-caption" wx:if="{{prescription.requiresTechStation}}">本情况建议同时咨询当地农技站。</view>
+      </view>
+
+      <!-- 转人工 -->
+      <view class="handoff-card card" wx:if="{{handoff}}">
+        <view class="card-title">建议找农技人员</view>
+        <view class="rx-summary t-body">{{handoff.summary}}</view>
+        <view class="handoff-points" wx:if="{{handoff.observationPoints.length > 0}}">
+          <view class="rx-action-meta t-caption" wx:for="{{handoff.observationPoints}}" wx:key="*this">{{item}}</view>
+        </view>
+        <view class="handoff-contact" wx:for="{{handoff.contacts}}" wx:key="name">
+          <view class="rx-pesticide-name t-body">{{item.name}}</view>
+          <view class="rx-action-meta t-caption" wx:if="{{item.phone}}">{{item.phone}}</view>
+        </view>
+        <view class="tip-read-btn tap-88" wx:if="{{handoff.speakable}}" bindtap="playHandoff">
+          <text class="tip-read-icon">读</text>
+        </view>
+      </view>
     </view>
   </scroll-view>
 
-  <!-- 常用问题浮动按钮 -->
-  <view class="quick-questions-btn" bindtap="showQuickQuestions">
-    <text class="qq-icon">?</text>
-    <text class="qq-label">常用问题</text>
-  </view>
-
-  <!-- 输入区域 -->
+  <!-- 输入区域：语音为主入口，打字为备选 -->
   <view class="input-bar">
-    <view class="voice-btn" bindtap="toggleVoice">
-      <view class="voice-icon"></view>
-      <text class="voice-label">语音</text>
+    <view class="voice-btn tap-88" bindtap="toggleVoice">
+      <view class="voice-icon {{recording ? 'recording' : ''}}"></view>
+      <text class="voice-label t-caption">{{recording ? '松开' : '语音'}}</text>
     </view>
     <view class="input-wrap">
-      <input class="msg-input"
+      <input class="msg-input t-body"
              placeholder="输入您的问题..."
              value="{{inputValue}}"
              confirm-type="send"
@@ -76,7 +149,7 @@
              bindconfirm="sendMessage"
              bindinput="onInput" />
     </view>
-    <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="sendMessage">
+    <view class="send-btn tap-88 {{inputValue ? 'active' : ''}}" bindtap="sendMessage">
       <text class="send-icon">➤</text>
     </view>
   </view>

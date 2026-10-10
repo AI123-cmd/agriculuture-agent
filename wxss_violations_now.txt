@@ -1,0 +1,211 @@
+﻿scanned 10 wxss files, 209 violations, 0 whitelisted entries (decoration 0 / divider 0 / safe-area 0)
+  miniprogram/app.wxss:63: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/app.wxss:64: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:20: 尺寸 62rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:21: 尺寸 30rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:34: 尺寸 2rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:64: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:75: 尺寸 15rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:86: 尺寸 36rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:109: 尺寸 20rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:110: 尺寸 26rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:127: 尺寸 7rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:128: 尺寸 7rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:136: 尺寸 26rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:137: 尺寸 14rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:156: 尺寸 30rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:157: 尺寸 18rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:168: 尺寸 18rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/components/sprout-mascot/index.wxss:169: 尺寸 12rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:28: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/custom-tab-bar/index.wxss:41: 尺寸 44rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:42: 尺寸 44rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:50: 尺寸 32rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:51: 尺寸 32rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:61: 尺寸 26rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:62: 尺寸 20rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:86: 尺寸 4rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:87: 尺寸 12rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:98: 尺寸 4rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:99: 尺寸 10rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:116: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:117: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:127: 尺寸 30rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/custom-tab-bar/index.wxss:128: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:67: font-size 使用字面量 36rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:74: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:96: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:102: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:117: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:122: font-size 使用字面量 36rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:125: 无单位 line-height 1 低于下限 1.3，请改用 var(--line-tight)
+  miniprogram/pages/ai/chat.wxss:157: 尺寸 80rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:158: 尺寸 80rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:191: font-size 使用字面量 30rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:213: 尺寸 52rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:214: 尺寸 52rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:225: 尺寸 36rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:226: 尺寸 36rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:250: 尺寸 4rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:251: 尺寸 8rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:267: 尺寸 8rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:268: 尺寸 8rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:273: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:274: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:279: 尺寸 24rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:280: 尺寸 24rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:299: 尺寸 40rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:300: 尺寸 40rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:304: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:313: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:337: 尺寸 64rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:341: 尺寸 48rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:342: 尺寸 48rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:353: font-size 使用字面量 22rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:359: font-size 使用字面量 22rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:368: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:375: font-size 使用字面量 30rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/ai/chat.wxss:380: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:381: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/ai/chat.wxss:397: font-size 使用字面量 36rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:24: font-size 使用字面量 56rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:25: 无单位 line-height 1 低于下限 1.3，请改用 var(--line-tight)
+  miniprogram/pages/env/env.wxss:26: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:27: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:34: font-size 使用字面量 36rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:40: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:41: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:48: 尺寸 32rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:49: 尺寸 32rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:95: 尺寸 24rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:96: 尺寸 24rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:105: font-size 使用字面量 34rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:111: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:146: 尺寸 48rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:147: 尺寸 48rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:161: 尺寸 6rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:162: 尺寸 20rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:173: 尺寸 12rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:174: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:186: 尺寸 18rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:187: 尺寸 12rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:198: 尺寸 15rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:199: 尺寸 15rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:205: font-size 使用字面量 32rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:208: 无单位 line-height 1.2 低于下限 1.3，请改用 var(--line-tight)
+  miniprogram/pages/env/env.wxss:212: font-size 使用字面量 20rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:219: font-size 使用字面量 22rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:233: font-size 使用字面量 34rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:252: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:257: font-size 使用字面量 30rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:276: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:277: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/env/env.wxss:299: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:305: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:310: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:335: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:340: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/env/env.wxss:349: 尺寸 40rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/history/list.wxss:68: font-size 使用字面量 36rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:75: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:93: font-size 使用字面量 32rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:99: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:141: font-size 使用字面量 32rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:148: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:156: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/history/list.wxss:157: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/history/list.wxss:170: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:175: 尺寸 1rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/history/list.wxss:195: font-size 使用字面量 32rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:201: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/history/list.wxss:218: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/index/index.wxss:129: 尺寸 24rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/index/index.wxss:130: 尺寸 24rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/login/login.wxss:47: font-size 使用字面量 56rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/login/login.wxss:55: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/login/login.wxss:76: font-size 使用字面量 34rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/login/login.wxss:106: 尺寸 32rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/login/login.wxss:107: 尺寸 32rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/login/login.wxss:127: font-size 使用字面量 22rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/login/login.wxss:132: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:92: 尺寸 40rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:93: 尺寸 40rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:103: 尺寸 18rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:104: 尺寸 13rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:111: 尺寸 7rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:112: 尺寸 7rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:123: font-size 使用字面量 40rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:138: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:143: 尺寸 12rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:144: 尺寸 16rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:153: font-size 使用字面量 22rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:174: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:182: 尺寸 8rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:183: 尺寸 26rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:212: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:213: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:230: 尺寸 20rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:231: 尺寸 20rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:237: 尺寸 32rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:238: 尺寸 18rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:251: 尺寸 36rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:252: 尺寸 36rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:262: 尺寸 4rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:263: 尺寸 10rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:273: 尺寸 9rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:274: 尺寸 4rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:286: 尺寸 7rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:287: 尺寸 7rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:293: 尺寸 7rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:294: 尺寸 20rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:306: 尺寸 28rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:307: 尺寸 34rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:318: 尺寸 14rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:319: 尺寸 3rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:326: 尺寸 9rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:331: font-size 使用字面量 32rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:337: font-size 使用字面量 36rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:340: 无单位 line-height 1 低于下限 1.3，请改用 var(--line-tight)
+  miniprogram/pages/mine/mine.wxss:344: 尺寸 1rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:361: font-size 使用字面量 32rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:376: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:391: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:397: 尺寸 8rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:398: 尺寸 8rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:427: 尺寸 64rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:428: 尺寸 8rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/mine/mine.wxss:436: font-size 使用字面量 32rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:469: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:484: font-size 使用字面量 30rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/mine/mine.wxss:500: font-size 使用字面量 30rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:18: font-size 使用字面量 56rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:19: 无单位 line-height 1 低于下限 1.3，请改用 var(--line-tight)
+  miniprogram/pages/profile/farmer-profile.wxss:21: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/profile/farmer-profile.wxss:22: 尺寸 56rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/profile/farmer-profile.wxss:29: font-size 使用字面量 44rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:36: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:63: font-size 使用字面量 34rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:73: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:97: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:113: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:123: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:149: font-size 使用字面量 30rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:156: font-size 使用字面量 26rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:174: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:180: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/profile/farmer-profile.wxss:184: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:186: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/profile/farmer-profile.wxss:190: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/profile/farmer-profile.wxss:194: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:196: 尺寸 72rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+  miniprogram/pages/profile/farmer-profile.wxss:209: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:228: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:244: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:255: font-size 使用字面量 24rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:269: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:283: font-size 使用字面量 40rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:284: 无单位 line-height 1 低于下限 1.3，请改用 var(--line-tight)
+  miniprogram/pages/profile/farmer-profile.wxss:305: font-size 使用字面量 28rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:334: font-size 使用字面量 34rpx，请改用公共字号类或 var(--font-*)
+  miniprogram/pages/profile/farmer-profile.wxss:350: 尺寸 40rpx 小于热区下限 88rpx，请改用 var(--tap-min) 或登记白名单
+不得在 WXSS 中散落字号/热区/行距/间距字面量；确有例外请在 scripts/wxss-token-whitelist.json 登记。

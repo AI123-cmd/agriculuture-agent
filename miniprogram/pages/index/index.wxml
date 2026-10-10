@@ -21,7 +21,7 @@
   <!-- 滚动内容区域，统一左右 padding，预留顶部头部和底部导航高度 -->
   <view class="page-content">
     <!-- 地点信息 -->
-    <view class="location-row item-block" bindtap="chooseLocation">
+    <view class="location-row block" bindtap="chooseLocation">
       <view class="location-left">
         <view class="location-pin"></view>
         <text class="location-name">{{locationName}}</text>
@@ -29,52 +29,55 @@
       <text class="location-set">设置 ›</text>
     </view>
 
-    <!-- 今日农事播报 -->
-    <view class="card item-block">
+    <!-- 环境一行状态：只读展示，不可点击 -->
+    <view class="env-line block">
+      <text class="env-line-text">{{envLine}}</text>
+    </view>
+
+    <!-- 今日提示 -->
+    <view class="card block">
       <view class="card-header">
-        <view class="card-title">今日农事播报</view>
-        <view class="card-badge">小禾提醒</view>
+        <view class="card-title">今日提示</view>
+        <view class="card-badge" wx:if="{{generatedLabel}}">{{generatedLabel}}</view>
       </view>
-      <view class="broadcast-list">
-        <view class="broadcast-item" wx:for="{{broadcasts}}" wx:key="id">
-          <view class="broadcast-dot {{item.done ? 'dot-done' : ''}}"></view>
-          <view class="broadcast-body">
-            <view class="broadcast-title">{{item.time}} · {{item.title}}</view>
-            <view class="broadcast-text">{{item.content}}</view>
+
+      <view class="tip-list" wx:if="{{tipItems.length > 0}}">
+        <view class="tip-item {{item.executed ? 'tip-done' : ''}}" wx:for="{{tipItems}}" wx:key="itemId">
+          <view class="tip-body">
+            <view class="tip-callout">{{item.callout}}</view>
+            <view class="tip-fact">{{item.fact}}</view>
+            <view class="tip-impact">{{item.impact}}</view>
+            <view class="tip-action">{{item.action}}</view>
           </view>
-          <view class="broadcast-check {{item.done ? 'done' : ''}}" bindtap="onBroadcastDone" data-id="{{item.id}}">
-            <text class="check-icon">{{item.done ? '✓' : ''}}</text>
+          <view class="tip-actions">
+            <!-- 朗读触发位：容器与类名在此定义，行为由 T4-04 实现 -->
+            <view class="tip-read-btn tap-88" data-id="{{item.itemId}}">
+              <text class="tip-read-icon">读</text>
+            </view>
+            <!-- 执行勾选：仅当日快照可操作 -->
+            <view
+              class="tap-88"
+              wx:if="{{isToday}}"
+              bindtap="onToggleExecuted"
+              data-id="{{item.itemId}}"
+            >
+              <view class="check-circle {{item.executed ? 'tip-check-done' : ''}}">
+                <text class="check-icon">{{item.executed ? '✓' : ''}}</text>
+              </view>
+            </view>
           </view>
         </view>
+      </view>
+
+      <view class="tip-empty" wx:else>今天暂时没有需要特别注意的农事，保持日常管理即可。</view>
+
+      <view class="card-footer">
+        <view class="btn-primary update-btn" bindtap="onUpdateTips">{{updating ? '更新中…' : '更新提示'}}</view>
       </view>
     </view>
 
-    <!-- 快捷入口 -->
-    <view class="quick-wrap item-block">
-      <view class="quick-item" wx:for="{{functions}}" wx:key="id" bindtap="onFuncTap" data-id="{{item.id}}">
-        <view class="quick-icon quick-icon-{{item.id}}">
-          <view wx:if="{{item.id === 'ai'}}" class="icon-ai-bubble"></view>
-          <view wx:elif="{{item.id === 'camera'}}" class="icon-camera-body"><view class="icon-camera-lens"></view></view>
-          <view wx:elif="{{item.id === 'env'}}" class="icon-leaf"></view>
-          <view wx:else class="icon-book"><view class="icon-book-line"></view><view class="icon-book-line"></view></view>
-        </view>
-        <text class="quick-label">{{item.label}}</text>
-      </view>
-    </view>
-
-    <!-- 环境摘要 -->
-    <view class="card item-block">
-      <view class="card-header">
-        <view class="card-title">环境摘要</view>
-      </view>
-      <view class="env-grid">
-        <view class="env-item" wx:for="{{envData}}" wx:key="id">
-          <view class="env-dot env-dot-{{index}}"></view>
-          <view class="env-value">{{item.value}}</view>
-          <view class="env-label">{{item.label}}</view>
-        </view>
-      </view>
-    </view>
+    <!-- 核心动作：我要提问 -->
+    <view class="btn-primary ask-btn" bindtap="onAsk">我要提问</view>
   </view>
 
 </view>

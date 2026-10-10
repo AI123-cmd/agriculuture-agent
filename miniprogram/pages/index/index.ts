@@ -1,10 +1,10 @@
 // index.ts
-import { getToday, markDone } from '../../api/broadcast'
+import { getSnapshot, postSnapshot, executeItem } from '../../api/broadcast'
 import { getSummary } from '../../api/environment'
 import { autoLocate, manualInputLocation } from '../../utils/location'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
-import type { BroadcastItem } from '../../types/api'
+import type { PromptItem } from '../../types/api'
 
 Page({
   data: {
@@ -12,26 +12,21 @@ Page({
     currentCrop: '水稻（分蘖期）',
     farmerName: '张叔',
     locationName: '点击设置地点',
-    broadcasts: [] as BroadcastItem[],
-    functions: [
-      { id: 'ai', label: 'AI咨询' },
-      { id: 'camera', label: '拍照识别' },
-      { id: 'env', label: '查看环境' },
-      { id: 'manage', label: '农事管理' },
-    ],
-    envData: [
-      { id: 1, value: '--', label: '温度' },
-      { id: 2, value: '--', label: '湿度' },
-      { id: 3, value: '--', label: '土壤' },
-      { id: 4, value: '--', label: '光照' },
-    ],
+    // 提示快照
+    tipItems: [] as PromptItem[],
+    generatedLabel: '',
+    // 跨日弱化：today 可勾选，其余只读展示
+    isToday: true,
+    // 环境一行状态
+    envLine: '环境数据暂不可用',
+    updating: false,
   },
 
   onLoad() {
     if (!ensureAuth()) return;
     this.loadUserInfo();
     this.loadLocation();
-    this.loadBroadcasts();
+    this.loadSnapshot();
     this.loadEnvironment();
   },
 
@@ -39,7 +34,7 @@ Page({
     if (!ensureAuth()) return;
     this.loadUserInfo();
     this.loadLocation();
-    this.loadBroadcasts();
+    this.loadSnapshot();
     this.loadEnvironment();
     const tabBar = (this as any).getTabBar();
     if (tabBar) tabBar.setData({ selected: 0 });
@@ -62,39 +57,6 @@ Page({
       patch.currentCrop = `${first.cropName}${stage}`;
     }
     this.setData(patch);
-  },
-
-  onFuncTap(e: WechatMiniprogram.BaseEvent) {
-    const id = e.currentTarget.dataset.id as string;
-    switch (id) {
-      case 'ai':
-        wx.switchTab({ url: '/pages/ai/chat' });
-        break;
-      case 'camera':
-        wx.chooseMedia({
-          count: 1,
-          mediaType: ['image'],
-          sourceType: ['camera', 'album'],
-          success: () => {
-            // switchTab 不支持 URL 参数，用 storage 传递拍照模式标记
-            wx.setStorageSync(KEY.PENDING_CHAT_MODE, 'camera');
-            wx.switchTab({ url: '/pages/ai/chat' });
-          },
-        });
-        break;
-      case 'env':
-        wx.navigateTo({ url: '/pages/env/env' });
-        break;
-      case 'manage':
-        wx.navigateTo({ url: '/pages/profile/farmer-profile' });
-        break;
-      default:
-        wx.showToast({ title: '功能开发中', icon: 'none' });
-    }
-  },
-
-  goProfile() {
-    wx.navigateTo({ url: '/pages/profile/farmer-profile' });
   },
 
   /** 加载本地缓存的地点 */
@@ -136,45 +98,93 @@ Page({
       .catch(() => {});
   },
 
-  /** 加载今日农事播报 */
-  loadBroadcasts() {
-    getToday()
-      .then((data) => {
-        this.setData({ broadcasts: data.items || [] });
+  /** 读取当日提示快照 */
+  loadSnapshot() {
+    getSnapshot()
+      .then((res) => {
+        this.applySnapshot(res.snapshot);
       })
       .catch(() => {
-        // 离线：保留本地缓存/默认
+        // 离线：保留当前展示
       });
   },
 
-  /** 加载环境摘要 */
+  /** 更新提示：重新生成当日快照 */
+  onUpdateTips() {
+    if (this.data.updating) return;
+    this.setData({ updating: true });
+    postSnapshot()
+      .then((res) => {
+        this.applySnapshot(res.snapshot);
+        if (res.updateNotice) {
+          wx.showToast({ title: res.updateNotice, icon: 'none' });
+        } else {
+          wx.showToast({ title: '已更新', icon: 'success' });
+        }
+      })
+      .catch((err) => {
+        wx.showToast({ title: (err && err.message) || '更新失败', icon: 'none' });
+      })
+      .finally(() => {
+        this.setData({ updating: false });
+      });
+  },
+
+  applySnapshot(snapshot: any) {
+    if (!snapshot) {
+      this.setData({ tipItems: [], generatedLabel: '', isToday: false });
+      return;
+    }
+    this.setData({
+      tipItems: snapshot.items || [],
+      generatedLabel: snapshot.generatedLabel || '',
+      isToday: snapshot.displayStatus === 'today',
+    });
+  },
+
+  /** 勾选 / 取消某条提示的执行状态（跨日快照不可操作） */
+  onToggleExecuted(e: WechatMiniprogram.BaseEvent) {
+    if (!this.data.isToday) return;
+    const id = e.currentTarget.dataset.id as string;
+    const item = this.data.tipItems.find((t) => t.itemId === id);
+    if (!item) return;
+    const next = !item.executed;
+
+    // 乐观更新本地
+    const tipItems = this.data.tipItems.map((t) =>
+      t.itemId === id ? { ...t, executed: next } : t,
+    );
+    this.setData({ tipItems });
+
+    executeItem(id, next).catch(() => {
+      // 失败回滚
+      const rollback = this.data.tipItems.map((t) =>
+        t.itemId === id ? { ...t, executed: !next } : t,
+      );
+      this.setData({ tipItems: rollback });
+      wx.showToast({ title: '操作失败，请重试', icon: 'none' });
+    });
+  },
+
+  /** 核心动作一：我要提问 */
+  onAsk() {
+    wx.switchTab({ url: '/pages/ai/chat' });
+  },
+
+  /** 加载环境一行状态 */
   loadEnvironment() {
     getSummary()
       .then((d) => {
         this.setData({
-          envData: [
-            { id: 1, value: `${d.temperature}°C`, label: '温度' },
-            { id: 2, value: `${d.humidity}%`, label: '湿度' },
-            { id: 3, value: d.soilStatus, label: '土壤' },
-            { id: 4, value: d.lightStatus, label: '光照' },
-          ],
+          envLine: `温度 ${d.temperature}°C · 湿度 ${d.humidity}% · 土壤 ${d.soilStatus}`,
         });
       })
       .catch(() => {
-        // 离线：保留默认展示
+        this.setData({ envLine: '环境数据暂不可用' });
       });
   },
 
-  /** 标记播报项完成 */
-  onBroadcastDone(e: WechatMiniprogram.BaseEvent) {
-    const id = e.currentTarget.dataset.id as string;
-    const item = this.data.broadcasts.find((b) => b.id === id);
-    if (!item || item.done) return;
-
-    // 乐观更新本地
-    const broadcasts = this.data.broadcasts.map((b) => (b.id === id ? { ...b, done: true } : b));
-    this.setData({ broadcasts });
-
-    markDone(id).catch(() => {});
+  goProfile() {
+    wx.navigateTo({ url: '/pages/profile/farmer-profile' });
   },
 });
