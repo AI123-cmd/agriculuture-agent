@@ -148,11 +148,17 @@ async def build_text(
     item: RuleResult,
     *,
     max_chars: int = DEFAULT_MAX_CHARS,
+    max_item_chars: int = MAX_ITEM_CHARS,
     gateway: ModelGateway | None = None,
 ) -> str:
-    """组合入口：模板出事实 → 模型改写 → 按上限截断，返回最终文案（T3-08 调用）。"""
+    """组合入口：模板出事实 → 模型改写 → 按上限截断 → 逐段收敛，返回最终文案（T3-08 调用）。
+
+    T4-05 在此叠加适老化上限：`build_text` 的输出对应"整条提示的可见总长"，故有效上限取
+    流程配置的 `max_item_chars` 与默认 `MAX_ITEM_CHARS` 的**较小值**，再与 `max_chars`
+    取小。`fit_item_text` 负责按句子边界收敛到该上限，绝不返回半句。
+    """
     text, _ = await build_text_with_provenance(item, max_chars=max_chars, gateway=gateway)
-    return text
+    return fit_item_text(text, min(max_chars, max_item_chars))
 
 
 __all__ = [
@@ -162,6 +168,7 @@ __all__ = [
     "WRITER_TEMPLATE",
     "build_text",
     "build_text_with_provenance",
+    "fit_item_text",
     "render_template",
     "rewrite_with_model",
     "truncate_at_sentence",

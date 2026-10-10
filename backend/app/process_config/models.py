@@ -18,6 +18,19 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.agent.state import AnswerType, ProcessId, SlotGroup, ViolationSeverity
 
+# T4-05 问诊并列选项数量上限。取值依据两处：一是产品说明书 4.2.2 的既有示例是三个并列
+# 选项（"打过 / 没打过 / 记不清"），T2-10 又要求单选/多选固定含一个跳过项，故"三个实质
+# 选项 + 一个跳过项"= 4 是自然上限；二是版面算术：热区下限 88rpx、列间距 24rpx 时，
+# `4 × 88 + 3 × 24 = 424rpx` 仍在一行（内容宽 690rpx），第 5 列会违反 88rpx 热区下限。
+MAX_OPTIONS_PER_QUESTION: int = 4
+# 一轮最多 2 问，`2 × 3` 属正常情形；总数上限 6 与逐问上限 4 配合，保证首问完整。
+MAX_OPTIONS_PER_BATCH: int = 6
+
+# 单条提示的适老化字数下限与上限。`OutputTemplateSpec.max_item_chars` 必须落在区间内，
+# 防止某条流程把上限调大后让适老约束失效（见 loader 的启动校验）。
+MIN_ITEM_CHARS: int = 60
+MAX_ITEM_CHARS_BOUND: int = 140
+
 
 class SlotSpec(BaseModel):
     """单个信息槽位的规格。
@@ -105,6 +118,10 @@ class OutputTemplateSpec(BaseModel):
 
     `max_chars` 默认 400，配合适老化改造；上限由后端负责，不留给前端截断，
     否则适老化验收时会反复返工。
+
+    `max_item_chars` 是单条提示可见总长的适老化上限（T4-05），缺省 100。它是四级优先级的
+    第一级：流程配置可覆盖，未覆盖则用 `limits.MAX_ITEM_CHARS`，逐段常量兜底。取值须落在
+    `[MIN_ITEM_CHARS, MAX_ITEM_CHARS_BOUND]` 内，由 `loader._check_integrity` 启动时校验。
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -112,6 +129,7 @@ class OutputTemplateSpec(BaseModel):
     section_order: list[str]
     max_chars: int = 400
     required_sections: list[str] = []
+    max_item_chars: int = 100
 
 
 class FollowupTaskSpec(BaseModel):
@@ -231,6 +249,10 @@ class ProcessConfig(BaseModel):
 
 
 __all__ = [
+    "MAX_ITEM_CHARS_BOUND",
+    "MAX_OPTIONS_PER_BATCH",
+    "MAX_OPTIONS_PER_QUESTION",
+    "MIN_ITEM_CHARS",
     "ConfusablePair",
     "FollowupPolicy",
     "FollowupTaskSpec",

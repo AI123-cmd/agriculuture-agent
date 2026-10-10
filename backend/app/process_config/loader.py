@@ -21,7 +21,12 @@ from pydantic import ValidationError
 
 from app.agent.state import ProcessId
 from app.process_config.errors import ConfigIntegrityError, ConfigLoadError
-from app.process_config.models import ProcessConfig
+from app.process_config.models import (
+    MAX_ITEM_CHARS_BOUND,
+    MAX_OPTIONS_PER_QUESTION,
+    MIN_ITEM_CHARS,
+    ProcessConfig,
+)
 from app.process_config.redlines import RedlineValidator
 
 logger = logging.getLogger(__name__)
@@ -117,9 +122,36 @@ def _check_integrity(config: ProcessConfig) -> None:
             problems.append(f"{label} id 重复: {sorted(dup)}")
 
     _check_rapeseed_restriction(config, problems)
+    _check_option_limits(config, problems)
+    _check_item_chars(config, problems)
 
     if problems:
         raise ConfigIntegrityError(config.process_id.value, problems)
+
+
+def _check_option_limits(config: ProcessConfig, problems: list[str]) -> None:
+    """T4-05：槽位并列选项数不得超过适老上限，超限的槽位在启动时报错。
+
+    校验对象同时覆盖 `required_slots` 与 `offline_questions`——后者也是会直接渲染成问诊
+    快捷选项的来源，漏掉它等于留了第二个超量入口。报错必须带槽位名，否则配置里几十个
+    槽位时无法定位（`SlotSpec.options` 可为 `None`，表示该槽位不用快捷选项，不算违规）。
+    """
+    checked: list[tuple[str, list[str] | None]] = [(s.key, s.options) for s in config.required_slots]
+    checked += [(q.slot_key, q.options) for q in config.offline_questions]
+    for key, options in checked:
+        if options is not None and len(options) > MAX_OPTIONS_PER_QUESTION:
+            problems.append(
+                f"槽位 {key} 选项数 {len(options)} 超过适老上限 {MAX_OPTIONS_PER_QUESTION}"
+            )
+
+
+def _check_item_chars(config: ProcessConfig, problems: list[str]) -> None:
+    """T4-05：单条提示字数上限必须落在 60 至 140 之间，防止调大后让适老约束失效。"""
+    value = config.output_template.max_item_chars
+    if not (MIN_ITEM_CHARS <= value <= MAX_ITEM_CHARS_BOUND):
+        problems.append(
+            f"output_template.max_item_chars 必须在 {MIN_ITEM_CHARS} 至 {MAX_ITEM_CHARS_BOUND} 之间，当前为 {value}"
+        )
 
 
 def _check_rapeseed_restriction(config: ProcessConfig, problems: list[str]) -> None:

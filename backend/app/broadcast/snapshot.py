@@ -28,6 +28,7 @@
 
 import logging
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any, cast
@@ -41,6 +42,15 @@ from app.broadcast.gate_check import RenderedItem, gate_check
 from app.broadcast.inputs.calendar import collect_calendar_tasks, load_calendar_entries
 from app.broadcast.inputs.consult import collect_consult_signals
 from app.broadcast.inputs.env_facts import EnvFacts, collect_env_facts
+from app.broadcast.limits import (
+    MAX_ACTION_CHARS,
+    MAX_CALLOUT_CHARS,
+    MAX_FACT_CHARS,
+    MAX_IMPACT_CHARS,
+    MAX_ITEM_CHARS,
+    SENTENCE_END,
+    fit_item_text,
+)
 from app.broadcast.lock import redis_lock, snapshot_key
 from app.broadcast.priority import merge_and_rank, priority_score, rank_and_limit
 from app.broadcast.rules.base import RuleResult
@@ -181,6 +191,45 @@ def _make_item(user_id: str, result: RuleResult, *, suppressed: bool) -> PromptI
     )
 
 
+def _effective_item_limit(config: ProcessConfig | None) -> int:
+    """单条提示的有效字数上限（T4-05 四级优先级）。
+
+    流程配置 `output_template.max_item_chars`（可覆盖，缺省即 `MAX_ITEM_CHARS`）优先，再与
+    整条上限 `max_chars` **取较小值**——这里显式写出取小，不默认执行者会自行取小。
+    """
+    if config is None:
+        return MAX_ITEM_CHARS
+    template = config.output_template
+    return min(template.max_item_chars, template.max_chars)
+
+
+def _fit_segment(text: str, limit: int) -> tuple[str, bool]:
+    """收敛单个字段；返回 `(收敛后文本, 是否发生有损硬切)`。
+
+    "有损"专指整段无句末标点、只能硬切到上限的情形。此时句义被截断（农户会误以为内容
+    没加载完），据 T3-01 对 `suppressed` 的定义如实标记，供复盘"哪些内容长期被压制"。
+    退到句末标点的收敛是无损的（句子完整、只是更短），不标记。
+    """
+    stripped = text.strip()
+    fitted = fit_item_text(text, limit)
+    lossy = len(stripped) > limit and not (fitted and fitted[-1] in SENTENCE_END)
+    return fitted, lossy
+
+
+def _fit_result(result: RuleResult) -> tuple[RuleResult, bool]:
+    """落库前逐段收敛，返回 `(收敛后的结果, 是否有段发生有损硬切)`。
+
+    逐段上限固定为 `limits` 的四个常量，其和为 `MAX_ITEM_CHARS`，保证"逐段不超即总长不超"。
+    收敛后的字段不回写原 `RuleResult`（frozen），而以 `dataclasses.replace` 生成新对象。
+    """
+    callout, l1 = _fit_segment(result.callout, MAX_CALLOUT_CHARS)
+    fact, l2 = _fit_segment(result.fact, MAX_FACT_CHARS)
+    impact, l3 = _fit_segment(result.impact, MAX_IMPACT_CHARS)
+    action, l4 = _fit_segment(result.action, MAX_ACTION_CHARS)
+    fitted = replace(result, callout=callout, fact=fact, impact=impact, action=action)
+    return fitted, (l1 or l2 or l3 or l4)
+
+
 async def _render_kept(
     db: AsyncSession,
     user_id: str,
@@ -191,16 +240,24 @@ async def _render_kept(
     today: date,
     snapshot_id: str | None,
 ) -> list[PromptItem]:
-    """对展示位条目出文案并过闸门，返回通过校验、已挂好归属的 `PromptItem`。
+    """对展示位条目出文案、逐段收敛并过闸门，返回通过校验、已挂好归属的 `PromptItem`。
 
     `snapshot_id` 非空时（合并路径）直接挂到既有快照上；为空时（首建路径）留给
     `snapshot_repo.save` 统一补。文案只作为 `RenderedItem` 传递给闸门，不回写 ORM 对象
     （`PromptItem` 无 `text` 列）。
+
+    T4-05 的落库前收敛在此发生：`fact / impact / action` 以及 `callout` 逐段按上限收敛
+    （`limits.MAX_*_CHARS`），有损硬切的条目置 `suppressed=True` 但不丢弃；整条文案
+    的有效上限由 `_effective_item_limit` 给出并传给 `build_text`。
     """
+    limit = _effective_item_limit(config)
     rendered: list[RenderedItem] = []
     for result in results:
-        item = _make_item(user_id, result, suppressed=False)
-        text = await build_text(result)
+        fitted, lossy = _fit_result(result)
+        item = _make_item(user_id, fitted, suppressed=lossy)
+        # 文案由**收敛后**的四段生成：闸门的溯源校验是"文案里的数字必须能在条目四段中找到
+        # 登记"（见 gate_check._registered_tokens），故校验对象与落库展示的四段必须同源。
+        text = await build_text(fitted, max_item_chars=limit)
         rendered.append(RenderedItem(item=item, text=text))
 
     kept = await gate_check(
