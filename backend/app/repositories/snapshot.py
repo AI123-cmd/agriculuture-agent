@@ -167,6 +167,28 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
         rows = (await db.execute(stmt)).all()
         return {(str(process_id) if process_id is not None else UNKNOWN_PROCESS): int(count) for process_id, count in rows}
 
+    async def list_display_items_desc(
+        self, db: AsyncSession, user_id: str, *, limit: int = 50
+    ) -> Sequence[PromptItem]:
+        """按展示时间倒序取某农户最近展示过的条目（T3-15 的连续未勾选统计）。
+
+        与 `list_items` 的差别在过滤维度：`list_items` 按单份快照取（供视图组装），本方法按
+        农户跨快照取（供 `ignored_streak` 判断"最近连续几条没被勾选"）。只取 `suppressed=False`
+        的条目——被抑制条目从未展示，农户无从勾选，把它们算进"连续未勾选"会把真实信号淹没。
+
+        排序口径即展示口径：先按快照日倒序，同日再按 `priority_score` 倒序（与
+        `rank_and_limit` 的展示序一致），保证"连续"读的是农户实际的所见顺序。
+        """
+        uid = self._require_user(user_id)
+        stmt = (
+            select(PromptItem)
+            .join(PromptSnapshot, PromptItem.snapshot_id == PromptSnapshot.id)
+            .where(PromptItem.user_id == uid, PromptItem.suppressed.is_(False))
+            .order_by(PromptSnapshot.snapshot_date.desc(), PromptItem.priority_score.desc())
+            .limit(limit)
+        )
+        return (await db.execute(stmt)).scalars().all()
+
     async def list_items_by_followup_task(self, db: AsyncSession, task_id: str) -> Sequence[PromptItem]:
         """按回访任务 id 取该任务生成的提示条目，供 T3-12 的 `followup.due` 消费者定位推送对象。
 

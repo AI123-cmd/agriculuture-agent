@@ -47,10 +47,24 @@ class LedgerRepository(OwnedRepository[LedgerEntry]):
         return await self.add(db, entry.user_id, entry)
 
     async def list_by_date_desc(
-        self, db: AsyncSession, user_id: str, limit: int = 50, offset: int = 0
+        self,
+        db: AsyncSession,
+        user_id: str,
+        *,
+        process_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> Sequence[LedgerEntry]:
-        """按 `entry_date` 倒序取台账条目，供台账列表呈现（无生育期流程的纯时间线亦然）。"""
-        return await self.list(db, user_id, limit=limit, offset=offset, order_by=LedgerEntry.entry_date.desc())
+        """按 `entry_date` 倒序取台账条目，供台账列表呈现（无生育期流程的纯时间线亦然）。
+
+        `process_id` 可选：给定时只取该流程的条目。无论是否过滤，排序口径都是
+        `entry_date` 倒序——台账没有生育期节点列，无生育期流程（杂草防治、通用农业）与其他
+        流程在此都是同一条时间轴，不需要为前者另写一条查询。
+        """
+        stmt = self._owned_query(user_id).order_by(LedgerEntry.entry_date.desc())
+        if process_id is not None:
+            stmt = stmt.where(LedgerEntry.process_id == process_id)
+        return (await db.execute(stmt.limit(limit).offset(offset))).scalars().all()
 
 
 ledger_repo = LedgerRepository()
