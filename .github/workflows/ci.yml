@@ -58,6 +58,15 @@ jobs:
       - name: check-layers
         run: python backend/scripts/check_layers.py
 
+      # 前端适老化样式门禁（T4-01）：字号/行距/热区/间距字面量只允许在 tokens.wxss，
+      # 例外集中登记在 scripts/wxss-token-whitelist.json。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: check-wxss-tokens
+        run: node scripts/check_wxss_tokens.mjs
+
       - name: migrations
         run: |
           cd backend

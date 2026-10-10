@@ -1,0 +1,74 @@
+[
+  {
+    "file": "miniprogram/app.wxss",
+    "match": "\\.check-circle",
+    "reason": "执行勾选圆圈的视觉尺寸 56rpx，热区由外层 .tap-88 撑满 88rpx",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/components/sprout-mascot/index.wxss",
+    "match": "^",
+    "reason": "小禾 IP 形象组件，整文件为纯装饰图形，无文字、无交互元素",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/custom-tab-bar/index.wxss",
+    "match": "tab-icon|home-icon|history-icon|mine-icon|clock-hand",
+    "reason": "底部导航图标为纯装饰图形，Tab 热区由 .tab-item（高 var(--tabbar-height)）保证",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/ai/chat.wxss",
+    "match": "msg-avatar",
+    "reason": "对话头像为展示性装饰图形，不可点击",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/ai/chat.wxss",
+    "match": "vp-",
+    "reason": "语音播放喇叭图形为纯装饰，热区由外层 .voice-play-btn（var(--tap-min)）保证",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/env/env.wxss",
+    "match": "refresh-icon|location-pin|metric-icon|device-dot|footer-placeholder",
+    "reason": "刷新/定位/指标/状态点图标与底部占位均为纯装饰图形，不可点击",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/history/list.wxss",
+    "match": "conv-divider",
+    "reason": "会话列表项之间的结构性 1rpx 分隔线",
+    "category": "divider"
+  },
+  {
+    "file": "miniprogram/pages/index/index.wxss",
+    "match": "location-pin",
+    "reason": "地点定位图标为纯装饰图形，不可点击",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/login/login.wxss",
+    "match": "\\.checkbox",
+    "reason": "登录协议复选框视觉尺寸 44rpx，热区由外层 .tap-88 撑满 88rpx",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/mine/mine.wxss",
+    "match": "avatar-edit|cam-body|cam-lens|tag-leaf|section-label|menu-icon|mi-|footer-dot|sheet-bar",
+    "reason": "我的页图标（人像/时钟/水滴/信息/文档等）、装饰点与弹层把手均为纯装饰图形",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/mine/mine.wxss",
+    "match": "menu-divider",
+    "reason": "菜单项之间的结构性 1rpx 分隔线",
+    "category": "divider"
+  },
+  {
+    "file": "miniprogram/pages/profile/farmer-profile.wxss",
+    "match": "footer-placeholder",
+    "reason": "底部滚动占位高度，非交互元素",
+    "category": "decoration"
+  }
+]
