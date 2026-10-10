@@ -11,6 +11,8 @@ from typing import Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.process_config.models import MAX_OPTIONS_PER_BATCH, MAX_OPTIONS_PER_QUESTION
+
 # 选项的展示文本。技术方案 5.3.3 把 `options` 定义为 `list[str]`，故此处只是概念别名而非
 # 模型：改成 `{label, value}` 结构会偏离契约原文，并迫使前端跟着改协议。
 QuestionOption: TypeAlias = str
@@ -23,6 +25,24 @@ SKIP_MARKERS = frozenset({"说不清", "不清楚", "不知道", "跳过", "不�
 
 # 默认补位用的跳过项。取最常见的说法，农户不需要理解"跳过"这个界面用语。
 _DEFAULT_SKIP_OPTION = "说不清"
+
+
+def _cap_options(options: list[QuestionOption], limit: int) -> list[QuestionOption]:
+    """把选项裁到 `limit` 项，并优先保住跳过项（T4-05）。
+
+    先取前 `limit` 项；若其中没有跳过项，则用原列表里的跳过项替换掉第 `limit` 项。这样
+    既保证"前若干项按原顺序保留"，又不会因为模型把跳过项排在末位就把它裁掉——裁掉跳过项
+    等于剥夺农户"答不出"这个合法答案（产品说明书 4.2.2"未知是合法答案"）。
+    """
+    if len(options) <= limit:
+        return list(options)
+    kept = list(options[:limit])
+    if any(opt in SKIP_MARKERS for opt in kept):
+        return kept
+    skip = next((opt for opt in options if opt in SKIP_MARKERS), None)
+    if skip is None:
+        return kept
+    return [*options[: limit - 1], skip]
 
 
 class InterviewQuestion(BaseModel):
@@ -57,6 +77,14 @@ class InterviewQuestion(BaseModel):
         if not v.strip():
             raise ValueError("不得为空")
         return v.strip()
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _cap_question_options(cls, v: object) -> object:
+        """单问选项裁到 `MAX_OPTIONS_PER_QUESTION`（T4-05），保留跳过项。"""
+        if isinstance(v, list) and len(v) > MAX_OPTIONS_PER_QUESTION:
+            return _cap_options(list(v), MAX_OPTIONS_PER_QUESTION)
+        return v
 
     @model_validator(mode="after")
     def _options_match_answer_type(self) -> "InterviewQuestion":
@@ -107,12 +135,37 @@ class InterviewBatch(BaseModel):
         """缺跳过项时补位而不是抛错：漏加属于机械遗漏，补上即可，不影响语义。
 
         顺序是"原有选项不动、跳过项追加在末尾"：农户看到的选择顺序因此与模型给的
-        顺序一致，避免同一问题的选项位置在不同轮次之间跳动。
+        顺序一致，避免同一问题的选项位置在不同轮次之间跳动。补位后仍受单问上限约束
+        （T4-05 的 4 项含跳过项）——否则模型给满 4 项真实选项又漏了跳过项时会变成 5 项，
+        既撑破版面，也会把一轮的选项总额度挤到第二问上。
         """
         for q in self.questions:
             if q.answer_type in ("single", "multi") and q.options:
                 if not any(opt in SKIP_MARKERS for opt in q.options):
-                    q.options.append(_DEFAULT_SKIP_OPTION)
+                    q.options = _cap_options([*q.options, _DEFAULT_SKIP_OPTION], MAX_OPTIONS_PER_QUESTION)
+        return self
+
+    @model_validator(mode="after")
+    def _cap_batch_options(self) -> "InterviewBatch":
+        """一轮的选项总数收敛到 `MAX_OPTIONS_PER_BATCH`（T4-05），保证首问完整。
+
+        逐问先各裁到单问上限（`_cap_question_options` 已完成），再按总上限从第二问起依次
+        收敛：首问信息量更大，优先保其选项完整；后续问题用剩余额度裁剪，同样保留跳过项。
+        必须排在 `_skip_option_present` 之后——先补齐跳过项再算总数，否则会把补位挤掉。
+        """
+        used = 0
+        for index, q in enumerate(self.questions):
+            if not q.options:
+                continue
+            if index == 0:
+                used = len(q.options)
+                continue
+            # 首问已被裁到单问上限 4，故剩余额至少为 `MAX_OPTIONS_PER_BATCH - 4`，恒为正，
+            # 裁剪后仍至少留一项，不会出现"单选/多选没有选项"的非法状态。
+            remaining = MAX_OPTIONS_PER_BATCH - used
+            if len(q.options) > remaining:
+                q.options = _cap_options(q.options, remaining)
+            used += len(q.options)
         return self
 
 
