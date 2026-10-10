@@ -29,7 +29,7 @@ OWNED_MODEL_FILES = (
     "field.py",
     "device.py",
     "location.py",
-    "broadcast.py",
+    "ledger.py",
     "conversation.py",
     "memory_summary.py",
     "profile_tag.py",

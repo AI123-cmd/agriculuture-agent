@@ -232,9 +232,7 @@ async def test_list_ledger_desc_and_process_filter(engine) -> None:
     """列表按 entry_date 倒序；`process_id` 给定时只取该流程。"""
     c1 = _consultation()
     c2 = _consultation()
-    card_early = _card(
-        consultation_id=c1.id, card_id="card-early", created_at=datetime(2026, 5, 1, tzinfo=UTC)
-    )
+    card_early = _card(consultation_id=c1.id, card_id="card-early", created_at=datetime(2026, 5, 1, tzinfo=UTC))
     card_late = _card(
         consultation_id=c2.id, card_id="card-late", created_at=datetime(2026, 6, 1, tzinfo=UTC), process_id="tea"
     )
