@@ -17,10 +17,10 @@ required_slots:
      group: 种情, required: true, owner: interviewer, ask_order: 10}
   - {key: general_symptom_part, label: 受害部位, display_label: 庄稼哪个部位出问题了,
      group: 病虫情, required: true, owner: interviewer,
-     options: [叶片, 茎秆, 根部, 果实, 整株], ask_order: 20}
+     options: [叶片, 茎秆, 根部, 果实], ask_order: 20}
   - {key: general_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
      group: 病虫情, required: true, owner: interviewer,
-     options: [有虫, 有斑点, 发黄, 萎蔫, 腐烂, 说不清], ask_order: 30}
+     options: [有虫, 有斑点, 发黄, 说不清], ask_order: 30}
   - {key: general_symptom_scope, label: 发生范围, display_label: 大概有多少出问题了,
      group: 病虫情, required: true, owner: interviewer,
      options: [几棵, 一小片, 大片], ask_order: 40}
@@ -50,6 +50,7 @@ output_template:
   section_order: [现状判断, 观察建议, 求助指引, 回访安排]
   required_sections: [观察建议, 求助指引]
   max_chars: 400
+  max_item_chars: 100
 calendar_source: null
 followup_policy:
   # 通用流程不给固定回访天数，由处方卡给出观察时点（技术方案 7.4 差异点清单）

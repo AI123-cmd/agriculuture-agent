@@ -25,6 +25,7 @@
 import asyncio
 import re
 
+from app.broadcast.limits import MAX_ITEM_CHARS, fit_item_text
 from app.broadcast.prompts.snapshot_writer import REWRITE_SYSTEM_PROMPT
 from app.broadcast.rules.base import RuleResult
 from app.broadcast.rules.templates import render_template

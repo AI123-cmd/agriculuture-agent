@@ -14,7 +14,7 @@ object_aliases: [猪, 养猪, 生猪, 母猪, 仔猪, 育肥猪, 猪场, 猪圈]
 required_slots:
   - {key: pig_symptom_pattern, label: 症状形态, display_label: 猪是什么样子,
      group: 病虫情, required: true, owner: interviewer,
-     options: [不吃食, 发烧, 咳嗽喘气, 拉稀, 皮肤发红发紫, 站不起来], ask_order: 10}
+     options: [不吃食, 发烧, 拉稀, 皮肤发红发紫], ask_order: 10}
   - {key: pig_symptom_scope, label: 发病头数, display_label: 有多少头猪出现这种情况,
      group: 病虫情, required: true, owner: interviewer,
      options: [1头, 2到5头, 6到20头, 20头以上], ask_order: 20}
@@ -72,6 +72,7 @@ output_template:
   section_order: [风险提示, 现状判断, 处置建议, 上报与合规提示, 回访安排]
   required_sections: [风险提示, 上报与合规提示]
   max_chars: 400
+  max_item_chars: 100
 calendar_source: null
 followup_policy:
   # 按法定时限链而非固定天数：触发即上报，回访用于确认处置动作已完成

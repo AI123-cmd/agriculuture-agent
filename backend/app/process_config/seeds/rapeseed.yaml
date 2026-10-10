@@ -11,16 +11,16 @@ object_aliases: [油菜, 油菜籽, 菜籽, 油菜花, 甘蓝型油菜, 白菜�
 required_slots:
   - {key: rapeseed_symptom_part, label: 受害部位, display_label: 油菜哪个部位出问题了,
      group: 病虫情, required: true, owner: interviewer,
-     options: [叶片, 茎秆, 花蕾, 角果, 根部], ask_order: 10}
+     options: [叶片, 茎秆, 花蕾, 根部], ask_order: 10}
   - {key: rapeseed_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
      group: 病虫情, required: true, owner: interviewer,
-     options: [有斑点, 发黄, 白粉状, 腐烂, 有虫], ask_order: 20}
+     options: [有斑点, 发黄, 白粉状, 有虫], ask_order: 20}
   - {key: rapeseed_symptom_scope, label: 发生范围, display_label: 大概有多少油菜这样,
      group: 病虫情, required: true, owner: interviewer,
      options: [几棵, 一小片, 大片], ask_order: 30}
   - {key: rapeseed_growth_stage, label: 生育期, display_label: 油菜长到哪个阶段了,
      group: 苗情, required: true, owner: interviewer, source_hint: [profile],
-     options: [苗期, 蕾薹期, 初花期, 盛花期, 角果期], ask_order: 40}
+     options: [苗期, 蕾薹期, 初花期, 角果期], ask_order: 40}
   - {key: rapeseed_last_pesticide, label: 最近用药, display_label: 最近一次打药是什么时候,
      group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 50}
   - {key: rapeseed_drainage, label: 排水条件, display_label: 田里排水好不好,
@@ -48,6 +48,7 @@ output_template:
   section_order: [现状判断, 观察建议, 求助指引, 回访安排]
   required_sections: [观察建议, 求助指引]
   max_chars: 400
+  max_item_chars: 100
 calendar_source: rapeseed.growth_stage
 followup_policy:
   triggers:

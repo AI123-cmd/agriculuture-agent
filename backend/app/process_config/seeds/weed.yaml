@@ -14,10 +14,10 @@ object_aliases: [杂草, 除草, 草害, 田里的草, 地里有草, 稗草, 千
 required_slots:
   - {key: weed_target_crop, label: 目标作物, display_label: 这块地种的是什么,
      group: 种情, required: true, owner: interviewer,
-     options: [水稻, 小麦, 玉米, 油菜, 大豆, 其他], ask_order: 10}
+     options: [水稻, 小麦, 玉米, 其他], ask_order: 10}
   - {key: weed_grass_shape, label: 草相形态, display_label: 草长什么样子,
      group: 病虫情, required: true, owner: interviewer,
-     options: [叶片细长, 叶片宽大, 有绒毛, 有长芒, 说不清], ask_order: 20}
+     options: [叶片细长, 叶片宽大, 有绒毛, 说不清], ask_order: 20}
   - {key: weed_ligule_shape, label: 叶舌与叶耳, display_label: 把叶子翻开，茎和叶交界的地方有膜还是毛,
      group: 病虫情, required: true, owner: interviewer,
      options: [有膜状叶舌, 有一圈毛, 什么都没有, 没有翻开看过], ask_order: 30}
@@ -26,7 +26,7 @@ required_slots:
      options: [零星, 一小片, 大片], ask_order: 40}
   - {key: weed_adjacent_crop, label: 后茬作物, display_label: 这块地下一季打算种什么,
      group: 种情, required: true, owner: interviewer,
-     options: [水稻, 小麦, 玉米, 油菜, 大豆, 还没定], ask_order: 50}
+     options: [水稻, 小麦, 玉米, 还没定], ask_order: 50}
   - {key: weed_last_pesticide, label: 最近用药, display_label: 最近一次打除草剂是什么时候,
      group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 60}
   - {key: weed_photo_candidate, label: 田间照片识别候选, display_label: 照片里认出来的草,
@@ -71,6 +71,7 @@ output_template:
   section_order: [草相鉴别, 现状判断, 处置建议, 后茬安全提示, 回访安排]
   required_sections: [草相鉴别, 后茬安全提示]
   max_chars: 400
+  max_item_chars: 100
 calendar_source: null
 followup_policy:
   triggers:

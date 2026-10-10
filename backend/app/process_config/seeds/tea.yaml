@@ -13,7 +13,7 @@ required_slots:
      options: [嫩芽, 叶片, 枝干, 根部], ask_order: 10}
   - {key: tea_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
      group: 病虫情, required: true, owner: interviewer,
-     options: [有虫, 有斑点, 发黄, 枯萎, 卷曲], ask_order: 20}
+     options: [有虫, 有斑点, 发黄, 卷曲], ask_order: 20}
   - {key: tea_symptom_scope, label: 发生范围, display_label: 大概有多少茶树这样,
      group: 病虫情, required: true, owner: interviewer,
      options: [几棵, 一小片, 大片], ask_order: 30}
@@ -80,6 +80,7 @@ output_template:
   section_order: [现状判断, 处置建议, 用药安全提示, 安全间隔期与下一轮采摘的时间关系, 回访安排]
   required_sections: [用药安全提示, 安全间隔期与下一轮采摘的时间关系]
   max_chars: 400
+  max_item_chars: 100
 calendar_source: tea.picking_round
 followup_policy:
   triggers:

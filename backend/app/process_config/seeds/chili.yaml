@@ -11,7 +11,7 @@ object_aliases: [辣椒, 朝天椒, 线椒, 菜椒, 青椒, 干椒]
 required_slots:
   - {key: chili_symptom_pattern, label: 症状形态, display_label: 辣椒是什么样子,
      group: 病虫情, required: true, owner: interviewer,
-     options: [萎蔫, 有斑点, 发黄, 烂根, 有虫], ask_order: 10}
+     options: [萎蔫, 有斑点, 发黄, 有虫], ask_order: 10}
   - {key: chili_symptom_speed, label: 萎蔫速度, display_label: 是一天里就蔫下去还是慢慢蔫的,
      group: 病虫情, required: true, owner: interviewer,
      options: [半天内急速萎蔫, 几天逐渐萎蔫, 说不清], ask_order: 20}
@@ -52,6 +52,7 @@ output_template:
   section_order: [现状判断, 鉴别说明, 处置建议, 用药安全提示, 回访安排]
   required_sections: [鉴别说明, 处置建议]
   max_chars: 400
+  max_item_chars: 100
 calendar_source: chili.growth_stage
 followup_policy:
   # 辣椒药后 3~7 天回访，取中位 5 天：区间端点会让前端无法显示"还有几天回访"，

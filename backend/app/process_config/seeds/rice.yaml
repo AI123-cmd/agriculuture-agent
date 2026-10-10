@@ -13,13 +13,13 @@ required_slots:
      options: [叶片, 茎秆, 穗部, 根部], ask_order: 10}
   - {key: rice_symptom_pattern, label: 症状形态, display_label: 是什么样子的,
      group: 病虫情, required: true, owner: interviewer,
-     options: [有虫, 有斑点, 发黄, 枯心, 卷叶], ask_order: 20}
+     options: [有虫, 有斑点, 发黄, 枯心], ask_order: 20}
   - {key: rice_symptom_scope, label: 发生范围, display_label: 大概有多少田块这样,
      group: 病虫情, required: true, owner: interviewer,
      options: [几丛, 一小片, 大片], ask_order: 30}
   - {key: rice_growth_stage, label: 生育期, display_label: 稻子长到哪个阶段了,
      group: 苗情, required: true, owner: interviewer, source_hint: [profile],
-     options: [苗期, 分蘖期, 拔节期, 孕穗期, 抽穗期, 灌浆期], ask_order: 40}
+     options: [分蘖期, 孕穗期, 抽穗期, 灌浆期], ask_order: 40}
   - {key: rice_last_pesticide, label: 最近用药, display_label: 最近一次打药是什么时候,
      group: 管理, required: true, owner: interviewer, source_hint: [profile], ask_order: 50}
   - {key: rice_water_layer, label: 水层状态, display_label: 田里的水深不深,
@@ -73,6 +73,7 @@ output_template:
   section_order: [现状判断, 处置建议, 用药安全提示, 回访安排]
   required_sections: [处置建议, 用药安全提示]
   max_chars: 400
+  max_item_chars: 100
 calendar_source: rice.growth_stage
 followup_policy:
   triggers:
