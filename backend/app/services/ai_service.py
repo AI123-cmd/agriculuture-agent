@@ -359,6 +359,10 @@ class AIService:
         事件与业务写在同一事务里，因此不存在"业务提交了但事件没落库"。聚合根取本条
         AI 回复消息：处方目前还没有独立表，而"一次对话产生的这份处方"正是回复消息本身，
         用它做 `aggregate_id`/幂等键天然按轮次唯一，且消费者可直接按 id 回查回复原文。
+
+        载荷带 `user_id`：T3-09 的回访消费者要按 `session_id` 反查处方卡，而反查是归属
+        强制的（`consult_repo.get_card_by_consultation`）。投递端只把 `payload` 交给 ARQ
+        任务、不带事件行的 `user_id` 列，故这里显式写进载荷，消费者无需回查发件箱。
         """
         await db.flush()
         await emit(
@@ -370,6 +374,7 @@ class AIService:
             payload={
                 "session_id": session_id,
                 "message_id": reply_message.id,
+                "user_id": user_id,
                 "summary": (reply_message.content or "")[:200],
             },
         )

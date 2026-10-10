@@ -99,11 +99,31 @@ def _resolve_due_at(
     return _at(base + timedelta(days=task.due_offset_days))
 
 
-async def _emit_immediate(db: AsyncSession, user_id: str, tasks: Sequence[FollowupTask]) -> None:
+def _due_payload(task: FollowupTask) -> dict:
+    """`followup.due` 的载荷。消费者（T3-08 快照、T3-12 触达）据此渲染/推送一条提醒。"""
+    return {
+        "task_id": task.id,
+        "consultation_id": task.consultation_id,
+        "kind": task.kind,
+        "object_label": task.object_label,
+    }
+
+
+def _due_key(task: FollowupTask, on_date: date) -> str:
+    """`followup.due` 的幂等键，按"任务 + 日期"唯一。
+
+    默认键 `followup.due:{aggregate_id}` 不带日期，会让"次日仍 pending 再提醒一次"撞唯一约束。
+    带上日期后：同日只投一次（T+0 立即与同日扫描共用同一键，不会重复投），次日仍 pending
+    则正常再投一次。这是"每日提醒"与"同日不重复"两个要求的同时满足。
+    """
+    return f"{EVENT_FOLLOWUP_DUE}:{task.id}:{on_date.isoformat()}"
+
+
+async def _emit_immediate(db: AsyncSession, tasks: Sequence[FollowupTask]) -> None:
     """对已到期的任务立即投递 `followup.due`（不等次日扫描）。
 
     药害分支的 T+0 提醒靠这里落地。`emit` 只 `add` 不开新事务，因此立即事件与任务登记在同一
-    事务里：任务回滚则事件一并消失，不会出现"有事件无任务"。
+    事务里：任务回滚则事件一并消失，不会出现"有事件无任务"。用按日幂等键，与同日扫描天然去重。
     """
     now = datetime.now(UTC)
     for task in tasks:
@@ -114,13 +134,9 @@ async def _emit_immediate(db: AsyncSession, user_id: str, tasks: Sequence[Follow
             event_type=EVENT_FOLLOWUP_DUE,
             aggregate_type="followup",
             aggregate_id=task.id,
-            user_id=user_id,
-            payload={
-                "task_id": task.id,
-                "consultation_id": task.consultation_id,
-                "kind": task.kind,
-                "object_label": task.object_label,
-            },
+            user_id=task.user_id,
+            payload=_due_payload(task),
+            idempotency_key=_due_key(task, task.due_at.astimezone(UTC).date()),
         )
 
 
@@ -172,7 +188,7 @@ async def register_from_prescription(
     ]
 
     saved = await followup_repo.bulk_save(db, tasks)
-    await _emit_immediate(db, user_id, saved)
+    await _emit_immediate(db, saved)
     return list(saved)
 
 
@@ -184,9 +200,9 @@ async def list_due(db: AsyncSession, user_id: str, today: date) -> Sequence[Foll
 async def dispatch_due(db: AsyncSession, today: date) -> int:
     """每日扫描：横跨全部农户挑出到期任务并投递 `followup.due`，返回条数。
 
-    幂等键带上日期（`followup.due:{task_id}:{today}`）：同一条任务在**同日**只投一次，
-    次日仍 pending 则再投一次（每日提醒是期望行为）。不带日期会让次日扫描撞唯一约束、
-    整批事务失败。
+    幂等键由 `_due_key` 给出（任务 + 日期）：同一条任务在**同日**只投一次（与 T+0 立即投递
+    共用同一键，天然去重），次日仍 pending 则再投一次（每日提醒是期望行为）。不带日期会让
+    次日扫描撞唯一约束、整批事务失败。
     """
     tasks = await followup_repo.list_due_all(db, today)
     for task in tasks:
@@ -196,13 +212,8 @@ async def dispatch_due(db: AsyncSession, today: date) -> int:
             aggregate_type="followup",
             aggregate_id=task.id,
             user_id=task.user_id,
-            payload={
-                "task_id": task.id,
-                "consultation_id": task.consultation_id,
-                "kind": task.kind,
-                "object_label": task.object_label,
-            },
-            idempotency_key=f"{EVENT_FOLLOWUP_DUE}:{task.id}:{today.isoformat()}",
+            payload=_due_payload(task),
+            idempotency_key=_due_key(task, today),
         )
     return len(tasks)
 
