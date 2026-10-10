@@ -13,7 +13,7 @@
 2. `set_item_executed`：执行勾选回执，`executed` 是北极星指标"执行率"的唯一数据来源。
 3. `execution_rate` / `ignored_streak`：北极星指标与"连续未勾选"信号的统计口径。
 
-**归属校验一律走仓储**（守全局约定 L4，`db.query` 在服务层与接口层都不出现）：`user_id`
+**归属校验一律走仓储**（守全局约定 L4，服务层与接口层都不出现裸 ORM 查询）：`user_id`
 只从令牌取（路由层 `get_current_user`），不接受请求体传入。`mark_done` 时代那种"手工拼
 `item_id` + `user_id` 两个条件"的写法被替换——一旦有人复制到新接口时漏掉 `user_id` 就越权了；
 改为走 `OwnedRepository` 后，归属条件是基类强制的，漏写会直接抛 `MissingOwnerError`。
@@ -126,7 +126,7 @@ async def set_item_executed(db: AsyncSession, user_id: str, item_id: str, execut
             raise InvalidStateError("被抑制的条目不接受执行勾选")
         item.executed = executed
         item.executed_at = datetime.now(TZ) if executed else None
-        await snapshot_repo.save_item(db, item)
+        await snapshot_repo.save_item(db, user_id, item)
         return item
 
 
@@ -144,18 +144,14 @@ async def list_ledger(
     改为按防除/处置时间线呈现"——本方法对这类流程不做特殊分支：台账没有生育期节点列，所有流程
     在库里都是同一条"按农事日期排列"的时间轴，过滤与否只影响取哪几条。
     """
-    return await ledger_repo.list_by_date_desc(
-        db, user_id, process_id=process_id, limit=limit, offset=offset
-    )
+    return await ledger_repo.list_by_date_desc(db, user_id, process_id=process_id, limit=limit, offset=offset)
 
 
 def _rate(executed: int, shown: int) -> float:
     return executed / shown if shown else 0.0
 
 
-async def execution_rate(
-    db: AsyncSession, since: date, process_id: str | None = None
-) -> dict:
+async def execution_rate(db: AsyncSession, since: date, process_id: str | None = None) -> dict:
     """执行率：按流程分别统计，混在一起会掩盖单条流程的退化。
 
     `since` 起、只计未被抑制的展示条目（`suppressed=False`）：被抑制条目从未展示，计入分母会
@@ -165,11 +161,15 @@ async def execution_rate(
     并含 `unknown` 键收纳 `process_id` 为空的历史快照，使"取不到流程"的条目可见而非被静默丢弃。
     """
     if process_id is None:
-        shown = await snapshot_repo.count_items_by_process(db, since, suppressed=False)
-        executed = await snapshot_repo.count_items_by_process(db, since, suppressed=False, executed=True)
+        shown_by_process = await snapshot_repo.count_items_by_process(db, since, suppressed=False)
+        executed_by_process = await snapshot_repo.count_items_by_process(db, since, suppressed=False, executed=True)
         return {
-            pid: {"shown": count, "executed": executed.get(pid, 0), "rate": _rate(executed.get(pid, 0), count)}
-            for pid, count in shown.items()
+            pid: {
+                "shown": count,
+                "executed": executed_by_process.get(pid, 0),
+                "rate": _rate(executed_by_process.get(pid, 0), count),
+            }
+            for pid, count in shown_by_process.items()
         }
 
     shown = await snapshot_repo.count_items(db, since, process_id, suppressed=False)

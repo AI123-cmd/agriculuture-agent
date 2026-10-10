@@ -155,13 +155,9 @@ class PrescriptionCard(Base, OwnedMixin):
     )
     ledger_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="是否已存入台账")
     # T3-15：入台账的取值来源。`created_at` 由数据库默认值兜底，既有构造无需显式给值。
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), comment="创建时间"
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     process_id: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="七条流程之一")
-    diagnosis_summary: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="诊断摘要，来自处方契约"
-    )
+    diagnosis_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="诊断摘要，来自处方契约")
 
 
 class FollowupTask(Base, OwnedMixin):

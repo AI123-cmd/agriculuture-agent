@@ -165,11 +165,11 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
         if executed is not None:
             stmt = stmt.where(PromptItem.executed.is_(executed))
         rows = (await db.execute(stmt)).all()
-        return {(str(process_id) if process_id is not None else UNKNOWN_PROCESS): int(count) for process_id, count in rows}
+        return {
+            (str(process_id) if process_id is not None else UNKNOWN_PROCESS): int(count) for process_id, count in rows
+        }
 
-    async def list_display_items_desc(
-        self, db: AsyncSession, user_id: str, *, limit: int = 50
-    ) -> Sequence[PromptItem]:
+    async def list_display_items_desc(self, db: AsyncSession, user_id: str, *, limit: int = 50) -> Sequence[PromptItem]:
         """按展示时间倒序取某农户最近展示过的条目（T3-15 的连续未勾选统计）。
 
         与 `list_items` 的差别在过滤维度：`list_items` 按单份快照取（供视图组装），本方法按

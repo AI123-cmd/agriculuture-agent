@@ -129,11 +129,7 @@ class QuotaRepository:
         与 `consumed_total` 不动——它们是历史事实，不应被追溯修改。
         """
         uid = require_user_id("SubscriptionQuota", user_id)
-        stmt = (
-            update(SubscriptionQuota)
-            .where(SubscriptionQuota.user_id == uid)
-            .values(remaining=0)
-        )
+        stmt = update(SubscriptionQuota).where(SubscriptionQuota.user_id == uid).values(remaining=0)
         return await execute_write(db, stmt)
 
 

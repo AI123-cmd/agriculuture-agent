@@ -64,12 +64,12 @@ class LedgerEntry(Base, OwnedMixin):
     source_id: Mapped[str] = mapped_column(String(36), nullable=False, comment="来源主键，处方的 card.id")
     title: Mapped[str | None] = mapped_column(String(120), nullable=True, comment="标题，取处方诊断摘要")
     actions: Mapped[list[dict]] = mapped_column(JSONB, nullable=False, default=list, comment="处置动作快照")
-    pesticides: Mapped[list[dict]] = mapped_column(JSONB, nullable=False, default=list, comment="药剂条目快照（名/剂量）")
+    pesticides: Mapped[list[dict]] = mapped_column(
+        JSONB, nullable=False, default=list, comment="药剂条目快照（名/剂量）"
+    )
     safety_interval_days: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="安全间隔期（天）")
     facts_provenance: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, comment="数值溯源表")
-    followup_needed: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, comment="是否登记了回访"
-    )
+    followup_needed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="是否登记了回访")
 
     @validates("source_type")
     def _validate_source_type(self, key: str, value: Any) -> Any:
