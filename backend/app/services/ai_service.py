@@ -13,18 +13,21 @@
   否则每条条件边都会 fail-closed 转人工。
 """
 
+from functools import lru_cache
 from typing import Any, Literal, cast
 
 from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.blackboard import progress_of
+from app.agent.contracts import resolve_process_hint
 from app.agent.state import ConsultationState, ConsultStage, ProcessId
 from app.core.config import get_settings
 from app.db.uow import unit_of_work
 from app.events import EVENT_PRESCRIPTION_CREATED, emit
 from app.models import AIConversation, AIMessage
-from app.process_config.loader import get_process_config
+from app.process_config.loader import get_process_config, load_all_configs
+from app.process_config.models import ProcessConfig
 from app.process_config.redlines import RedlineValidator
 from app.process_config.version import build_ref
 from app.repositories import conversation_repo, crop_repo, message_repo, profile_repo, tag_repo
@@ -91,6 +94,28 @@ def build_environment_note(state: ConsultationState) -> str | None:
     return "暂无环境数据，以下判断基于你的描述的情况。"
 
 
+@lru_cache(maxsize=1)
+def _alias_configs() -> dict[ProcessId, ProcessConfig]:
+    """入口提示归一使用的流程配置集合（含 `object_aliases`）。
+
+    与 `get_triage_agent` 一样按进程内单例缓存：别名是低频变更的配置事实，每次问诊都
+    读七份 YAML 是纯浪费。读取口径与 `_inject_config` 的 `get_process_config` 一致，
+    都取自 seeds 文件，不受数据库热加载影响。
+    """
+    return load_all_configs()
+
+
+def _resolve_process_hint(hint: str | ProcessId | None) -> ProcessId | None:
+    """把入口提示归一为流程标识；已是 `ProcessId` 时原样返回，未命中返回 `None`。
+
+    单独抽成模块级函数而不是方法：`_inject_config` 是静态方法（无 `self`），且它的调用
+    方既有服务层（传 `ProcessId`），也有测试（直接传「weed」这类字符串），两种形态都要吃下。
+    """
+    if isinstance(hint, ProcessId):
+        return hint
+    return resolve_process_hint(hint, _alias_configs())
+
+
 class AIService:
     async def chat(self, db: AsyncSession, user_id: str, req: ChatRequest) -> ChatResponse:
         # 先定会话主键：归属不符时换新 id，后续持久化与检查点线程都用它（T1-06）。
@@ -119,18 +144,24 @@ class AIService:
             if snapshot.next:  # 中断中，携带答案恢复
                 return self._absorb_interrupt(await resume_graph(session_id, self._resume_value(req)))
 
+        # 入口提示归一为流程标识：小程序传的是农户可见作物名（如「水稻」），图内 `intake`
+        # 需要用 `ProcessId` 英文值锁定流程。未命中专属流程时写 `None`，让流程不锁定、
+        # 交由 `triage` 判定并带 `fallback_reason` 落到 `general`——这比在入口静默兜底更可追溯。
+        resolved_hint = _resolve_process_hint(req.processHint)
         initial_state: dict[str, Any] = {
             "session_id": session_id,
             "user_id": user_id,
-            "process_hint": req.processHint,
+            "process_hint": resolved_hint.value if resolved_hint is not None else None,
             "farm_plot_id": req.farmEntryId,
             "image_url": req.imageUrl,
             "voice_url": req.voiceUrl,
             "user_message": req.message or "",
+            # 作物上下文按农户所选作物的**原始名称**查主作物（`crop_name` 存的就是中文），
+            # 与上面归一后的流程标识用途不同，故两处取值刻意分开。
             "context": await self.build_context(db, user_id, req.processHint),
             "messages": [{"role": "user", "content": req.message or ""}],
         }
-        self._inject_config(initial_state, req.processHint)
+        self._inject_config(initial_state, resolved_hint)
         return self._absorb_interrupt(await graph.ainvoke(initial_state, config=config))
 
     @staticmethod
@@ -158,19 +189,17 @@ class AIService:
         return result
 
     @staticmethod
-    def _inject_config(state: dict[str, Any], process_hint: str | None) -> None:
+    def _inject_config(state: dict[str, Any], process_hint: str | ProcessId | None) -> None:
         """把流程配置事实注入初始 state，供路由与闸门读取。
 
         流程未锁定时以 `general` 作基线（与 `triage` 的环境依赖一致）：`process_hint`
-        直达则用其对应流程。`redlines_loaded` 取红线校验结果而非恒真——校验不通过时
-        路由据此 fail-closed 转人工。
+        直达则用其对应流程。入口提示经 `_resolve_process_hint` 归一——既接受英文流程标识，
+        也接受农户可见的作物名（「水稻」→ rice），使配置注入口径与图内 `intake` 的锁定口径
+        完全一致，避免"配置按 rice 注入、路由却按 general 走"这类分叉。未命中专属流程时
+        回退 `general`。`redlines_loaded` 取红线校验结果而非恒真——校验不通过时路由据此
+        fail-closed 转人工。
         """
-        pid = ProcessId.GENERAL
-        if process_hint:
-            try:
-                pid = ProcessId(process_hint)
-            except ValueError:
-                pid = ProcessId.GENERAL
+        pid = _resolve_process_hint(process_hint) or ProcessId.GENERAL
         config = get_process_config(pid)
         loaded = RedlineValidator().validate(config)
         state["redlines_loaded"] = loaded.loaded

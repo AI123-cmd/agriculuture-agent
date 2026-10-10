@@ -96,4 +96,27 @@ def match_object_alias(text: str, configs: dict[ProcessId, ProcessConfig]) -> Pr
     return hits[0][2]
 
 
-__all__ = ["ObjectConfirmRequest", "TriageResult", "match_object_alias"]
+def resolve_process_hint(raw: str | None, configs: dict[ProcessId, ProcessConfig]) -> ProcessId | None:
+    """把入口直达提示归一为流程标识，未命中返回 `None`。
+
+    入口提示有两套取值来源，必须都接受：一是小程序「作物模型」按钮传的**农户可见作物名**
+    （如「水稻」「辣椒」），二是直达流程按钮传的 **`ProcessId` 英文值**（如「weed」）。
+    直接 `ProcessId(raw)` 遇到中文名会抛 `ValueError`，使接口 500，因此不能只做精确匹配。
+
+    英文值走精确匹配；其余复用各流程配置的 `object_aliases`（流程配置是唯一事实来源）
+    做别名匹配，使「水稻 → rice」这类映射无需在客户端重复维护。同一个函数既服务此处的
+    入口归一，也与 `match_object_alias` 共用裁决口径（最长别名优先、声明序并列裁决）。
+
+    未命中一律返回 `None`，由调用方决定兜底（服务层回退 `general`）——「哪些作物没有
+    专属流程」是业务事实，应当显式可见，而不是在此静默给出一个看似合理的结果。
+    """
+    if not raw or not raw.strip():
+        return None
+    text = raw.strip()
+    try:
+        return ProcessId(text)
+    except ValueError:
+        return match_object_alias(text, configs)
+
+
+__all__ = ["ObjectConfirmRequest", "TriageResult", "match_object_alias", "resolve_process_hint"]

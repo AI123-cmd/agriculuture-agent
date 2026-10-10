@@ -7,7 +7,13 @@
 import pytest
 from pydantic import ValidationError
 
-from app.agent.contracts import ObservationResult, ObjectConfirmRequest, TriageResult, match_object_alias
+from app.agent.contracts import (
+    ObservationResult,
+    ObjectConfirmRequest,
+    TriageResult,
+    match_object_alias,
+    resolve_process_hint,
+)
 from app.agent.state import ProcessId
 from app.process_config import ProcessConfig
 from app.process_config.loader import load_all_configs
@@ -176,3 +182,41 @@ def test_contract_dump_and_load_roundtrip() -> None:
     restored = load_contract(TriageResult, payload)
     assert restored.process_id is ProcessId.RICE
     assert restored == TriageResult(**_triage())
+
+
+# ---- 入口提示归一（resolve_process_hint） ----
+
+
+def test_resolve_process_hint_accepts_english_id(configs) -> None:
+    """英文流程标识走精确匹配（直达流程按钮用的是它）。"""
+    assert resolve_process_hint("weed", configs) is ProcessId.WEED
+    assert resolve_process_hint("pig", configs) is ProcessId.PIG
+
+
+def test_resolve_process_hint_accepts_crop_name(configs) -> None:
+    """农户可见的作物名经 `object_aliases` 归一（小程序「作物模型」按钮用的是它）。
+
+    这条是本次修复的核心：此前直接 `ProcessId("水稻")` 会抛 `ValueError`，使接口 500。
+    """
+    assert resolve_process_hint("水稻", configs) is ProcessId.RICE
+    assert resolve_process_hint("辣椒", configs) is ProcessId.CHILI
+    assert resolve_process_hint("油菜", configs) is ProcessId.RAPESEED
+    assert resolve_process_hint("茶叶", configs) is ProcessId.TEA
+
+
+def test_resolve_process_hint_longest_alias_wins(configs) -> None:
+    """别名包含关系下取最长者，与 `match_object_alias` 同口径。"""
+    assert resolve_process_hint("油菜花", configs) is ProcessId.RAPESEED
+
+
+def test_resolve_process_hint_unmatched_returns_none(configs) -> None:
+    """「通用农业」及未登记作物不属于任何专属流程，返回 `None` 由调用方兜底。"""
+    assert resolve_process_hint("通用农业", configs) is None
+    assert resolve_process_hint("番茄", configs) is None
+
+
+def test_resolve_process_hint_blank_returns_none(configs) -> None:
+    """空串、纯空白、`None` 一律返回 `None`，不参与匹配。"""
+    assert resolve_process_hint(None, configs) is None
+    assert resolve_process_hint("", configs) is None
+    assert resolve_process_hint("   ", configs) is None

@@ -204,3 +204,47 @@ def test_foreign_session_id_does_not_take_over(client) -> None:
     )
     assert intruder.status_code == 200, intruder.text
     assert intruder.json()["data"]["sessionId"] != session_a
+
+
+# ---- 小程序作物模型入口：中文作物名作 processHint ----
+
+
+def test_process_hint_crop_name_does_not_crash(client, auth_headers) -> None:
+    """小程序「作物模型」按钮传的是中文作物名，接口不得因此 500。
+
+    此前 `intake` 直接 `ProcessId("水稻")` 会抛 `ValueError`，只要农户选了作物就必然失败。
+    """
+    resp = client.post(
+        "/api/ai/chat",
+        json={"processHint": "水稻", "message": "叶片发黄"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["reply"]
+
+
+def test_process_hint_crop_name_locks_that_process(client, auth_headers) -> None:
+    """中文作物名归一后应锁定对应流程，而非落到通用兜底。
+
+    用「辣椒」验证：辣椒流程 `panel_enabled=true`，其问诊中断会带回待答问题；
+    锁定成功即说明入口直达生效，而不是被 `general` 兜底吞掉。
+    """
+    resp = client.post(
+        "/api/ai/chat",
+        json={"processHint": "辣椒", "message": "叶子有斑点"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["questions"], "锁定辣椒流程后应进入问诊并带回待答问题"
+
+
+def test_process_hint_unknown_crop_falls_back_without_error(client, auth_headers) -> None:
+    """未登记专属流程的作物（如「番茄」「通用农业」）不锁定流程，走分诊兜底且不报错。"""
+    for hint in ("番茄", "通用农业"):
+        resp = client.post(
+            "/api/ai/chat",
+            json={"processHint": hint, "message": "叶子发黄"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200, f"{hint}: {resp.text}"
+        assert resp.json()["data"]["reply"]

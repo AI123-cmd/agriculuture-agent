@@ -33,7 +33,7 @@ from .prescription import (
     PrescriptionAction,
 )
 from .report import ContactInfo, ReportDecision, ReportSignal
-from .triage import ObjectConfirmRequest, TriageResult, match_object_alias
+from .triage import ObjectConfirmRequest, TriageResult, match_object_alias, resolve_process_hint
 
 _M = TypeVar("_M", bound=BaseModel)
 
