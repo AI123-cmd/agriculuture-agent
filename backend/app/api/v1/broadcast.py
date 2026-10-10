@@ -23,7 +23,8 @@ async def post_snapshot(
     user_id: str = Depends(get_current_user),
 ) -> dict:
     """生成/刷新当日快照（POST 语义）。"""
-    return ok(await get_broadcast_service().generate(db, user_id, farmEntryId))
+    result = await get_broadcast_service().generate(db, user_id, farmEntryId)
+    return ok(result.model_dump(mode="json", by_alias=True))
 
 
 @router.get("/snapshot")
@@ -33,4 +34,5 @@ async def get_snapshot(
     user_id: str = Depends(get_current_user),
 ) -> dict:
     """读当日快照（GET 语义）。"""
-    return ok(await get_broadcast_service().get_today(db, user_id, farmEntryId))
+    result = await get_broadcast_service().get_today(db, user_id, farmEntryId)
+    return ok(result.model_dump(mode="json", by_alias=True))

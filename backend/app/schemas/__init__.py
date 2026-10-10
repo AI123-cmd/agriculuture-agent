@@ -1,4 +1,5 @@
 from .ai import HistoryItem, HistoryResponse
+from .broadcast import SnapshotResponse, SnapshotTodayResponse
 from .consult import (
     ChatRequest,
     ChatResponse,
@@ -54,4 +55,6 @@ __all__ = [
     "SlotAnswer",
     "HistoryItem",
     "HistoryResponse",
+    "SnapshotResponse",
+    "SnapshotTodayResponse",
 ]

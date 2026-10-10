@@ -274,7 +274,7 @@ async def test_service_exposes_notice_on_third_click(engine, session_factory, se
     for _ in range(3):
         async with session_factory() as db:
             result = await service.generate(db, USER, None)
-        notices.append(result["updateNotice"])
+        notices.append(result.updateNotice)
 
     assert notices[0] is None
     assert notices[1] is None
