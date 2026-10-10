@@ -58,14 +58,16 @@ function loadWhitelist() {
 }
 
 function whitelisted(entries, file, context) {
-  return entries.find((e) => file === e.file && e.match.test(context));
+  for (let i = 0; i < entries.length; i += 1) {
+    if (entries[i].file === file && entries[i].match.test(context)) return i;
+  }
+  return -1;
 }
 
-function scanFile(file, entries) {
+function scanFile(file, entries, usedEntries) {
   const rel = relOf(file);
   const lines = readFileSync(file, 'utf8').split(/\r?\n/);
   const violations = [];
-  const hits = { decoration: 0, divider: 0, 'safe-area': 0 };
 
   const mustImport =
     rel.startsWith('miniprogram/pages/') ||
@@ -78,7 +80,7 @@ function scanFile(file, entries) {
     }
   }
 
-  if (rel === TOKENS_REL) return { violations, hits };
+  if (rel === TOKENS_REL) return { violations };
 
   let selector = '';
   lines.forEach((line, i) => {
@@ -87,9 +89,9 @@ function scanFile(file, entries) {
     const context = `${selector} ${trimmed}`;
 
     const flag = (value, message) => {
-      const wl = whitelisted(entries, rel, context);
-      if (wl) {
-        if (CATEGORIES.includes(wl.category)) hits[wl.category] += 1;
+      const idx = whitelisted(entries, rel, context);
+      if (idx >= 0) {
+        usedEntries.add(idx);
         return;
       }
       violations.push(`${rel}:${i + 1}: ${message}`);
@@ -124,23 +126,27 @@ function scanFile(file, entries) {
     }
   });
 
-  return { violations, hits };
+  return { violations };
 }
 
 function main() {
   const entries = loadWhitelist();
   const allViolations = [];
-  const hits = { decoration: 0, divider: 0, 'safe-area': 0 };
+  const usedEntries = new Set();
   let scanned = 0;
 
   for (const file of listWxss(MINIPROGRAM)) {
     if (relOf(file) === TOKENS_REL) continue;
     scanned += 1;
-    const { violations, hits: h } = scanFile(file, entries);
+    const { violations } = scanFile(file, entries, usedEntries);
     allViolations.push(...violations);
-    for (const c of CATEGORIES) hits[c] += h[c];
   }
 
+  const hits = { decoration: 0, divider: 0, 'safe-area': 0 };
+  for (const idx of usedEntries) {
+    const c = entries[idx].category;
+    if (CATEGORIES.includes(c)) hits[c] += 1;
+  }
   const whitelistedCount = CATEGORIES.reduce((n, c) => n + hits[c], 0);
   const group = CATEGORIES.map((c) => `${c} ${hits[c]}`).join(' / ');
   console.log(
