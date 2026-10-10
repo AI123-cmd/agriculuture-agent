@@ -1,3 +1,4 @@
+@import '../../styles/tokens.wxss';
 .page {
   min-height: 100vh;
   background: #f0f4ea;

@@ -1,3 +1,4 @@
+@import '../styles/tokens.wxss';
 .tab-bar {
   position: fixed;
   left: 0;

@@ -1,4 +1,6 @@
 /**app.wxss**/
+@import './styles/tokens.wxss';
+
 .container {
   height: 100%;
   display: flex;
@@ -7,4 +9,64 @@
   justify-content: space-between;
   padding: 200rpx 0;
   box-sizing: border-box;
-} 
+}
+
+/* ---- 公共字号类：页面只用类，自身不再写 font-size ---- */
+.t-caption { font-size: var(--font-caption); line-height: var(--line-body); color: var(--text-muted); }
+.t-body    { font-size: var(--font-body);    line-height: var(--line-body); color: var(--text-body); }
+.t-title   { font-size: var(--font-title);   line-height: var(--line-tight); color: var(--text-primary); font-weight: 600; }
+.t-heading { font-size: var(--font-heading); line-height: var(--line-tight); color: var(--text-brand); font-weight: 600; }
+.t-display { font-size: var(--font-display); line-height: var(--line-tight); color: var(--text-primary); font-weight: 700; }
+.t-body + .t-body { margin-top: var(--space-para); }   /* 段间距由类保证，不逐页手调 */
+
+/* ---- 热区类：外层保证 88rpx 可点，内层负责视觉尺寸 ---- */
+.tap-88 {
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ---- 关键操作按钮 ---- */
+.btn-primary {
+  height: var(--btn-primary-height);
+  border-radius: 16rpx;
+  font-size: var(--font-body);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- 卡片与模块：合并此前三处各自定义的 .card 与 .card-title ---- */
+.card {
+  background: var(--bg-card);
+  border-radius: 20rpx;
+  padding: 36rpx 32rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+.card-title {
+  font-size: var(--font-heading);
+  line-height: var(--line-tight);
+  font-weight: 600;
+  color: var(--text-brand);
+  margin-bottom: var(--space-heading);
+}
+.block { margin-top: var(--space-block); }
+.block:first-child { margin-top: 0; }
+
+/* ---- 执行勾选：视觉 56rpx，热区靠外层撑满 88rpx ---- */
+.check-circle {
+  width: 56rpx;
+  height: 56rpx;
+  border: 2rpx solid #c8e6c9;
+  border-radius: 50%;
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.check-circle .check-icon { font-size: var(--font-caption); color: var(--text-brand); font-weight: bold; }
