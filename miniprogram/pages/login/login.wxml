@@ -14,8 +14,10 @@
     </view>
 
     <view class="agreement-wrapper">
-      <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgree">
-        <text wx:if="{{agreed}}" class="check-icon">✓</text>
+      <view class="tap-88" bindtap="toggleAgree">
+        <view class="checkbox {{agreed ? 'checked' : ''}}">
+          <text wx:if="{{agreed}}" class="check-icon">✓</text>
+        </view>
       </view>
       <view class="agreement-text">
         登录即代表同意

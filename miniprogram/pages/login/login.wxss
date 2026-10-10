@@ -44,18 +44,20 @@ page {
 }
 
 .app-name {
-  font-size: 56rpx;
+  font-size: var(--font-display);
   font-weight: bold;
   color: #2e4632;
   margin-top: 48rpx;
   letter-spacing: 6rpx;
+  line-height: var(--line-tight);
 }
 
 .app-slogan {
-  font-size: 28rpx;
-  color: #7a8577;
+  font-size: var(--font-body);
+  color: #6b7a63;
   margin-top: 16rpx;
   letter-spacing: 2rpx;
+  line-height: var(--line-body);
 }
 
 /* —— 登录区域 —— */
@@ -73,7 +75,7 @@ page {
   height: 104rpx;
   background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
   color: #ffffff;
-  font-size: 34rpx;
+  font-size: var(--font-body);
   font-weight: 500;
   border-radius: 52rpx;
   display: flex;
@@ -103,18 +105,21 @@ page {
 }
 
 .checkbox {
-  width: 32rpx;
-  height: 32rpx;
+  width: 44rpx;
+  height: 44rpx;
   border: 2rpx solid #b0b8ad;
   border-radius: 50%;
-  margin-right: 14rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #ffffff;
   flex-shrink: 0;
-  margin-top: 4rpx;
   transition: all 0.2s;
+}
+
+/* 复选框外层热区：88rpx，靠 .tap-88 撑起（app.wxss） */
+.agreement-wrapper .tap-88 {
+  align-self: flex-start;
 }
 
 .checkbox.checked {
@@ -124,14 +129,14 @@ page {
 
 .check-icon {
   color: #ffffff;
-  font-size: 22rpx;
+  font-size: var(--font-caption);
   font-weight: bold;
 }
 
 .agreement-text {
-  font-size: 24rpx;
-  color: #7a8577;
-  line-height: 1.6;
+  font-size: var(--font-caption);
+  color: #6b7a63;
+  line-height: var(--line-body);
 }
 
 .link {

@@ -245,17 +245,8 @@ page {
   margin-left: 12rpx;
 }
 
-/* 朗读触发位：容器由 T4-03 预留，行为由 T4-04 实现 */
-.tip-read-btn {
-  border-radius: 50%;
-  background: #e8f5e9;
-}
-
-.tip-read-icon {
-  font-size: var(--font-caption);
-  color: #2e7d32;
-  font-weight: 600;
-}
+/* 朗读触发位：容器由 T4-03 预留，T4-04 实现行为；
+   .tip-read-btn / .tip-read-icon 视觉定义在 app.wxss（公共类） */
 
 .tip-check-done {
   background: linear-gradient(135deg, #43a047, #2e7d32);

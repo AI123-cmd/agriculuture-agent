@@ -64,16 +64,17 @@ page {
 }
 
 .header-title {
-  font-size: 36rpx;
+  font-size: var(--font-title);
   font-weight: 700;
   color: #fff;
   letter-spacing: 2rpx;
+  line-height: var(--line-tight);
 }
 
 .header-sub {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.75);
-  line-height: 1.4;
+  font-size: var(--font-caption);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--line-tight);
 }
 
 /* —— 作物标签条 —— */
@@ -93,13 +94,11 @@ page {
 }
 
 .crop-tag-label {
-  font-size: 26rpx;
-  color: #999;
+  color: #595959;
   margin-right: 16rpx;
 }
 
 .crop-tag-current {
-  font-size: 28rpx;
   font-weight: 600;
   color: #2e7d32;
   background: #e8f5e9;
@@ -114,15 +113,14 @@ page {
 }
 
 .switch-text {
-  font-size: 26rpx;
   color: #2e7d32;
 }
 
 .switch-arrow {
-  font-size: 36rpx;
+  font-size: var(--font-body);
   color: #2e7d32;
   font-weight: 300;
-  line-height: 1;
+  line-height: var(--line-tight);
 }
 
 /* 消息列表 */
@@ -188,8 +186,6 @@ page {
 .msg-bubble {
   padding: 24rpx 28rpx;
   border-radius: 24rpx;
-  font-size: 30rpx;
-  line-height: 1.5;
   word-break: break-all;
   white-space: pre-wrap;
 }
@@ -207,11 +203,11 @@ page {
   border-top-right-radius: 8rpx;
 }
 
-/* AI消息旁的语音播放按钮 */
+/* AI消息旁的语音播放按钮：热区由 .tap-88 撑起 */
 .voice-play-btn {
   margin-left: 12rpx;
-  width: 52rpx;
-  height: 52rpx;
+  width: var(--tap-min);
+  height: var(--tap-min);
   border-radius: 50%;
   background: linear-gradient(135deg, #43a047, #2e7d32);
   display: flex;
@@ -220,6 +216,7 @@ page {
   flex-shrink: 0;
 }
 
+/* 喇叭图形：纯装饰，尺寸登记在 scripts/wxss-token-whitelist.json */
 .vp-icon {
   position: relative;
   width: 36rpx;
@@ -280,37 +277,96 @@ page {
   height: 24rpx;
 }
 
-/* 常用问题按钮 */
-.quick-questions-btn {
-  position: fixed;
-  left: 24rpx;
-  bottom: calc(230rpx + env(safe-area-inset-bottom));
-  background: linear-gradient(135deg, #43a047, #2e7d32);
-  border-radius: 32rpx;
-  padding: 16rpx 24rpx;
+/* —— 追问（一次一步） —— */
+.qa-block {
   display: flex;
-  align-items: center;
-  gap: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(46, 125, 50, 0.3);
-  z-index: 98;
+  flex-direction: column;
+  gap: var(--space-block);
 }
 
-.qq-icon {
-  width: 40rpx;
-  height: 40rpx;
-  background: #fff;
-  color: #2e7d32;
-  border-radius: 50%;
-  font-size: 28rpx;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.qa-item {
+  margin-top: 0;
 }
 
-.qq-label {
-  color: #fff;
-  font-size: 26rpx;
+.qa-text {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.qa-why {
+  margin-top: 8rpx;
+}
+
+.qa-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-inline);
+  margin-top: var(--space-heading);
+}
+
+.qa-option {
+  width: 100%;
+  border: 2rpx solid #c8e6c9;
+  border-radius: 16rpx;
+  background: #f6fbf5;
+  color: var(--text-brand);
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+.qa-unknown {
+  border-color: #e0e0e0;
+  background: #fafafa;
+  color: var(--text-muted);
+}
+
+/* —— 处方卡 —— */
+.rx-summary {
+  margin-bottom: var(--space-heading);
+}
+
+.rx-section {
+  margin-top: var(--space-block);
+}
+
+.rx-section-title {
+  margin-bottom: var(--space-heading);
+}
+
+.rx-action {
+  margin-bottom: var(--space-inline);
+}
+
+.rx-action-main {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.rx-action-meta {
+  margin-top: 6rpx;
+}
+
+.rx-pesticide {
+  margin-bottom: var(--space-inline);
+}
+
+.rx-pesticide-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rx-tech {
+  margin-top: var(--space-heading);
+  color: #b07d2b;
+}
+
+/* —— 转人工卡 —— */
+.handoff-points {
+  margin-top: var(--space-heading);
+}
+
+.handoff-contact {
+  margin-top: var(--space-inline);
 }
 
 /* 输入栏 */
@@ -334,12 +390,11 @@ page {
   flex-direction: column;
   align-items: center;
   gap: 2rpx;
-  min-width: 64rpx;
 }
 
 .voice-btn .voice-icon {
-  width: 48rpx;
-  height: 48rpx;
+  width: var(--tap-min);
+  height: var(--tap-min);
   border-radius: 50%;
   background: linear-gradient(135deg, #43a047, #2e7d32);
   font-size: 0;
@@ -348,16 +403,19 @@ page {
   justify-content: center;
 }
 
+.voice-btn .voice-icon.recording {
+  background: linear-gradient(135deg, #e53935, #c62828);
+}
+
 .voice-btn .voice-icon::before {
   content: "讲";
-  font-size: 22rpx;
+  font-size: var(--font-caption);
   color: #fff;
   font-weight: 500;
 }
 
 .voice-label {
-  font-size: 22rpx;
-  color: #666;
+  color: #595959;
 }
 
 .input-wrap {
@@ -365,20 +423,19 @@ page {
   background: #f5f5f5;
   border-radius: 36rpx;
   padding: 0 32rpx;
-  height: 72rpx;
+  min-height: var(--tap-min);
   display: flex;
   align-items: center;
 }
 
 .msg-input {
   width: 100%;
-  font-size: 30rpx;
   color: #333;
 }
 
 .send-btn {
-  width: 72rpx;
-  height: 72rpx;
+  width: var(--tap-min);
+  height: var(--tap-min);
   border-radius: 50%;
   background: #ccc;
   display: flex;
@@ -394,6 +451,6 @@ page {
 
 .send-icon {
   color: #fff;
-  font-size: 36rpx;
+  font-size: var(--font-title);
   transform: rotate(-30deg);
 }

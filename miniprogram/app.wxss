@@ -70,3 +70,10 @@
   justify-content: center;
 }
 .check-circle .check-icon { font-size: var(--font-caption); color: var(--text-brand); font-weight: bold; }
+
+/* ---- 朗读触发位：外层 .tap-88 保证热区，内层负责视觉 ---- */
+.tip-read-btn {
+  border-radius: 50%;
+  background: #e8f5e9;
+}
+.tip-read-icon { font-size: var(--font-caption); color: var(--text-brand); font-weight: 600; }

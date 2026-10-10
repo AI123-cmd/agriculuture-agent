@@ -65,16 +65,17 @@ page {
 }
 
 .header-title {
-  font-size: 36rpx;
+  font-size: var(--font-title);
   font-weight: 700;
   color: #fff;
   letter-spacing: 2rpx;
+  line-height: var(--line-tight);
 }
 
 .header-sub {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.75);
-  line-height: 1.4;
+  font-size: var(--font-caption);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--line-tight);
 }
 
 .new-chat-btn {
@@ -87,16 +88,18 @@ page {
   padding: 12rpx 24rpx;
   border-radius: 32rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.4);
+  min-height: var(--tap-min);
+  box-sizing: border-box;
 }
 
 .plus-icon {
-  font-size: 32rpx;
+  font-size: var(--font-title);
   color: #fff;
   font-weight: 300;
 }
 
 .new-chat-text {
-  font-size: 28rpx;
+  font-size: var(--font-body);
   color: #fff;
 }
 
@@ -138,28 +141,29 @@ page {
 }
 
 .conv-title {
-  font-size: 32rpx;
+  font-size: var(--font-body);
   font-weight: 600;
   color: #333;
   margin-bottom: 8rpx;
+  line-height: var(--line-tight);
 }
 
 .conv-preview {
-  font-size: 26rpx;
-  color: #999;
+  font-size: var(--font-caption);
+  color: #595959;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .conv-delete {
-  width: 56rpx;
-  height: 56rpx;
+  width: var(--tap-min);
+  height: var(--tap-min);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
 .conv-delete:active {
@@ -167,8 +171,8 @@ page {
 }
 
 .delete-icon {
-  font-size: 28rpx;
-  color: #999;
+  font-size: var(--font-body);
+  color: #595959;
 }
 
 .conv-divider {
@@ -192,14 +196,15 @@ page {
 }
 
 .empty-title {
-  font-size: 32rpx;
+  font-size: var(--font-title);
   font-weight: 600;
   color: #7a8577;
+  line-height: var(--line-tight);
 }
 
 .empty-text {
-  font-size: 26rpx;
-  color: #9aa39a;
+  font-size: var(--font-body);
+  color: #595959;
 }
 
 .empty-btn {
@@ -207,6 +212,11 @@ page {
   background: linear-gradient(135deg, #43a047, #2e7d32);
   border-radius: 44rpx;
   padding: 20rpx 48rpx;
+  min-height: var(--btn-primary-height);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 8rpx 20rpx rgba(46, 125, 50, 0.25);
 }
 
@@ -215,7 +225,7 @@ page {
 }
 
 .empty-btn-text {
-  font-size: 28rpx;
+  font-size: var(--font-body);
   color: #fff;
   font-weight: 500;
 }

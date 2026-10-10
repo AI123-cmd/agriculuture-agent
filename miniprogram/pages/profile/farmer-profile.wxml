@@ -1,4 +1,4 @@
-<view class="page">
+﻿<view class="page">
   <view class="header">
     <view class="back-btn" bindtap="goBack">‹</view>
     <view class="header-title">完善农户档案</view>
@@ -7,7 +7,7 @@
 
   <scroll-view scroll-y class="scroll-area" enable-flex>
     <!-- 基础信息 -->
-    <view class="card item-block">
+    <view class="card block">
       <view class="card-title">基础信息</view>
 
       <view class="form-item">
@@ -62,7 +62,7 @@
     </view>
 
     <!-- 地区信息 -->
-    <view class="card item-block">
+    <view class="card block">
       <view class="card-title">地区信息</view>
 
       <view class="form-item">
@@ -90,7 +90,7 @@
     </view>
 
     <!-- 种植信息 -->
-    <view class="card item-block">
+    <view class="card block">
       <view class="card-title">种植信息</view>
 
       <view class="form-item">
@@ -137,7 +137,7 @@
     </view>
 
     <!-- 种植作物品类 -->
-    <view class="card item-block">
+    <view class="card block">
       <view class="card-title">种植作物<text class="card-hint">添加您种植的品类，系统将匹配对应专家模型</text></view>
 
       <!-- 手动输入作物名称 -->
