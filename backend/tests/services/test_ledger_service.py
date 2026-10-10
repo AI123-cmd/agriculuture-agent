@@ -342,8 +342,8 @@ async def test_execution_rate_counts_shown_and_executed_excluding_suppressed(eng
 
 async def test_execution_rate_groups_by_process_when_not_specified(engine) -> None:
     """不传 `process_id` → 返回按流程分组的字典。"""
-    snap_rice = _snapshot(process_id="rice")
-    snap_tea = _snapshot(process_id="tea")
+    snap_rice = _snapshot(process_id="rice", day=date(2026, 6, 2))
+    snap_tea = _snapshot(process_id="tea", day=date(2026, 6, 1))
     await _persist(engine, snap_rice, snap_tea)
     await _persist(
         engine,
