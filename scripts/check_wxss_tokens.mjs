@@ -74,7 +74,12 @@ function scanFile(file, entries, usedEntries) {
     rel.startsWith('miniprogram/custom-tab-bar/') ||
     rel === 'miniprogram/app.wxss';
   if (mustImport) {
-    const first = lines.find((l) => l.trim() !== '');
+    // 取第一个「非空且非注释」行：部分文件的第 1 行是 `/**xxx**/` 注释或 `/*` 块注释，
+    // 注释不算 @import 声明，跳过它们才能正确判定首行。
+    const first = lines.find((l) => {
+      const t = l.trim();
+      return t !== '' && !t.startsWith('/*') && !t.startsWith('//') && !t.startsWith('*');
+    });
     if (!first || !TOKENS_IMPORT.test(first)) {
       violations.push(`${rel}:1: 缺少 @import 指向 styles/tokens.wxss`);
     }
