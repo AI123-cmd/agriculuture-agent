@@ -31,7 +31,7 @@
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -112,6 +112,12 @@ class PrescriptionCard(Base, OwnedMixin):
 
     `safety_interval_days` / `max_uses_per_season` 冗余存顶层（与 `Prescription` 契约一致），
     茶流程的回访时点计算（T3-09）直接读这两个字段，不必解析 `pesticide_items`。
+
+    `followup_plan` / `next_pick_date` 是 T3-09 登记回访任务时的取值来源（12.4 的处方卡含
+    "回访计划"一栏，但原骨架未给列）。按"逻辑以新文档为主"就地补齐：`followup_plan` 存
+    T2-21 产出的 `FollowupPlan`（`tasks` 内含 `due_offset_days` / `kind` / `ask` /
+    `content_rule` / `window_based`），`next_pick_date` 存茶流程的下一轮采摘计划日期。
+    二者可空：无回访计划的处方（如转人工降级）不登记回访，`next_pick_date` 仅茶流程有值。
     """
 
     __tablename__ = "prescription_card"
@@ -133,6 +139,8 @@ class PrescriptionCard(Base, OwnedMixin):
     pesticide_items: Mapped[list[dict]] = mapped_column(JSONB, nullable=False, default=list, comment="药剂条目列表")
     safety_interval_days: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="安全间隔期（天）")
     max_uses_per_season: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="每季使用上限")
+    followup_plan: Mapped[dict | None] = mapped_column(JSONB, nullable=True, comment="回访计划，来自处方契约")
+    next_pick_date: Mapped[date | None] = mapped_column(Date, nullable=True, comment="下一轮采摘计划日期（茶）")
     facts_provenance: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, comment="数值溯源表")
     gate_result: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, comment="闸门结论")
     gate_config_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, comment="闸门配置版本")

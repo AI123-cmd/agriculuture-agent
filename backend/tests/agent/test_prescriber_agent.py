@@ -515,11 +515,11 @@ def test_herbicide_branch_does_not_stack_regular_tasks() -> None:
     assert [t.kind for t in plan.tasks] == ["preserve_scene"]
 
 
-def test_chili_plan_has_two_tasks() -> None:
-    """辣椒流程回访两条，天数取配置的 3 与 7。"""
+def test_chili_plan_has_single_task() -> None:
+    """辣椒流程回访一条，药后 3 至 7 天取中位 5 天（T3-09 第一节）。"""
     plan = build_followup_plan(ProcessId.CHILI, None)
 
-    assert [t.due_offset_days for t in plan.tasks] == [3, 7]
+    assert [t.due_offset_days for t in plan.tasks] == [5]
     assert all(t.ask for t in plan.tasks)
 
 

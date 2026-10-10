@@ -54,9 +54,10 @@ output_template:
   max_chars: 400
 calendar_source: chili.growth_stage
 followup_policy:
+  # 辣椒药后 3~7 天回访，取中位 5 天：区间端点会让前端无法显示"还有几天回访"，
+  # 且同批农户的回访会分散在五天内增加推送管理复杂度（T3-09 第一节）。
   triggers:
-    - {after_action: 用药, after_days: 3, ask: 三天后叶片恢复情况, kind: effect_check}
-    - {after_action: 用药, after_days: 7, ask: 病情是否继续扩展, kind: effect_check}
+    - {after_action: 用药, after_days: 5, ask: 药后叶片恢复情况，病情有没有继续扩展, kind: effect_check}
   window_based: false
 offline_questions:
   - {slot_key: chili_greenhouse_humidity, text: 棚内湿度大概多少,

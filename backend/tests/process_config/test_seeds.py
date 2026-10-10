@@ -166,10 +166,11 @@ def test_weed_followup_day_7_and_15(configs) -> None:
     assert {7, 15} <= days
 
 
-def test_chili_followup_day_3_and_7(configs) -> None:
-    """辣椒药后 3 至 7 天回访。"""
-    days = {t.after_days for t in configs[ProcessId.CHILI].followup_policy.triggers}
-    assert {3, 7} <= days
+def test_chili_followup_day_5() -> None:
+    """辣椒药后 3 至 7 天回访，取中位 5 天（T3-09 第一节）。"""
+    config = load_process_config(ProcessId.CHILI)
+    days = {t.after_days for t in config.followup_policy.triggers}
+    assert days == {5}
 
 
 def test_slot_keys_unique_within_flow(configs) -> None:
