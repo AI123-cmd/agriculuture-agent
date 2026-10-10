@@ -26,7 +26,7 @@ from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import PromptItem, PromptSnapshot, ReachRecord
-from app.models.enums import Channel, FailReason, ReachStatus
+from app.models.enums import FailReason, ReachStatus
 from app.repositories.base import OwnedRepository
 
 # 终结性失败原因：一旦命中即不再作为推送候选（需农户重新授权才能再发）。
@@ -84,9 +84,7 @@ class ReachRepository(OwnedRepository[ReachRecord]):
         rows = (await db.execute(stmt)).all()
         return {str(reason): int(count) for reason, count in rows if reason is not None}
 
-    async def list_unpushed_due(
-        self, db: AsyncSession, now: datetime, limit: int = 200
-    ) -> Sequence[PromptItem]:
+    async def list_unpushed_due(self, db: AsyncSession, now: datetime, limit: int = 200) -> Sequence[PromptItem]:
         """待推送的提示条目：到期快照内、未被压制、且尚未送达/终结的条目。
 
         判定四条：快照未失效、`snapshot_date <= 今天`（到期）、条目未被压制、条目既没有

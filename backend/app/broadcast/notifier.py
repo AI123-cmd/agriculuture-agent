@@ -47,24 +47,6 @@ _CHANNEL = Channel.SUBSCRIBE_ONCE.value
 _REACH_AGGREGATE = "reach"
 
 
-async def _record(
-    db: AsyncSession, item: PromptItem, fail_reason: str | None, note: str | None = None
-) -> ReachRecord:
-    """把一次触达尝试落库（成功与四类失败都经这里）。
-
-    薄封装 `record_attempt`：统一补 `user_id` / `prompt_item_id` / `channel`，避免每条路径
-    重复拼这三个字段。失败原因的取值与语义见 `app/broadcast/reach_log.py`。
-    """
-    return await record_attempt(
-        db,
-        user_id=item.user_id,
-        prompt_item_id=item.id,
-        channel=_CHANNEL,
-        fail_reason=fail_reason,
-        note=note,
-    )
-
-
 def _build_template_data(item: PromptItem) -> dict:
     """从已落库的提示条目构造订阅消息模板字段。
 
@@ -126,10 +108,20 @@ async def _deliver_one(db: AsyncSession, item: PromptItem, now: datetime) -> Rea
 
     返回的记录既是结果也是判据：`status="delivered"` 为成功，`fail_reason="quiet_hours"`
     为可重试的延迟，其余为真实失败。调用方据 `fail_reason` 归入统计桶。
+
+    每条路径都以 `record_attempt` 收尾（含成功），这是"失败不得静默丢弃"（11.7 第三条）的
+    落地方式；`user_id` / `prompt_item_id` / `channel` 三字段由本函数统一补，`record_attempt`
+    是唯一的落库出口（T3-14）。
     """
     # 门槛一：时段。静默/非窗口时段只延迟，不退还额度（尚未消费）、不投 reach.failed。
     if not is_sendable(now):
-        record = await _record(db, item, FailReason.QUIET_HOURS.value)
+        record = await record_attempt(
+            db,
+            user_id=item.user_id,
+            prompt_item_id=item.id,
+            channel=_CHANNEL,
+            fail_reason=FailReason.QUIET_HOURS.value,
+        )
         await db.commit()
         return record
 
@@ -139,7 +131,13 @@ async def _deliver_one(db: AsyncSession, item: PromptItem, now: datetime) -> Rea
         quota = await quota_repo.get(db, item.user_id)
         granted_total = quota.granted_total if quota is not None else 0
         reason = FailReason.NO_GRANT.value if granted_total == 0 else FailReason.QUOTA_EXHAUSTED.value
-        record = await _record(db, item, reason)
+        record = await record_attempt(
+            db,
+            user_id=item.user_id,
+            prompt_item_id=item.id,
+            channel=_CHANNEL,
+            fail_reason=reason,
+        )
         await _emit_reach_event(db, item, record, failed=True, fail_reason=reason)
         await db.commit()
         return record
@@ -150,19 +148,39 @@ async def _deliver_one(db: AsyncSession, item: PromptItem, now: datetime) -> Rea
     except WechatUserRefusedError as exc:
         # 农户拒收：系统持有的授权已失效，清零剩余额度并记 no_grant，避免反复失败。
         await quota_repo.zero_out(db, item.user_id)
-        record = await _record(db, item, FailReason.NO_GRANT.value, note=str(exc))
+        record = await record_attempt(
+            db,
+            user_id=item.user_id,
+            prompt_item_id=item.id,
+            channel=_CHANNEL,
+            fail_reason=FailReason.NO_GRANT.value,
+            note=str(exc),
+        )
         await _emit_reach_event(db, item, record, failed=True, fail_reason=FailReason.NO_GRANT.value)
         await db.commit()
         return record
     except Exception as exc:  # noqa: BLE001  含 WechatApiError 与任何非预期异常，一律记 api_error
         # 接口失败（含未预期异常）：退还占用，记 api_error，投 reach.failed，下次扫描重试。
         await refund(db, item.user_id)
-        record = await _record(db, item, FailReason.API_ERROR.value, note=str(exc))
+        record = await record_attempt(
+            db,
+            user_id=item.user_id,
+            prompt_item_id=item.id,
+            channel=_CHANNEL,
+            fail_reason=FailReason.API_ERROR.value,
+            note=str(exc),
+        )
         await _emit_reach_event(db, item, record, failed=True, fail_reason=FailReason.API_ERROR.value)
         await db.commit()
         return record
 
-    record = await _record(db, item, None)
+    record = await record_attempt(
+        db,
+        user_id=item.user_id,
+        prompt_item_id=item.id,
+        channel=_CHANNEL,
+        fail_reason=None,
+    )
     await _emit_reach_event(db, item, record, failed=False, fail_reason=None)
     await db.commit()
     return record

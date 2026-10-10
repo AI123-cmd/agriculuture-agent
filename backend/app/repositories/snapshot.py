@@ -88,6 +88,24 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
         stmt = select(PromptItem).where(PromptItem.id == prompt_item_id)
         return (await db.execute(stmt)).scalars().first()
 
+    async def list_items_by_followup_task(self, db: AsyncSession, task_id: str) -> Sequence[PromptItem]:
+        """按回访任务 id 取该任务生成的提示条目，供 T3-12 的 `followup.due` 消费者定位推送对象。
+
+        判据是 `rule_id` 的后缀 `:{task_id}`（T3-04 的 `build_followup_rule` 把 `task_id` 追加到
+        规则标识尾部，保证同一 `content_rule` 被多次复用时逐任务唯一）。这正是"推送内容只能来自
+        已落库的 `prompt_item`"（11.8）在事件消费侧的落点：消费者拿到的 `followup.due` 载荷只有
+        `task_id`，据它回查已落库条目，而不是用载荷里的字段另行拼装文案。
+
+        不带 `user_id`：载荷本身不含 `user_id`，`task_id` 全局唯一，回查天然定位到唯一农户的
+        条目，与 `get_item` 同属"显式孤立的无归属查询"。快照可能尚未生成（`followup.due` 与
+        `snapshot.requested` 是两个互不阻塞的消费者），此时返回空序列，推送退化为无操作，由
+        下一次触达扫描兜底。
+        """
+        if not task_id:
+            return []
+        stmt = select(PromptItem).where(PromptItem.rule_id.like(f"%:{task_id}"))
+        return (await db.execute(stmt)).scalars().all()
+
     async def add_item(self, db: AsyncSession, user_id: str, item: PromptItem) -> PromptItem:
         """向已存在的快照追加一条条目（不提交，由调用方 commit）。
 
