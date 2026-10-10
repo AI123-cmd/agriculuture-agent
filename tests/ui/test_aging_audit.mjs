@@ -18,7 +18,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const WHITELIST_PATH = join(ROOT, 'scripts', 'wxss-token-whitelist.json');
 
 const PAGES = [
