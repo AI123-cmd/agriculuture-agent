@@ -101,6 +101,22 @@ async def _noop_redis_lock(key: str, timeout: int = 30) -> AsyncIterator[None]:
     yield
 
 
+@pytest.fixture(autouse=True)
+def _tool_sessions_on_test_engine(session_factory, monkeypatch):
+    """把链路内的工具单例会话工厂换成 NullPool 测试工厂。
+
+    `generate_snapshot` 经 `collect_env_facts` 调用 `sensor_service` / `weather_service`，
+    两者的会话工厂缺省绑定应用级 `SessionLocal`（连接池）。池中连接在某个用例的事件循环里
+    建立后会被下一个用例的循环复用，抛 `RuntimeError: ... attached to a different loop`；
+    NullPool 每次新建连接，跨循环安全。生产为单事件循环，无此问题，故只在测试替换。
+    """
+    from app.tools.sensors import sensor_service
+    from app.tools.weather import weather_service
+
+    monkeypatch.setattr(sensor_service, "_session_factory", session_factory)
+    monkeypatch.setattr(weather_service, "_session_factory", session_factory)
+
+
 async def _generate(session_factory: async_sessionmaker[AsyncSession]) -> tuple[str, int]:
     """独立会话跑一次 `generate_snapshot`，返回 `(snapshot_id, revision)`。
 
