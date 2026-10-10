@@ -19,17 +19,19 @@
 **外键 `ondelete` 保持默认（`RESTRICT`）**：快照、提示条目与触达记录都不允许被级联删除。
 触达记录是送达率指标的原始数据，删除会污染统计口径。
 
-`channel` / `status` / `fail_reason` 三列在本项只建列（`status` 与 `fail_reason` 的组合校验、
-三者的枚举取值校验由 T3-14 补齐），取值语义见 `app/models/enums.py`。
+`channel` / `status` / `fail_reason` 三列在本项只建列；三者的枚举取值校验与
+`status` 与 `fail_reason` 的组合校验由 T3-14 补齐，取值语义见 `app/models/enums.py`。
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.db.base import Base
 from app.db.owned import OwnedMixin
+from app.models.enums import Channel, FailReason, ReachStatus, coerce_enum
 
 _QUOTA_TABLE_COMMENT = "订阅额度账本：一户一行，remaining 冗余存储以支持无锁原子扣减"
 _REACH_TABLE_COMMENT = "触达记录：每次触达尝试一行，含失败原因分类，是送达率指标的原始数据"
@@ -81,6 +83,33 @@ class ReachRecord(Base, OwnedMixin):
     )
     attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    @validates("channel")
+    def _validate_channel(self, key: str, value: Any) -> Any:
+        return coerce_enum(Channel, value)
+
+    @validates("status", "fail_reason")
+    def _validate_status_and_reason(self, key: str, value: Any) -> Any:
+        """强制 `status` 与 `fail_reason` 的组合关系（技术方案 12.5 / 11.7 第三条）。
+
+        `status="delivered"` 时 `fail_reason` 必为 `None`，`status="failed"` 时必非空。
+        两个属性共用一条校验器：SQLAlchemy 逐属性赋值，单看一个属性无法判定组合是否成立，
+        故赋值任一方时都读取另一方当前值做交叉检查——这样无论调用方按何种顺序传入
+        （`status` 在前或在后），只要组合非法都会在写入前抛 `ValueError`。
+        """
+        if key == "status":
+            value = coerce_enum(ReachStatus, value)
+            if value == ReachStatus.DELIVERED.value and self.fail_reason is not None:
+                raise ValueError("status=delivered 时 fail_reason 必须为 None")
+            return value
+        value = coerce_enum(FailReason, value)
+        status = self.status
+        if value is None:
+            if status == ReachStatus.FAILED.value:
+                raise ValueError("status=failed 时 fail_reason 不能为空")
+        elif status == ReachStatus.DELIVERED.value:
+            raise ValueError("status=delivered 时 fail_reason 必须为 None")
+        return value
 
 
 __all__ = ["ReachRecord", "SubscriptionQuota"]
