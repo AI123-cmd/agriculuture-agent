@@ -75,15 +75,10 @@ class SnapshotRepository(OwnedRepository[PromptSnapshot]):
         return (await db.execute(stmt)).scalars().all()
 
     async def get_item(self, db: AsyncSession, prompt_item_id: str) -> PromptItem | None:
-        """按条目 id 取一条提示条目，是 T3-12 推送链路**唯一的取内容路径**。
+        """按 `id` 取单条提示条目，供事件消费等无归属场景使用。
 
-        不带 `user_id`：推送扫描（`reach_repo.list_unpushed_due`）横跨全部农户挑出到期
-        条目，消费者拿到的候选本身已带归属，此处只按主键回取。这是本仓储第二条无归属
-        过滤的查询（第一条是 `list_items` 之外的跨农户场景），与 `reach_repo` 的同名做法
-        一致：不可按归属过滤的查询显式孤立，其余方法一律走基类归属过滤。
-
-        取不到返回 `None`，由调用方（`notify_item`）抛 `NotFound`——不在这里抛是因为
-        "条目不存在"对不同的调用方语义不同，仓储只负责如实反映。
+        `prompt_item_id` 全局唯一，故不带 `user_id` 过滤，属"显式孤立的无归属查询"
+        （与 `list_items_by_followup_task` 同口径），调用方自行保证 `id` 来源可信。
         """
         stmt = select(PromptItem).where(PromptItem.id == prompt_item_id)
         return (await db.execute(stmt)).scalars().first()

@@ -31,7 +31,7 @@
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -118,6 +118,12 @@ class PrescriptionCard(Base, OwnedMixin):
     T2-21 产出的 `FollowupPlan`（`tasks` 内含 `due_offset_days` / `kind` / `ask` /
     `content_rule` / `window_based`），`next_pick_date` 存茶流程的下一轮采摘计划日期。
     二者可空：无回访计划的处方（如转人工降级）不登记回访，`next_pick_date` 仅茶流程有值。
+
+    **T3-15（处方卡入台账）依赖的三列**：`created_at` 是入台账时 `entry_date` 的取值来源
+    （技术方案 12.4 已给此列，`server_default=now()`，与 `Consultation` 的时间口径一致）；
+    `process_id` 与 `diagnosis_summary` 用于台账条目的流程归属与标题，12.4 骨架未给，按
+    "逻辑以新文档为主"就地补列。三者都可空或缺省，使既有构造（测试与问诊落库链路只给
+    `id` / `consultation_id` / `user_id`）不必逐字段补齐——`created_at` 由数据库默认值兜底。
     """
 
     __tablename__ = "prescription_card"
@@ -148,6 +154,14 @@ class PrescriptionCard(Base, OwnedMixin):
         Boolean, nullable=False, default=False, comment="是否需转农技站"
     )
     ledger_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="是否已存入台账")
+    # T3-15：入台账的取值来源。`created_at` 由数据库默认值兜底，既有构造无需显式给值。
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), comment="创建时间"
+    )
+    process_id: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="七条流程之一")
+    diagnosis_summary: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="诊断摘要，来自处方契约"
+    )
 
 
 class FollowupTask(Base, OwnedMixin):

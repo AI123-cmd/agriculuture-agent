@@ -65,6 +65,19 @@ class BadRequest(AppException):
         super().__init__(400, message)
 
 
+class InvalidStateError(AppException):
+    """对象当前状态不允许该操作，属请求错误（取 400）。
+
+    与 `BadRequest` 同为 400，但单独成类是为了让"状态机违约"与"参数格式错误"在日志与
+    埋点里可区分：前者的请求本身格式合法，只是打在了一个不该被打的对象上。T3-15 的
+    "被抑制的提示条目不接受执行勾选"是首个用例——该条目从未展示给农户，农户不可能勾选
+    它，请求合法但状态不允许。
+    """
+
+    def __init__(self, message: str = "当前状态不允许该操作"):
+        super().__init__(400, message)
+
+
 class ConflictError(AppException):
     """唯一约束冲突或乐观锁失败。
 

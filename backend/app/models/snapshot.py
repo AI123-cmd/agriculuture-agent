@@ -98,6 +98,9 @@ class PromptSnapshot(Base, OwnedMixin):
     invalidated: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, comment="逻辑失效标记，不物理删除"
     )
+    # T3-15：执行率需按流程分别统计（产品说明书 6.3），故快照落库时记下本次生成所用的流程。
+    # 可空以兼容杂草等取不到流程的历史快照；新生成链路总会写入（见 `_build_snapshot`）。
+    process_id: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="本次生成所用的流程")
 
     @validates("env_source")
     def _validate_env_source(self, key: str, value: Any) -> Any:

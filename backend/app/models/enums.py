@@ -102,6 +102,17 @@ class FollowupKind(str, Enum):
     COMPLIANCE_CHECK = "compliance_check"
 
 
+class LedgerSourceType(str, Enum):
+    """农事台账条目的来源类型（T3-15）。
+
+    当前只有处方卡一种来源（`POST /api/v1/ai/prescription/{id}/ledger`）；闭集定义在这里
+    而不是散落成字符串字面量，使"台账里还能沉淀什么"可被 grep，也为后续新增来源（如用药
+    记录手动入账）留出只改代码不动表的扩展点。
+    """
+
+    PRESCRIPTION = "prescription"
+
+
 def coerce_enum(enum_cls: type[Enum], value: Any) -> Any:
     """把字符串/枚举成员收敛为枚举的字符串取值；非法值抛 `ValueError`。
 
@@ -123,6 +134,7 @@ __all__ = [
     "FailReason",
     "FollowupKind",
     "FollowupStatus",
+    "LedgerSourceType",
     "ReachStatus",
     "Severity",
     "SourceKind",
