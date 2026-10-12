@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.base import new_id
 from app.models import Device, DeviceConfig, FieldMapping
 from app.repositories.base import OwnedRepository, require_user_id
 
@@ -51,6 +52,67 @@ class DeviceConfigRepository(OwnedRepository[DeviceConfig]):
         """
         stmt = select(DeviceConfig).where(DeviceConfig.device_sn == device_sn)
         return (await db.execute(stmt)).scalar_one_or_none()
+
+    async def create(
+        self,
+        db: AsyncSession,
+        user_id: str,
+        *,
+        device_sn: str,
+        farm_entry_id: str | None,
+        protocol_type: str,
+        secret_ref: str,
+        secret_digest: str,
+    ) -> DeviceConfig:
+        """新建绑定行（T5-03）。`bound_at` 由库侧 `server_default=now()` 落值，此处不传。"""
+        device = DeviceConfig(
+            id=new_id("dev"),
+            device_sn=device_sn,
+            farm_entry_id=farm_entry_id,
+            protocol_type=protocol_type,
+            secret_ref=secret_ref,
+            secret_digest=secret_digest,
+        )
+        await self.add(db, user_id, device)
+        # 要拿到库侧默认值（bound_at）与 id，供响应体使用
+        await db.flush()
+        return device
+
+    async def rebind(
+        self,
+        db: AsyncSession,
+        user_id: str,
+        device_id: str,
+        *,
+        farm_entry_id: str | None,
+        secret_ref: str,
+        secret_digest: str,
+        bound_at: datetime,
+    ) -> DeviceConfig | None:
+        """复用曾解绑的行：重置归属、绑定关系与密钥（T5-03）。
+
+        归属经 `update_fields` 强制带 `user_id` 条件：曾解绑的行可能属于他人，只有归属一致时才
+        能改写；越权调用受影响行数为 0，返回 `None`，由服务层折算为冲突。清空 `unbound_at` 与
+        `last_report_at`、复位 `online_status`：重新接入的设备此前的一切状态都不再有效。
+        `vendor_template_id` 一并清空，待服务层重新匹配后写入。
+        """
+        affected = await self.update_fields(
+            db,
+            user_id,
+            device_id,
+            farm_entry_id=farm_entry_id,
+            protocol_type="http_direct",
+            secret_ref=secret_ref,
+            secret_digest=secret_digest,
+            vendor_template_id=None,
+            online_status=None,
+            last_report_at=None,
+            bound_at=bound_at,
+            unbound_at=None,
+        )
+        if affected == 0:
+            return None
+        return await self.get(db, user_id, device_id)
 
     async def touch_last_report(
         self, db: AsyncSession, user_id: str, device_id: str, *, reported_at: datetime, online: str

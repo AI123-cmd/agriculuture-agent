@@ -162,6 +162,15 @@ class Settings(BaseSettings):
     BROADCAST_RAINFALL_MM: float = 25.0
     BROADCAST_WIND_MS: float = 8.0
 
+    # 设备接入（T5-03）
+    # 设备密钥的加盐摘要盐值。明文密钥不落库，落库的是 `sha256(salt + secret)`，故盐值本身
+    # 不进代码。开发环境留空仍能跑通（摘要照常计算），生产环境由 `.env` 提供。
+    DEVICE_SECRET_SALT: str = ""
+    # 上报地址的基址（如 `https://api.example.com`）。用配置项而非请求 Host 头推导：反向代理
+    # 后 Host 头是内网地址，设备拿到后无法回连；且产品说明书 7.4 要求域名必须预先备案，
+    # 这个值必须是运维确认过的已备案域名，不能由请求随意决定。
+    DEVICE_REPORT_BASE_URL: str = ""
+
     # 对象存储
     STORAGE_TYPE: str = "local"
     STORAGE_LOCAL_DIR: str = "./uploads"

@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from .ai import router as ai_api_router
 from .auth import router as auth_router
 from .broadcast import router as broadcast_router
+from .device import router as device_router
 from .environment import router as environment_router
 from .farmer import router as farmer_router
 from .knowledge_review import router as knowledge_review_router
@@ -24,3 +25,4 @@ api_router.include_router(knowledge_review_router)
 api_router.include_router(broadcast_router)
 api_router.include_router(ledger_router)
 api_router.include_router(subscription_router)
+api_router.include_router(device_router)

@@ -68,7 +68,7 @@ app.add_middleware(
     # 不用 `*`：本项目没有 PATCH，HEAD 由框架处理；显式列出能让"新增了方法却忘了加
     # CORS"在预检阶段暴露，而不是等到线上才发现。
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-Id"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-Id", "X-Device-Secret"],
     expose_headers=["X-Request-Id"],
     max_age=600,
 )
@@ -76,7 +76,7 @@ app.add_middleware(
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    return error_response(exc.code, exc.message, status_code=exc.code)
+    return error_response(exc.code, exc.message, status_code=exc.code, detail=exc.detail)
 
 
 @app.exception_handler(Exception)

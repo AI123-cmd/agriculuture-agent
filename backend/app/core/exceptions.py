@@ -1,12 +1,20 @@
 """业务异常定义。"""
 
+from typing import Any
+
 
 class AppException(Exception):
-    """业务异常，携带错误码与消息，由全局 handler 统一转换为响应。"""
+    """业务异常，携带错误码与消息，由全局 handler 统一转换为响应。
 
-    def __init__(self, code: int = 400, message: str = "请求参数错误"):
+    `detail` 是可选的附加定位信息（如校验失败的具体字段与失败层级），由 handler 放进响应的
+    `data` 字段。单列一个字段而不是把结构化信息拼进 `message`：`message` 是给农户看的中文文案，
+    `detail` 是给前端定位输入框用的机器可读结构，两者受众不同，混在一起会让文案也被迫机器化。
+    """
+
+    def __init__(self, code: int = 400, message: str = "请求参数错误", detail: Any | None = None):
         self.code = code
         self.message = message
+        self.detail = detail
         super().__init__(message)
 
 
@@ -115,3 +123,29 @@ class EnumParseError(AppException):
 
     def __init__(self, message: str = "枚举取值非法"):
         super().__init__(500, message)
+
+
+class ValidationError(AppException):
+    """业务校验失败，带结构化的字段定位信息（取 400）。
+
+    与 `BadRequest` 的区别在 `detail`：`BadRequest` 表达"请求整体不合法"，本类表达"某一份业务
+    数据的某个字段不满足规则"。三类接入的字段映射校验（T5-05 的字段级/映射级/换算级）是主要
+    用例——前端要据 `detail={"rawField": ..., "layer": ...}` 把错误挂到具体输入框，而不是弹一个
+    笼统的失败提示。取 400：责任在调用方提交的数据，改数据即可通过。
+    """
+
+    def __init__(self, message: str = "数据校验未通过", detail: Any | None = None):
+        super().__init__(400, message, detail)
+
+
+class DeviceAuthError(AppException):
+    """设备密钥校验失败（取 403）。
+
+    取 403 而非 401：这个入口的凭证是绑定下发的设备密钥，不是登录态，"重新登录"对它没有意义。
+    更重要的是设备固件的重试策略——多数 4G DTU 只对 5xx 重试，403 会被当作"凭证无效"而停止重试，
+    避免用错误密钥反复冲击上报入口（T5-06 的设计要点）。SN 不存在与密钥错误返回同一错误，
+    使攻击者无法靠响应差异枚举合法 SN。
+    """
+
+    def __init__(self, message: str = "设备鉴权失败"):
+        super().__init__(403, message)

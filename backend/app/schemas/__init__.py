@@ -15,6 +15,7 @@ from .consult import (
     QuotaPromptView,
     SlotAnswer,
 )
+from .device import BindRequest, BindResponse
 from .environment import (
     DeviceItem,
     EnvironmentDetail,
@@ -37,6 +38,8 @@ __all__ = [
     "FarmProfileResponse",
     "SetLocationRequest",
     "ReverseGeocodeResponse",
+    "BindRequest",
+    "BindResponse",
     "EnvironmentSummary",
     "EnvironmentDetail",
     "MetricItem",
