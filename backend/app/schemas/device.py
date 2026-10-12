@@ -1,4 +1,4 @@
-"""设备接入相关出入参（T5-03，技术方案 13.4）。
+"""设备接入相关出入参（T5-03 / T5-09，技术方案 13.4）。
 
 字段名保持方案里的驼峰形式，因为这套出入参是给小程序前端消费的，与 T3、T2 阶段的接口风格一致
 （`ChatResponse` 的 `sessionId` / `stageLabel` 同为驼峰）。后端内部变量用蛇形，转换发生在 schema 边界。
@@ -12,6 +12,8 @@
 `deviceSecret` 在重复绑定的幂等分支返回 `None`——重复点击时若刷新密钥，之前已配进设备的密钥会
 立即失效，表现为"设备突然不上报了"。
 """
+
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -135,9 +137,40 @@ class MappingSaveResponse(BaseModel):
     preview: list[MappingPreview] = []
 
 
+class DeviceListItem(BaseModel):
+    """设备管理列表的一行（T5-09）。
+
+    `onlineState` 用字符串枚举（`online` / `offline` / `fault`）而非旧 `device.status` 的整数
+    编码：全局约定要求状态字段用字符串枚举，且 `device_config.online_status` 列本身就是字符串。
+    判据由最近上报时间反推（`_online_state`），不要求设备实现心跳。
+
+    `silenceNote` 只在 `onlineState != "online"` 时非空，把"断了多久"直说给农户，避免他对着一个
+    "离线"标签猜测。`mappedFields` 是"这台设备接好了没有"的判据：绑定成功但映射没保存的设备会
+    持续为 0，上报时返回 `mapping_missing`（T5-06），农户据此知道接入没走完。
+    """
+
+    id: str
+    deviceSn: str
+    deviceName: str | None = None
+    farmEntryId: str | None = None
+    onlineState: str
+    lastReportAt: datetime | None = None
+    silenceNote: str | None = None
+    mappedFields: int = 0
+    boundAt: datetime
+
+
+class DeviceListResponse(BaseModel):
+    """设备列表出参（T5-09）。"""
+
+    devices: list[DeviceListItem] = []
+
+
 __all__ = [
     "BindRequest",
     "BindResponse",
+    "DeviceListItem",
+    "DeviceListResponse",
     "DetectedField",
     "MappingItem",
     "MappingPreview",

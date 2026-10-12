@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import new_id
@@ -134,6 +134,14 @@ class DeviceConfigRepository(OwnedRepository[DeviceConfig]):
         """设备上报成功后刷新在线状态与最近上报时刻（T5-06）。"""
         return await self.update_fields(db, user_id, device_id, last_report_at=reported_at, online_status=online)
 
+    async def list_bound(self, db: AsyncSession, user_id: str) -> Sequence[DeviceConfig]:
+        """本人**在绑**设备（`unbound_at IS NULL`），按绑定时刻倒序（T5-09 设备管理列表）。
+
+        列表只含在绑设备：解绑的设备不该再出现在管理页，但它对应的行仍在库里（软删除），
+        供 `rebind` 复用与审计追溯。排序用 `bound_at` 倒序，最近接的排在最前。
+        """
+        return await self.list_all(db, user_id, unbound_at=None, order_by=DeviceConfig.bound_at.desc())
+
 
 class FieldMappingRepository(OwnedRepository[FieldMapping]):
     """字段映射仓储。
@@ -148,6 +156,17 @@ class FieldMappingRepository(OwnedRepository[FieldMapping]):
     async def list_for_device(self, db: AsyncSession, user_id: str, device_id: str) -> Sequence[FieldMapping]:
         """取某台设备的全部映射（上报解析 T5-06 一次取全量）。"""
         return await self.list_all(db, user_id, device_id=device_id)
+
+    async def count_for_devices(self, db: AsyncSession, user_id: str) -> dict[str, int]:
+        """按设备统计映射条数（T5-09 列表的 `mappedFields`），一次查询取回全部设备。
+
+        逐台 `count` 会在设备列表上产生 N+1 查询；设备数虽少，但列表是首屏接口，
+        一次 `GROUP BY` 更稳。返回 `{device_id: 条数}`，无映射的设备不出现在结果里，调用方按 0 处理。
+        """
+        uid = require_user_id(self.model.__name__, user_id)
+        stmt = select(FieldMapping.device_id, func.count()).where(FieldMapping.user_id == uid).group_by(FieldMapping.device_id)
+        rows = (await db.execute(stmt)).all()
+        return {device_id: count for device_id, count in rows}
 
     async def replace_all(
         self, db: AsyncSession, user_id: str, device_id: str, mappings: Sequence[FieldMapping]

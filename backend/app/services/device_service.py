@@ -1,4 +1,4 @@
-"""设备接入服务：绑定设备、样例报文解析与字段推断（T5-03 / T5-04，技术方案 13.4）。
+"""设备接入服务：绑定设备、样例报文解析与字段推断、设备列表与解绑（T5-03 / T5-04 / T5-09）。
 
 三步接入的第 1、2 步都在本模块：绑定设备编号并下发密钥，以及解析农户粘贴的样例报文、对每个字段
 推断它代表哪个标准环境指标。两步共用"归属校验走仓储"的规矩。
@@ -29,8 +29,15 @@ from app.core.device_secret import generate_device_secret, hash_device_secret
 from app.core.exceptions import ConflictError, NotFound, ValidationError
 from app.db.uow import unit_of_work
 from app.models import DeviceConfig
-from app.repositories import device_config_repo, vendor_template_repo
-from app.schemas.device import BindRequest, BindResponse, ParseSampleRequest, ParseSampleResponse
+from app.repositories import device_config_repo, field_mapping_repo, vendor_template_repo
+from app.schemas.device import (
+    BindRequest,
+    BindResponse,
+    DeviceListItem,
+    DeviceListResponse,
+    ParseSampleRequest,
+    ParseSampleResponse,
+)
 from app.services.field_inference import (
     any_metric_inferred,
     fields_from_template,
@@ -202,4 +209,111 @@ async def parse_sample(db: AsyncSession, user_id: str, req: ParseSampleRequest) 
     return ParseSampleResponse(parsed=True, fields=fields)
 
 
-__all__ = ["bind_device", "parse_sample"]
+# 在线判据阈值：3 倍采集周期，采集周期取 10 分钟（技术方案第 4 章估算口径）。
+# 取 3 倍而非 1 倍是给网络抖动留余量：设备晚 1 个周期上报是常态，晚 3 个周期才值得提示。
+OFFLINE_THRESHOLD_S = 3 * 600
+# 静默短于该秒数不提示：设备晚一两个采集周期上报是常态，提示会变成噪声。
+_SILENCE_MIN_SECONDS = 30 * 60
+# 超过该秒数视为长期失联（`fault`）：更可能是断电或被拆，需要农户干预而非等待自愈。
+_FAULT_AFTER_SECONDS = 7 * 86400
+
+
+def _online_state(last_report_at: datetime | None, now: datetime) -> str:
+    """按最近上报时间反推在线状态；从未上报视为 `offline`。
+
+    不要求设备实现心跳，由上报时刻反推（设备通常是简单固件，加保活协议不现实）。三值区分
+    `online` / `offline` / `fault`，其中 `fault` 与 `offline` 的差别是失联时长。
+
+    阈值 `OFFLINE_THRESHOLD_S = 3 * 600`（3 倍采集周期，采集周期取 10 分钟）：晚 1 个周期是
+    网络抖动的常态，晚 3 个周期才值得提示。`last_report_at` 为裸时间戳时按 UTC 处理，与
+    库列 `DateTime(timezone=True)` 的口径一致。
+    """
+    if last_report_at is None:
+        return "offline"
+    if last_report_at.tzinfo is None:
+        last_report_at = last_report_at.replace(tzinfo=UTC)
+    delta = (now - last_report_at).total_seconds()
+    if delta <= OFFLINE_THRESHOLD_S:
+        return "online"
+    if delta <= _FAULT_AFTER_SECONDS:
+        return "offline"
+    return "fault"
+
+
+def _silence_note(state: str, last_report_at: datetime | None, now: datetime) -> str | None:
+    """静默提示文案：仅非在线时给出，把"断了多久"直说。
+
+    时长分三档（30 分钟~24 小时按小时、1~7 天按天、超 7 天给长期失联提示）。天数取整并设下限 1，
+    理由与 T5-08 的小时数下限一致：不足 1 天显示"1 天"比"0 天"更符合农户理解。
+    """
+    if state == "online" or last_report_at is None:
+        return None
+    if last_report_at.tzinfo is None:
+        last_report_at = last_report_at.replace(tzinfo=UTC)
+    elapsed = (now - last_report_at).total_seconds()
+    if elapsed < _SILENCE_MIN_SECONDS:
+        return None
+    if elapsed < 86400:
+        hours = max(int(elapsed // 3600), 1)
+        return f"你的设备已 {hours} 小时没有上报数据"
+    if elapsed <= _FAULT_AFTER_SECONDS:
+        days = max(int(elapsed // 86400), 1)
+        return f"你的设备已 {days} 天没有上报数据"
+    return "你的设备已长期没有上报数据，请检查设备通电与网络"
+
+
+async def list_devices(db: AsyncSession, user_id: str) -> DeviceListResponse:
+    """设备管理列表：本人**在绑**设备的在线状态、最近上报时间与接入完成度（T5-09）。
+
+    以 `device_config` 为唯一准据（不是旧 `device` 表）：绑定、上报、解绑都写这张表，三处
+    一致才不会出现"环境页说在线、设备页说离线"。映射条数一次 `GROUP BY` 取回，避免列表上的
+    N+1 查询。
+    """
+    now = datetime.now(UTC)
+    devices = await device_config_repo.list_bound(db, user_id)
+    mapped = await field_mapping_repo.count_for_devices(db, user_id)
+    return DeviceListResponse(
+        devices=[
+            DeviceListItem(
+                id=device.id,
+                deviceSn=device.device_sn,
+                deviceName=device.device_sn,
+                farmEntryId=device.farm_entry_id,
+                onlineState=(state := _online_state(device.last_report_at, now)),
+                lastReportAt=device.last_report_at,
+                silenceNote=_silence_note(state, device.last_report_at, now),
+                mappedFields=mapped.get(device.id, 0),
+                boundAt=device.bound_at,
+            )
+            for device in devices
+        ]
+    )
+
+
+async def unbind_device(db: AsyncSession, user_id: str, device_id: str) -> None:
+    """解绑：软删除设备，保留历史读数与映射供追溯（T5-09）。
+
+    三处语义决定：
+
+    1. **软删除而非物理删除**：写 `unbound_at` 而不删行，`env_reading` 的历史读数带 `device_id`
+       外键，物理删除会让历史读数的归属断链。保留全部历史（农户回看"去年那块地的湿度"仍可用）。
+    2. **不删字段映射**：重新绑定同一 SN 时可直接复用，不必重走三步接入（`rebind` 复用同一行）。
+    3. **不删设备密钥**：`get_by_sn` 过滤 `unbound_at IS NULL`，解绑后设备上报即 403；密钥留着
+       供 `get_by_sn_any` 判断"这台设备历史上是否被用过"与审计追溯。
+
+    重复解绑幂等：已解绑的设备直接返回，不报错。归属不符（含不存在）返回 404，与"不存在"同一
+    响应，不泄露该 `device_id` 是否存在。
+    """
+    device = await device_config_repo.get(db, user_id, device_id)
+    if device is None:
+        raise NotFound("设备不存在或无权访问")
+    if device.unbound_at is not None:
+        return
+
+    async with unit_of_work(db, name="device.unbind"):
+        await device_config_repo.update_fields(
+            db, user_id, device_id, unbound_at=datetime.now(UTC), online_status="offline"
+        )
+
+
+__all__ = ["bind_device", "list_devices", "parse_sample", "unbind_device"]
