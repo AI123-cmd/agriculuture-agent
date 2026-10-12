@@ -139,15 +139,30 @@ def test_board_none(client, engine, monkeypatch) -> None:
 
 
 def test_board_source_matches_collect_env_facts(client, engine, monkeypatch) -> None:
-    """看板与 `collect_env_facts` 对同一份数据给出一致的 `source`（不得两处分叉）。"""
+    """看板与 `collect_env_facts` 对同一份数据给出一致的 `source`（不得两处分叉）。
+
+    用 monkeypatch 提供读数而非落库：`collect_env_facts` 走 `sensor_service.latest()`，它用应用
+    的模块级连接池（与 TestClient 的事件循环绑定），在测试里另起 `asyncio.run` 会跨循环报错。
+    本用例要验的是"两处结论一致"，与数据从哪来无关。
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.tools import sensors as sensors_mod
+    from app.tools.sensors import Reading
+
     token, user_id = _login(client, "farmer-board-05")
-    _insert_reading(engine, user_id, "air_temp", 26.5, minutes_ago=120)
+    stale = Reading({"air_temp": 26.5}, datetime.now(UTC) - timedelta(hours=2), "ok")
+
+    async def _latest(_user_id: str, _plot_id: str | None) -> Reading:
+        return stale
+
+    monkeypatch.setattr(sensors_mod.sensor_service, "latest", _latest)
     _patch_weather(monkeypatch, None)
 
     board = _board(client, token)
     facts = asyncio.run(collect_env_facts(user_id, None))
 
-    assert board["sourceBadge"]["source"] == facts.source
+    assert board["sourceBadge"]["source"] == facts.source == "sensor_stale"
 
 
 # ---- 状态标注 ----
