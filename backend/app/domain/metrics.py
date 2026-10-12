@@ -53,6 +53,31 @@ METRIC_RANGES: dict[StandardMetric, tuple[float, float]] = {
     StandardMetric.SOIL_EC: (0.0, 20.0),
 }
 
+# 各指标中文名（展示与提示文案用）。
+METRIC_LABELS: dict[StandardMetric, str] = {
+    StandardMetric.SOIL_TEMP: "土壤温度",
+    StandardMetric.SOIL_MOISTURE: "土壤水分",
+    StandardMetric.AIR_TEMP: "空气温度",
+    StandardMetric.AIR_HUMIDITY: "空气湿度",
+    StandardMetric.RAINFALL: "降雨量",
+    StandardMetric.LIGHT_LUX: "光照",
+    StandardMetric.WIND_SPEED: "风速",
+    StandardMetric.SOIL_PH: "土壤pH",
+    StandardMetric.SOIL_EC: "土壤EC",
+}
+
+# P0 指标（产品说明书 4.4.4）：与既有播报阈值字段完全吻合的五项。映射保存时用作"齐全度提醒"
+# 的判据——缺 P0 只告警不拒绝，因传感器是可选增强层，农户可能只买一支土壤水分探头。
+P0_METRICS: frozenset[StandardMetric] = frozenset(
+    {
+        StandardMetric.SOIL_TEMP,
+        StandardMetric.SOIL_MOISTURE,
+        StandardMetric.AIR_TEMP,
+        StandardMetric.AIR_HUMIDITY,
+        StandardMetric.RAINFALL,
+    }
+)
+
 # 实时新鲜窗口：读数在该窗口内且 `quality=ok` 时判为 `source="sensor"`。
 FRESH_WINDOW_MINUTES = 30
 # 参考窗口：超过实时窗口但在该窗口内，判为 `sensor_stale`（可给弱提示，须标注时效）。
@@ -62,7 +87,9 @@ REFERENCE_WINDOW_HOURS = 24
 __all__ = [
     "DEFAULT_UNITS",
     "FRESH_WINDOW_MINUTES",
+    "METRIC_LABELS",
     "METRIC_RANGES",
+    "P0_METRICS",
     "REFERENCE_WINDOW_HOURS",
     "StandardMetric",
 ]

@@ -79,10 +79,70 @@ class ParseSampleResponse(BaseModel):
     inferError: str | None = None
 
 
+class MappingItem(BaseModel):
+    """单条字段映射（T5-05，三步接入第三步的农户点选结果）。
+
+    `scaleFactor` / `offsetValue` / `dataType` / `sampleRaw` 由系统在解析阶段给出，前端可原样
+    回传，但**后端一律覆盖**：换算参数是可推导的（由样例值试算校验），单位是展示属性，都不该
+    成为保存失败的由头。`extra="forbid"` 不收未声明字段，防止前端夹带绕过校验的键。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    rawField: str
+    standardMetric: str
+    unit: str = ""
+    scaleFactor: float = 1.0
+    offsetValue: float = 0.0
+    dataType: str = "float"
+    sampleRaw: str | None = None
+
+
+class MappingSaveRequest(BaseModel):
+    """字段映射保存入参：农户在确认页上点选的**完整**映射视图。
+
+    整体替换语义：请求体即该设备映射的最终状态，未出现的字段视为"农户忽略了"。因此前端不需要
+    维护差异（删除要显式发指令），避免漏发删除而留下幽灵映射。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    deviceId: str
+    mappings: list[MappingItem]
+
+
+class MappingPreview(BaseModel):
+    """保存后预览的一行：原始字段 → 换算后的标准读数。
+
+    值由后端用保存后的 `field_mapping` 实跑一遍 `parse_payload` 得出，而非另算一份，使预览与
+    实际上报链路的口径完全一致（T5-05 与 T5-06 共享该函数）。
+    """
+
+    rawField: str
+    sampleRaw: str
+    standardMetric: str
+    value: float
+    unit: str
+
+
+class MappingSaveResponse(BaseModel):
+    """字段映射保存结果：保存条数 + 被忽略字段 + 非阻断提示 + 换算预览。"""
+
+    deviceId: str
+    saved: int
+    skipped: list[str] = []
+    warnings: list[str] = []
+    preview: list[MappingPreview] = []
+
+
 __all__ = [
     "BindRequest",
     "BindResponse",
     "DetectedField",
+    "MappingItem",
+    "MappingPreview",
+    "MappingSaveRequest",
+    "MappingSaveResponse",
     "ParseSampleRequest",
     "ParseSampleResponse",
 ]

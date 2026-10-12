@@ -37,6 +37,19 @@ class EnvReadingRepository:
         stmt = select(EnvReading).where(*conditions, EnvReading.observed_at == max_at)
         return (await db.execute(stmt)).scalars().all()
 
+    async def bulk_insert(self, db: AsyncSession, rows: Sequence[EnvReading]) -> int:
+        """批量插入读数（T5-06 一次上报的多条）。
+
+        仓储层不做过滤：`accepted` 与 `suspect`/`stale` 都要落库（产品说明书 4.4.3 功能点 2
+        要求"异常数据标记而非丢弃"，保留原始值供排查）。过滤在服务层由 `quality` 表达。
+        `user_id` 由调用方从设备行复制，调用方已做过归属校验。
+        """
+        if not rows:
+            return 0
+        db.add_all(list(rows))
+        await db.flush()
+        return len(rows)
+
 
 env_reading_repo = EnvReadingRepository()
 

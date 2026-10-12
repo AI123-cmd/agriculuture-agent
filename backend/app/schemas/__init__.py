@@ -15,7 +15,17 @@ from .consult import (
     QuotaPromptView,
     SlotAnswer,
 )
-from .device import BindRequest, BindResponse, DetectedField, ParseSampleRequest, ParseSampleResponse
+from .device import (
+    BindRequest,
+    BindResponse,
+    DetectedField,
+    MappingItem,
+    MappingPreview,
+    MappingSaveRequest,
+    MappingSaveResponse,
+    ParseSampleRequest,
+    ParseSampleResponse,
+)
 from .environment import (
     DeviceItem,
     EnvironmentDetail,
@@ -41,6 +51,10 @@ __all__ = [
     "BindRequest",
     "BindResponse",
     "DetectedField",
+    "MappingItem",
+    "MappingPreview",
+    "MappingSaveRequest",
+    "MappingSaveResponse",
     "ParseSampleRequest",
     "ParseSampleResponse",
     "EnvironmentSummary",

@@ -39,6 +39,7 @@ from app.services.field_inference import (
     load_payload,
     template_covers,
 )
+from app.services.sample_cache import remember_sample
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,10 @@ async def parse_sample(db: AsyncSession, user_id: str, req: ParseSampleRequest) 
         return ParseSampleResponse(
             parsed=False, fields=[], inferError="报文里没有找到可以识别的数据字段，请检查是否粘贴了完整内容"
         )
+
+    # 暂存这条样例报文为设备短时状态：第三步（T5-05）据此校验农户提交的字段确实来自真实报文。
+    # 必须在所有成功返回之前写入，失败路径不写（解析不出来的报文没有校验价值）。
+    await remember_sample(user_id, device.id, payload)
 
     if device.vendor_template_id:
         tpl = await vendor_template_repo.get(db, device.vendor_template_id)
