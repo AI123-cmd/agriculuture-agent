@@ -40,4 +40,49 @@ class BindResponse(BaseModel):
     deviceSecret: str | None = None
 
 
-__all__ = ["BindRequest", "BindResponse"]
+class ParseSampleRequest(BaseModel):
+    """样例报文解析入参（T5-04）。
+
+    `payload` 用 `str` 而非 `dict`：农户从设备说明书或抓包工具复制的是文本，允许带尾随换行、
+    全角引号、单引号键这类脏字符。当字符串接收并在服务内清洗，比在 schema 层要求合法 JSON 更
+    宽容，也更符合"农户粘贴"的实际形态。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    deviceId: str
+    payload: str
+
+
+class DetectedField(BaseModel):
+    """系统解析出的单个字段（T5-04，供农户确认或改选）。
+
+    `sampleValue` 是字符串而非数字：报文可能有 `"26.3"`（带引号）、`"ON"`（枚举）、`"1"`（布尔），
+    统一按字符串展示，避免解析期就因类型不符拒绝整条报文。数值化发生在推算换算参数时。
+
+    `inferredMetric` 可为空：设备状态字段（`battery`/`rssi`）不对应任何环境指标，给它们错误的
+    推断比留空更糟（农户会照着点确认）。此时 `candidates` 仍给出可选项，"忽略此字段"排在末位。
+    """
+
+    rawField: str
+    sampleValue: str
+    inferredMetric: str | None = None
+    candidates: list[str] = []
+    confidence: float = 0.0
+
+
+class ParseSampleResponse(BaseModel):
+    """样例报文解析结果：解析成功与否 + 字段推断列表 + 失败时的友好提示。"""
+
+    parsed: bool
+    fields: list[DetectedField] = []
+    inferError: str | None = None
+
+
+__all__ = [
+    "BindRequest",
+    "BindResponse",
+    "DetectedField",
+    "ParseSampleRequest",
+    "ParseSampleResponse",
+]

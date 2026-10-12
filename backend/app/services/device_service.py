@@ -1,7 +1,7 @@
-"""设备接入服务：绑定设备、生成并下发设备密钥（T5-03，技术方案 13.4）。
+"""设备接入服务：绑定设备、样例报文解析与字段推断（T5-03 / T5-04，技术方案 13.4）。
 
-实现三步接入的第一步：农户提交设备编号，后端校验编号可用性、建立设备与农户的归属关系、生成
-并下发设备密钥，返回下一步的引导信息。这个接口决定后面两步走模板确认还是粘贴推断。
+三步接入的第 1、2 步都在本模块：绑定设备编号并下发密钥，以及解析农户粘贴的样例报文、对每个字段
+推断它代表哪个标准环境指标。两步共用"归属校验走仓储"的规矩。
 
 **归属校验一律走仓储**（守全局约定 L4，服务层不出现裸 ORM 查询）：`user_id` 只从令牌取
 （路由层 `get_current_user`），不接受请求体传入（产品说明书 4.5.2 功能点 4 的数据隔离）。
@@ -11,8 +11,9 @@
 - 同一农户重复绑定同一 SN：幂等返回既有 `deviceId`，**不重发密钥**。农户重复点击时若密钥被刷新，
   之前已配进设备的密钥会立即失效，表现为"设备突然不上报了"，这是幂等要覆盖的核心场景。
 - 设备已绑定到他人：409。防止数据串号。
-- 设备曾被本人解绑：复用原行（`unbound_at` 置空、重置密钥与绑定时刻），不新增一条撞唯一约束的行。
-  曾被他人在绑的设备不在此列——`rebind` 带归属条件，越权改写受影响行数为 0，折算为 409。
+- 设备曾被解绑：复用原行（`unbound_at` 置空、重置密钥与绑定时刻、允许换主人），不新增一条撞唯一
+  约束的行。并发抢绑由 `rebind` 的 `unbound_at IS NOT NULL` 条件作乐观锁，后到者受影响行数为 0，
+  折算为 409。详见 `DeviceConfigRepository.rebind`。
 
 **密钥只在下发时出现一次**：落库的是引用名与加盐摘要，明文不落任何表（`app/core/device_secret.py`）。
 """
@@ -25,11 +26,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.device_secret import generate_device_secret, hash_device_secret
-from app.core.exceptions import ConflictError, ValidationError
+from app.core.exceptions import ConflictError, NotFound, ValidationError
 from app.db.uow import unit_of_work
 from app.models import DeviceConfig
 from app.repositories import device_config_repo, vendor_template_repo
-from app.schemas.device import BindRequest, BindResponse
+from app.schemas.device import BindRequest, BindResponse, ParseSampleRequest, ParseSampleResponse
+from app.services.field_inference import (
+    any_metric_inferred,
+    fields_from_template,
+    flatten_payload,
+    infer_fields,
+    load_payload,
+    template_covers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -148,4 +157,44 @@ async def bind_device(db: AsyncSession, user_id: str, req: BindRequest) -> BindR
         return _bind_response(device, matched=matched_tpl is not None, secret=secret)
 
 
-__all__ = ["bind_device"]
+async def parse_sample(db: AsyncSession, user_id: str, req: ParseSampleRequest) -> ParseSampleResponse:
+    """解析农户粘贴的样例报文并对字段做两层推断（三步接入第二步）。
+
+    设备必须已绑定在本农户名下：`device_config_repo.get` 读不到他人设备返回 `None`（不区分"不
+    存在"与"不属于你"），此处折算为 404。
+
+    模板优先：设备绑定时命中的模板若覆盖了这条报文的字段，直接采用模板的预映射（`confidence=1.0`）；
+    模板不覆盖（键集合不是报文键的子集，说明固件改过或农户粘错报文）则退回启发式。
+
+    失败一律返回 200 + `parsed=false` + 友好提示，不抛 5xx：这是农户在配置页上的交互入口，错误应
+    以文案形式呈现给他，而不是页面报错。
+    """
+    device = await device_config_repo.get(db, user_id, req.deviceId)
+    if device is None:
+        raise NotFound("设备不存在或无权访问")
+
+    payload = load_payload(req.payload)
+    if payload is None:
+        return ParseSampleResponse(parsed=False, fields=[], inferError="报文格式不正确，请粘贴一条完整的 JSON 报文")
+
+    flat = flatten_payload(payload)
+    if not flat:
+        return ParseSampleResponse(
+            parsed=False, fields=[], inferError="报文里没有找到可以识别的数据字段，请检查是否粘贴了完整内容"
+        )
+
+    if device.vendor_template_id:
+        tpl = await vendor_template_repo.get(db, device.vendor_template_id)
+        if tpl is not None and template_covers(tpl.field_spec, flat):
+            return ParseSampleResponse(parsed=True, fields=fields_from_template(tpl.field_spec, flat))
+
+    fields = infer_fields(flat)
+    if not any_metric_inferred(fields):
+        # 有字段但全是设备状态类（battery/rssi），识别不出环境指标：提示而非强推断。
+        return ParseSampleResponse(
+            parsed=False, fields=fields, inferError="只识别到设备状态字段，请确认粘贴的是环境数据报文"
+        )
+    return ParseSampleResponse(parsed=True, fields=fields)
+
+
+__all__ = ["bind_device", "parse_sample"]
