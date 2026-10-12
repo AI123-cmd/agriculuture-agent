@@ -65,6 +65,10 @@ _TABLES = (
     "crop",
     "farmer_profile",
     "user",
+    # env_reading 是 TimescaleDB 超表，落在 public 下：TRUNCATE 会清空所有 chunk 的行
+    # （chunk 本身保留）。不纳入清表会让向它落行的用例互相污染——《test_environment_board》
+    # 落下的读数曾让《test_extensions.py::test_insert_env_reading》看到残留计数。
+    "env_reading",
 )
 
 # 非 public schema 下的表：TRUNCATE 必须带 schema 前缀，否则按 search_path 找不到。
