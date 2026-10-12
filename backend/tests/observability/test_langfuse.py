@@ -312,9 +312,7 @@ async def test_trace_ratio_samples_root_and_keeps_trace_complete() -> None:
     assert 10 <= len(roots) <= 30
 
     root_traces = {format(s.context.trace_id, "032x") for s in roots}
-    child_traces = {
-        format(s.context.trace_id, "032x") for s in spans if s.name == GENERATION_SPAN_NAME
-    }
+    child_traces = {format(s.context.trace_id, "032x") for s in spans if s.name == GENERATION_SPAN_NAME}
     # 子 span 的 trace 必然是已抽中的 trace；每条抽中的 trace 也都有根与子 span。
     assert child_traces <= root_traces
     assert child_traces == root_traces

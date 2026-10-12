@@ -114,7 +114,7 @@ def _build_otlp_exporter(settings: Any) -> Any:
     if not public_key or not secret_key:
         # 无凭据的上报必然 401，与其每批都失败一次，不如直接判定不可用。
         raise ValueError("Langfuse 需要 LANGFUSE_PUBLIC_KEY 与 LANGFUSE_SECRET_KEY")
-    token = base64.b64encode(f"{public_key}:{secret_key}".encode("utf-8")).decode("ascii")
+    token = base64.b64encode(f"{public_key}:{secret_key}".encode()).decode("ascii")
     return OTLPSpanExporter(
         endpoint=f"{host}{OTLP_TRACES_PATH}",
         headers={
