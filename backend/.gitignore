@@ -1,0 +1,3 @@
+# 评测报告产物（T6-01）：报告是本地跑出来的，不进仓库，但目录与 .gitkeep 要留。
+tests/eval/reports/*.json
+!tests/eval/reports/.gitkeep
