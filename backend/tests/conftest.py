@@ -60,6 +60,7 @@ _TABLES = (
     "device",
     "field_mapping",
     "device_config",
+    "vendor_template",
     "field",
     "crop",
     "farmer_profile",

@@ -30,6 +30,7 @@ from .profile_tag import UserProfileTag
 from .reach_record import ReachRecord, SubscriptionQuota
 from .snapshot import PromptItem, PromptSnapshot
 from .user import User
+from .vendor_template import VendorTemplate
 
 __all__ = [
     "User",
@@ -39,6 +40,7 @@ __all__ = [
     "Device",
     "DeviceConfig",
     "FieldMapping",
+    "VendorTemplate",
     "Location",
     "LedgerEntry",
     "AIConversation",

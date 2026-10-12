@@ -1,0 +1,146 @@
+[
+  {
+    "id": "tpl_generic_http",
+    "vendor_name": "通用四合一",
+    "model_pattern": ".*",
+    "sample_payload": "{\"sn\":\"HN20260001\",\"ts\":1750000000,\"data\":{\"air_temp\":26.5,\"air_humi\":78,\"soil_temp\":21.3,\"soil_moisture\":45,\"rainfall\":0}}",
+    "field_spec": {
+      "data.air_temp": {
+        "standard_metric": "air_temp",
+        "unit": "°C",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "float",
+        "sample_value": 26.5
+      },
+      "data.air_humi": {
+        "standard_metric": "air_humidity",
+        "unit": "%",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 78
+      },
+      "data.soil_temp": {
+        "standard_metric": "soil_temp",
+        "unit": "°C",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "float",
+        "sample_value": 21.3
+      },
+      "data.soil_moisture": {
+        "standard_metric": "soil_moisture",
+        "unit": "%",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 45
+      },
+      "data.rainfall": {
+        "standard_metric": "rainfall",
+        "unit": "mm",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "float",
+        "sample_value": 0
+      }
+    }
+  },
+  {
+    "id": "tpl_aliyun_alink",
+    "vendor_name": "阿里云 Alink",
+    "model_pattern": "Ali.*",
+    "sample_payload": "{\"id\":\"msg001\",\"method\":\"thing.event.property.post\",\"params\":{\"air_temp\":265,\"air_humi\":78,\"soil_temp\":213,\"soil_moisture\":45}}",
+    "field_spec": {
+      "params.air_temp": {
+        "standard_metric": "air_temp",
+        "unit": "°C",
+        "scale_factor": 0.1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 265
+      },
+      "params.air_humi": {
+        "standard_metric": "air_humidity",
+        "unit": "%",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 78
+      },
+      "params.soil_temp": {
+        "standard_metric": "soil_temp",
+        "unit": "°C",
+        "scale_factor": 0.1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 213
+      },
+      "params.soil_moisture": {
+        "standard_metric": "soil_moisture",
+        "unit": "%",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 45
+      }
+    }
+  },
+  {
+    "id": "tpl_tencent_iot",
+    "vendor_name": "腾讯云物模型",
+    "model_pattern": "TC.*",
+    "sample_payload": "{\"method\":\"report\",\"clientToken\":\"tc-0001\",\"params\":{\"air_temp\":26.5,\"air_humi\":78,\"soil_moisture\":45}}",
+    "field_spec": {
+      "params.air_temp": {
+        "standard_metric": "air_temp",
+        "unit": "°C",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "float",
+        "sample_value": 26.5
+      },
+      "params.air_humi": {
+        "standard_metric": "air_humidity",
+        "unit": "%",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 78
+      },
+      "params.soil_moisture": {
+        "standard_metric": "soil_moisture",
+        "unit": "%",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 45
+      }
+    }
+  },
+  {
+    "id": "tpl_onenet_dp",
+    "vendor_name": "OneNET",
+    "model_pattern": "ON.*",
+    "sample_payload": "{\"id\":123,\"dp\":{\"soil_temp\":[{\"v\":21.3,\"t\":1750000000}],\"soil_moisture\":[{\"v\":45,\"t\":1750000000}]}}",
+    "field_spec": {
+      "dp.soil_temp.0.v": {
+        "standard_metric": "soil_temp",
+        "unit": "°C",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "float",
+        "sample_value": 21.3
+      },
+      "dp.soil_moisture.0.v": {
+        "standard_metric": "soil_moisture",
+        "unit": "%",
+        "scale_factor": 1,
+        "offset_value": 0,
+        "data_type": "int",
+        "sample_value": 45
+      }
+    }
+  }
+]

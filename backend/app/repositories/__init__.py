@@ -38,6 +38,7 @@ from app.repositories.reach import ReachRepository, reach_repo
 from app.repositories.snapshot import SnapshotRepository, snapshot_repo
 from app.repositories.tag import ProfileTagRepository, tag_repo
 from app.repositories.user import UserRepository, user_repo
+from app.repositories.vendor_template import VendorTemplateRepository, vendor_template_repo
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,7 @@ class Repositories:
     quota: QuotaRepository = quota_repo
     reach: ReachRepository = reach_repo
     user: UserRepository = user_repo
+    vendor_template: VendorTemplateRepository = vendor_template_repo
 
 
 __all__ = [
@@ -94,6 +96,7 @@ __all__ = [
     "QuotaRepository",
     "ReachRepository",
     "UserRepository",
+    "VendorTemplateRepository",
     "Repositories",
     "conversation_repo",
     "consult_repo",
@@ -115,4 +118,5 @@ __all__ = [
     "reach_repo",
     "tag_repo",
     "user_repo",
+    "vendor_template_repo",
 ]
