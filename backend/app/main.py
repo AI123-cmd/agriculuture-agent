@@ -4,7 +4,7 @@ import asyncio
 import os
 import sys
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 # psycopg 的异步连接池不支持 Windows 默认的 ProactorEventLoop，会直接抛
@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -88,7 +88,7 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def request_context_middleware(request: Request, call_next):
+async def request_context_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     """给每个请求绑定 `request_id` 并回写响应头，请求结束清理上下文。
 
     `clear_context` 必须在 `finally` 里：`contextvars` 在 asyncio 任务间继承，不清理会让

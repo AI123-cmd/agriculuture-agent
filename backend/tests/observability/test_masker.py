@@ -19,6 +19,7 @@ def masker() -> ObservabilityMasker:
 
 # ---- 手机号 ----
 
+
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
@@ -50,6 +51,7 @@ def test_phone_substring_of_longer_digit_run_is_untouched(masker: ObservabilityM
 
 # ---- 设备 ID ----
 
+
 def test_device_sn_is_masked_keeping_prefix(masker: ObservabilityMasker) -> None:
     """保留前 6 位便于定位批次，其余掩成固定长度的 `*`。"""
     assert masker.mask_device("AB12CD345678") == "AB12CD******"
@@ -69,6 +71,7 @@ def test_device_mask_is_not_applied_to_plain_strings_globally(masker: Observabil
 
 # ---- 字段级：按名整体替换 ----
 
+
 def test_sensitive_non_string_field_replaced_wholly(masker: ObservabilityMasker) -> None:
     """非字符串的敏感字段整体替换为 `***`（如 `raw_payload` 是 dict）。"""
     assert masker.mask_value("raw_payload", {"t1": 26.5}) == "***"
@@ -84,6 +87,7 @@ def test_unknown_field_only_gets_phone_cleaning(masker: ObservabilityMasker) -> 
 
 
 # ---- 递归 ----
+
 
 def test_nested_phone_is_masked(masker: ObservabilityMasker) -> None:
     """嵌套结构：`prescription.facts_provenance.phone` 必须被清洗（递归生效）。"""
@@ -109,6 +113,7 @@ def test_mask_does_not_mutate_input(masker: ObservabilityMasker) -> None:
 
 # ---- 坐标开关 ----
 
+
 def test_geo_kept_when_mask_geo_disabled() -> None:
     """`mask_geo=False`：坐标保留原值（本地调试需要真实坐标）。"""
     masker = ObservabilityMasker(mask_geo=False)
@@ -124,6 +129,7 @@ def test_geo_masked_when_mask_geo_enabled() -> None:
 
 
 def test_extra_fields_are_masked() -> None:
-    """`extra_fields` 声明的字段纳入脱敏，便于按环境追加字段。"""
+    """`extra_fields` 声明的字段纳入脱敏：字符串走手机号/设备号清洗，非字符串整体替换。"""
     masker = ObservabilityMasker(extra_fields=("id_card",))
-    assert masker.mask_value("id_card", "330100199001010000") == "***"
+    assert masker.mask_value("id_card", {"no": "330100"}) == "***"
+    assert masker.mask_value("id_card", "AB12CD345678") == "AB12CD******"

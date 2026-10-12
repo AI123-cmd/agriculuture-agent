@@ -60,6 +60,7 @@ def json_logs(capsys: pytest.CaptureFixture[str]):
 
 # ---- 1. 形态 ----
 
+
 def test_json_output_has_required_fields(json_logs) -> None:
     """每条输出可被 `json.loads` 解析，含 level / timestamp / event。"""
     log.info("consultation.started", process_id="rice")
@@ -99,6 +100,7 @@ def test_resolved_mask_geo_follows_env() -> None:
 
 
 # ---- 2. 上下文绑定 ----
+
 
 def test_bound_context_is_visible_to_logs(json_logs) -> None:
     """`bound_context` 绑定的字段出现在其作用域内的每条日志里。"""
@@ -150,6 +152,7 @@ async def test_concurrent_consultations_do_not_cross_contaminate(capsys: pytest.
     configure_logging(_settings())
     clear_context()
     try:
+
         async def _run(session_id: str) -> None:
             with bound_context(consultation_id=session_id):
                 for _ in range(5):
@@ -168,6 +171,7 @@ async def test_concurrent_consultations_do_not_cross_contaminate(capsys: pytest.
 
 
 # ---- 3. 脱敏 ----
+
 
 def test_phone_and_device_sn_never_leak(json_logs) -> None:
     """含手机号与设备号的日志：输出里不出现两个明文子串（任何形式的泄漏）。"""
@@ -219,7 +223,8 @@ def test_masker_after_renderer_leaks_nested_field(capsys: pytest.CaptureFixture[
         processors=[
             structlog.processors.add_log_level,
             structlog.processors.JSONRenderer(ensure_ascii=False),
-            lambda _l, _m, ed: masker.mask(ed),  # 渲染之后才脱敏：只对已成型字符串生效
+            # 渲染之后才脱敏：处理器拿到的是已成型字符串，`mask` 只认 dict，这里原样放行。
+            lambda _l, _m, ed: masker.mask(ed) if isinstance(ed, dict) else ed,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(10),
         logger_factory=structlog.PrintLoggerFactory(),

@@ -1,4 +1,4 @@
-"""结构化日志：处理器链、trace 上下文注入与统一脱敏（T6-08，技术方案 14.4）。
+r"""结构化日志：处理器链、trace 上下文注入与统一脱敏（T6-08，技术方案 14.4）。
 
 业务代码只从 `app.observability` 取 `log`，不直接用标准库 `logging` 与 `print`——统一的
 入口是"日志与 trace 只经一个序列化器落盘"这条工程约束能够成立的前提，脱敏正挂在这条链上。
@@ -25,13 +25,17 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping, MutableMapping
 from contextlib import contextmanager
 from typing import Any
 
 import structlog
 
 from app.observability.masker import ObservabilityMasker
+
+# structlog 处理器的签名：入参是可变映射，返回值可以是映射、字符串（渲染结果）或元组。
+_EventDict = MutableMapping[str, Any]
+_ProcessorResult = Mapping[str, Any] | str | bytes | bytearray | tuple[Any, ...]
 
 # 懒加载代理：首次调用时才按当时的 structlog 配置构造具体 logger，因此本模块可以在
 # `configure_logging` 之前被导入（测试与被导入的节点都会在导入期取到它）。
@@ -45,7 +49,7 @@ _masker = ObservabilityMasker()
 _stdlib_handler: logging.Handler | None = None
 
 
-def add_trace_context(_logger: Any, _method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+def add_trace_context(_logger: Any, _method_name: str, event_dict: _EventDict) -> _ProcessorResult:
     """把当前 trace 的 `trace_id` / `span_id` 注入事件字典（T6-06 提供取值）。
 
     取值函数在调用时才导入：`app.observability.tracing` 与本模块同包，导入期互相引用会形成
@@ -60,7 +64,7 @@ def add_trace_context(_logger: Any, _method_name: str, event_dict: dict[str, Any
     return event_dict
 
 
-def _mask_event(_logger: Any, _method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+def _mask_event(_logger: Any, _method_name: str, event_dict: _EventDict) -> _ProcessorResult:
     """脱敏处理器：在渲染之前对整个事件字典递归脱敏。"""
     return _masker.mask(event_dict)
 

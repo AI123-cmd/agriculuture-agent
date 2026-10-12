@@ -82,7 +82,7 @@ class ObservabilityMasker:
         # 非敏感字段：仅全局清洗手机号（模式具体，不会误伤普通长字符串）。
         return self.mask_phone(value) if isinstance(value, str) else value
 
-    def mask(self, event_dict: dict[str, Any]) -> dict[str, Any]:
+    def mask(self, event_dict: Mapping[str, Any]) -> dict[str, Any]:
         """递归脱敏，返回新字典（不改动入参）。"""
         return {str(key): self._walk(str(key), value) for key, value in event_dict.items()}
 
