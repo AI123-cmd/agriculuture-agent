@@ -54,7 +54,7 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.events.handlers import UNHANDLED_TASK, registered_task_names
 from app.events.outbox import OutboxDispatcher
-from app.observability import metrics
+from app.observability import configure_logging, metrics
 from app.repositories import consult_repo, snapshot_repo
 from app.services.followup_service import dispatch_due, register_from_prescription
 
@@ -262,6 +262,16 @@ def _placeholder_functions() -> list[WorkerCoroutine]:
     return [_build_placeholder(name) for name in registered_task_names() if name not in _IMPLEMENTED_TASKS]
 
 
+async def _on_startup(ctx: dict[str, Any]) -> None:
+    """worker 启动钩子：装配日志链（T6-08）。
+
+    api 进程在 lifespan 里配置日志，worker 是独立进程、不走 FastAPI 的 lifespan，故需自理。
+    不配置的话，worker 日志既不是结构化 JSON，也不经脱敏——而 ARQ 任务的日志同样可能带
+    设备 SN 与回访内容。
+    """
+    configure_logging(get_settings())
+
+
 class WorkerSettings:
     """ARQ 配置。字段名由 ARQ 的 `create_worker` 按签名挑选，勿改名。"""
 
@@ -293,6 +303,8 @@ class WorkerSettings:
     # 全部 `hour` / `minute` 按农户时区解释（`Asia/Shanghai`），否则容器默认 UTC，
     # 早晨窗口会被整体推后 8 小时（见模块注释"时区"）。
     timezone = FARMER_TZ
+    # 启动钩子：装配日志链（T6-08）。worker 独立于 api 进程，需自行配置。
+    on_startup = _on_startup
 
 
 # 兜底任务名由注册表派生，此处仅作存在性断言：改注册表时若忘了同步，
@@ -302,6 +314,7 @@ assert UNHANDLED_TASK in {fn.__qualname__ for fn in WorkerSettings.functions}
 
 __all__ = [
     "WorkerSettings",
+    "_on_startup",
     "deliver_due_reach",
     "dispatch_outbox",
     "followup_due",
