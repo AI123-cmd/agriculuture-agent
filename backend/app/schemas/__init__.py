@@ -30,7 +30,6 @@ from .device import (
 )
 from .environment import (
     BoardMetric,
-    DeviceItem,
     EnvironmentBoard,
     EnvironmentDetail,
     EnvironmentSummary,
@@ -71,7 +70,6 @@ __all__ = [
     "SourceBadge",
     "MetricItem",
     "KVItem",
-    "DeviceItem",
     "ChatRequest",
     "ChatResponse",
     "ContactInfoView",

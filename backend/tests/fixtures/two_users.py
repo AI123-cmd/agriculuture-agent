@@ -14,7 +14,7 @@ from app.models import (
     AIConversation,
     AIMessage,
     Crop,
-    Device,
+    DeviceConfig,
     FarmerProfile,
     Location,
     MemorySummary,
@@ -85,14 +85,14 @@ async def _seed_for(db: AsyncSession, user_id: str, *, key: str, label: str) -> 
         )
     )
     db.add(UserProfileTag(id=f"tag-{key}", user_id=user_id, tags=[f"{label}的标签"], chat_count=1))
+    # 设备建在 `device_config`（绑定、上报、解绑都写这张表，也是环境详情/设备列表的唯一准据）。
+    # 旧 `device` 表只服务历史数据，新功能不再读它（T5-09 第六条）。
     db.add(
-        Device(
+        DeviceConfig(
             id=f"dev-{key}",
             user_id=user_id,
             device_sn=f"SN-{key}",
-            device_type="soil",
-            device_name=f"{label}的设备",
-            status=1,
+            protocol_type="http_direct",
         )
     )
     db.add(

@@ -15,7 +15,8 @@
 3. **状态标注**（4.4.3 功能点 4）：每个指标给"正常/偏高/偏低"。判据用与提示系统同一套阈值，
    从 `core/config.py` 读取，避免"看板说正常、提示说高温"。
 
-分层：本服务不出现裸 ORM 查询（守全局约定 L4），设备列表走 `repos.device`。
+分层：本服务不出现裸 ORM 查询（守全局约定 L4）。设备段一律走 `device_service.list_devices()`，
+与环境详情、设备管理列表共用同一套在线判据，避免"环境页说在线、设备页说离线"（T5-09 第六条）。
 """
 
 from datetime import datetime
@@ -25,9 +26,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.broadcast.inputs.env_facts import EnvFacts, collect_env_facts
 from app.core.config import get_settings
 from app.domain.metrics import DEFAULT_UNITS, METRIC_LABELS, SOURCE_LABELS, STANDARD_METRICS, StandardMetric
-from app.models import Device
-from app.repositories import Repositories
 from app.schemas.environment import BoardMetric, EnvironmentBoard, SourceBadge
+from app.services.device_service import list_devices
 from app.services.env_service import in_valid_range
 from app.tools.sensors import age_hours
 
@@ -168,11 +168,14 @@ class EnvironmentService:
         }
 
     async def detail(self, db: AsyncSession, user_id: str) -> dict:
-        """环境详情：分组的键值列表，数据源同样改为环境事实采集。"""
-        repos = Repositories(db)
+        """环境详情：分组的键值列表，数据源同样改为环境事实采集。
+
+        设备段改为复用 `list_devices()`（T5-09 第六条）：与环境详情、设备管理列表共用同一套
+        在线判据，两个界面不会对同一台设备给出不同的在线状态。
+        """
         facts = await collect_env_facts(user_id, None)
         values = facts.values
-        devices = await repos.device.list_for_user(db, user_id)
+        devices = await self._devices(db, user_id)
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         air_temp = values.get(StandardMetric.AIR_TEMP.value)
         air_humidity = values.get(StandardMetric.AIR_HUMIDITY.value)
@@ -205,32 +208,19 @@ class EnvironmentService:
                 {"label": "光照强度", "value": _fmt(light_lux, " lux")},
                 {"label": "降雨量", "value": _fmt(rainfall, " mm")},
             ],
-            "devices": [
-                {
-                    "id": d.id,
-                    "name": d.device_name or d.device_sn,
-                    "type": d.device_type,
-                    "status": d.status,
-                    "lastOnline": self._last_online(d),
-                }
-                for d in devices
-            ],
+            "devices": [item.model_dump(mode="json", by_alias=True) for item in devices],
             "lastUpdateAt": now,
             "sourceBadge": _badge_of(facts).model_dump(mode="json"),
         }
 
-    async def _devices(self, db: AsyncSession, user_id: str) -> list:
-        devices = await Repositories(db).device.list_for_user(db, user_id)
-        return [
-            {
-                "id": d.id,
-                "name": d.device_name or d.device_sn,
-                "type": d.device_type,
-                "status": d.status,
-                "lastOnline": self._last_online(d),
-            }
-            for d in devices
-        ]
+    async def _devices(self, db: AsyncSession, user_id: str) -> list[DeviceListItem]:
+        """设备段：复用设备管理列表的同一实现（T5-09 第六条）。
+
+        不再直接查旧 `Device` 表：绑定/上报/解绑都写 `device_config`，两个界面共用同一套在线
+        判据，才不会出现"环境页说在线、设备页说离线"。返回项含 `deviceSn` / `onlineState`，
+        与 `GET /api/device/list` 逐字段一致。
+        """
+        return (await list_devices(db, user_id)).devices
 
     @staticmethod
     def _join(*parts: str) -> str:
@@ -250,12 +240,6 @@ class EnvironmentService:
         if light_lux is None:
             return "未知"
         return "良好" if light_lux >= 30000 else "一般"
-
-    @staticmethod
-    def _last_online(device: Device) -> str:
-        if device.status == 0:
-            return "离线"
-        return "刚刚"
 
 
 __all__ = ["EnvironmentService"]

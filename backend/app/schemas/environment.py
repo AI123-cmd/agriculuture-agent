@@ -10,7 +10,11 @@ T5-08 新增三个模型：
 - `SourceBadge`：来源与新鲜度标注。`source` 的取值集合与 `EnvFacts.source` 完全相同
   （`sensor` / `sensor_stale` / `weather` / `none`）——同一份环境事实在首页看板与问诊接口
   必须给出一致的来源判断，否则会出现"看板说本地传感器、对话页说暂无环境数据"的矛盾；
-- `EnvironmentBoard`：看板出参，复用既有 `DeviceItem`。
+- `EnvironmentBoard`：看板出参。
+
+看板与环境详情的设备段统一复用 `DeviceListItem`（`app/schemas/device.py`）：两处都查
+`device_config`、都用同一套在线判据（T5-09 第六条），不再有"环境页说在线、设备页说离线"的矛盾。
+旧版 `DeviceItem`（`name` / `type` / `status` 整数 / `lastOnline`）随旧 `Device` 表路径一并废弃。
 
 旧接口（`EnvironmentSummary` / `EnvironmentDetail`）保留原字段并新增 `sourceBadge` 供前端
 渐进采用：内部数据源已改为环境事实采集，返回结构不变使小程序侧无需同步改动。
@@ -20,6 +24,8 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
+
+from app.schemas.device import DeviceListItem
 
 
 class SourceBadge(BaseModel):
@@ -55,20 +61,12 @@ class BoardMetric(BaseModel):
     observedAt: datetime | None = None
 
 
-class DeviceItem(BaseModel):
-    id: str
-    name: str
-    type: str
-    status: int
-    lastOnline: str
-
-
 class EnvironmentBoard(BaseModel):
     """环境看板出参：指标行 + 来源标注 + 设备列表 + 最近更新时刻。"""
 
     metrics: list[BoardMetric] = []
     sourceBadge: SourceBadge
-    devices: list[DeviceItem] = []
+    devices: list[DeviceListItem] = []
     lastUpdateAt: datetime | None = None
 
 
@@ -100,14 +98,13 @@ class EnvironmentDetail(BaseModel):
     airData: list[KVItem] = []
     soilData: list[KVItem] = []
     weatherData: list[KVItem] = []
-    devices: list[DeviceItem] = []
+    devices: list[DeviceListItem] = []
     lastUpdateAt: str = ""
     sourceBadge: SourceBadge | None = None
 
 
 __all__ = [
     "BoardMetric",
-    "DeviceItem",
     "EnvironmentBoard",
     "EnvironmentDetail",
     "EnvironmentSummary",
