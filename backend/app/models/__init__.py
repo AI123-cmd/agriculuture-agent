@@ -1,7 +1,7 @@
 from .consultation import Consultation, FollowupTask, PrescriptionCard
 from .conversation import AIConversation, AIMessage
 from .crop import Crop
-from .device import Device
+from .device import Device, DeviceConfig, FieldMapping
 from .enums import (
     Channel,
     ConsultStatus,
@@ -37,6 +37,8 @@ __all__ = [
     "Crop",
     "Field",
     "Device",
+    "DeviceConfig",
+    "FieldMapping",
     "Location",
     "LedgerEntry",
     "AIConversation",

@@ -16,7 +16,14 @@ from app.repositories.conversation import (
     conversation_repo,
     crop_repo,
 )
-from app.repositories.device import DeviceRepository, device_repo
+from app.repositories.device import (
+    DeviceConfigRepository,
+    DeviceRepository,
+    FieldMappingRepository,
+    device_config_repo,
+    device_repo,
+    field_mapping_repo,
+)
 from app.repositories.env import EnvReadingRepository, env_reading_repo
 from app.repositories.field import FieldRepository, field_repo
 from app.repositories.followup import FollowupRepository, followup_repo
@@ -47,6 +54,8 @@ class Repositories:
     crop: CropRepository = crop_repo
     tag: ProfileTagRepository = tag_repo
     device: DeviceRepository = device_repo
+    device_config: DeviceConfigRepository = device_config_repo
+    field_mapping: FieldMappingRepository = field_mapping_repo
     env_reading: EnvReadingRepository = env_reading_repo
     location: LocationRepository = location_repo
     field: FieldRepository = field_repo
@@ -71,6 +80,8 @@ __all__ = [
     "CropRepository",
     "FarmerProfileRepository",
     "DeviceRepository",
+    "DeviceConfigRepository",
+    "FieldMappingRepository",
     "EnvReadingRepository",
     "FieldRepository",
     "FollowupRepository",
@@ -93,6 +104,8 @@ __all__ = [
     "prescription_repo",
     "profile_repo",
     "device_repo",
+    "device_config_repo",
+    "field_mapping_repo",
     "env_reading_repo",
     "field_repo",
     "location_repo",

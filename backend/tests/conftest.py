@@ -58,6 +58,8 @@ _TABLES = (
     "user_profile_tag",
     "location",
     "device",
+    "field_mapping",
+    "device_config",
     "field",
     "crop",
     "farmer_profile",
