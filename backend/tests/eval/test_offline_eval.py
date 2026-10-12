@@ -171,3 +171,40 @@ async def test_runner_node_path_is_deterministic(eval_graph) -> None:
 async def test_runner_records_model_mode(eval_graph) -> None:
     """报告字段 `model_mode` 在 mock 模式下取 `mock`（区分回归来源）。"""
     assert EvalRunner(eval_graph, knowledge_version="test").model_mode == "mock"
+
+
+# ---- 分集权重与汇总（T6-02） ----
+
+
+def test_weights_read_from_file_not_hardcoded() -> None:
+    """权重从 `weights.toml` 读取：`general=1.5`、`rapeseed=0.5`（不是写死的常量）。"""
+    from tests.eval.runner import load_weights
+
+    weights = load_weights()
+    assert weights["general"] == pytest.approx(1.5)
+    assert weights["rapeseed"] == pytest.approx(0.5)
+
+
+def test_weighted_consistency_responds_to_weight_change() -> None:
+    """改 `general` 权重会改变加权一致率——证明运行器真的用了权重而非忽略。"""
+    from tests.eval.runner import weighted_consistency
+
+    per_process = {"general": (3, 6), "tea": (10, 10)}  # general 一半失败
+    low = weighted_consistency(per_process, {"general": 1.0, "tea": 1.0})
+    high = weighted_consistency(per_process, {"general": 1.5, "tea": 1.0})
+    assert high < low, "提高失分流程的权重应降低加权一致率"
+
+
+def test_build_report_has_per_process_breakdown() -> None:
+    """报告按流程分集给出通过数与一致率，并给出加权后的整体一致率。"""
+    from tests.eval.report import build_report
+
+    report = build_report(
+        {"tea": (9, 10), "general": (4, 6)},
+        knowledge_version="2026-09-01",
+        model_mode="mock",
+    )
+    assert report["processes"]["tea"]["consistency"] == pytest.approx(0.9)
+    assert report["knowledge_version"] == "2026-09-01"
+    assert report["model_mode"] == "mock"
+    assert "overall" in report

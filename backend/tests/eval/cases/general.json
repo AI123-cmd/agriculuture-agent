@@ -1,0 +1,140 @@
+{
+  "process_id": "general",
+  "config_version": 1,
+  "knowledge_version": "2026-09-01",
+  "cases": [
+    {
+      "case_id": "general-001",
+      "process_id": "general",
+      "scene": "表述含糊，未指明作物与问题类型（确实该落 general）",
+      "inputs": {
+        "message": "我的庄稼长虫了怎么办",
+        "answers": {"general_crop_name": "说不清"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "general",
+        "must_ask_slots": ["general_crop_name"],
+        "allowed_conclusions": ["general_pest_unknown", "general_more_info_needed"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "general-002",
+      "process_id": "general",
+      "scene": "只说地里有问题，无任何作物线索（确实该落 general）",
+      "inputs": {
+        "message": "我地里出了点问题，不知道咋回事",
+        "answers": {},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "general",
+        "must_ask_slots": ["general_crop_name"],
+        "allowed_conclusions": ["general_more_info_needed"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "general-003",
+      "process_id": "general",
+      "scene": "泛泛询问施肥，未指明作物（确实该落 general）",
+      "inputs": {
+        "message": "现在该施什么肥好",
+        "answers": {},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "general",
+        "must_ask_slots": ["general_crop_name"],
+        "allowed_conclusions": ["general_more_info_needed", "general_fertilizer_advice"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "general-101",
+      "process_id": "general",
+      "scene": "反向题：含水稻线索，不应落兜底",
+      "inputs": {
+        "message": "水稻叶子上有白色小点",
+        "answers": {"rice_symptom_part": "叶片"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": [],
+        "allowed_conclusions": ["rice_leaf_folder", "rice_planthopper", "rice_brown_spot"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "general-102",
+      "process_id": "general",
+      "scene": "反向题：含辣椒线索，不应落兜底",
+      "inputs": {
+        "message": "辣椒杆子发黑枯萎了",
+        "answers": {"chili_symptom_pattern": "茎秆发黑"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": [],
+        "allowed_conclusions": ["chili_bacterial_wilt", "chili_fusarium_wilt", "chili_phytophthora_blight"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "general-103",
+      "process_id": "general",
+      "scene": "反向题：含茶树线索，不应落兜底",
+      "inputs": {
+        "message": "茶树嫩叶卷起来了",
+        "answers": {"tea_symptom_part": "嫩叶"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": [],
+        "allowed_conclusions": ["tea_tea_green_leafhopper", "tea_aphid", "tea_viral_disease"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "general-104",
+      "process_id": "general",
+      "scene": "反向题：含养猪线索，不应落兜底",
+      "inputs": {
+        "message": "我家猪不吃食了，躺着起不来",
+        "answers": {"pig_symptom_pattern": "不吃食"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "pig",
+        "must_ask_slots": [],
+        "allowed_conclusions": ["pig_acute_infectious_disease", "pig_fever", "pig_report_required"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    }
+  ]
+}

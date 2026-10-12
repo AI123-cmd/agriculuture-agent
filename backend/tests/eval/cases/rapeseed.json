@@ -1,0 +1,64 @@
+{
+  "process_id": "rapeseed",
+  "config_version": 1,
+  "knowledge_version": "2026-09-01",
+  "cases": [
+    {
+      "case_id": "rapeseed-001",
+      "process_id": "rapeseed",
+      "scene": "油菜叶片出现霜霉状霉层（占位集，题目保守）",
+      "inputs": {
+        "message": "油菜叶子上有霉",
+        "answers": {"rapeseed_symptom_part": "叶片", "rapeseed_symptom_pattern": "霉层"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rapeseed",
+        "must_ask_slots": ["rapeseed_symptom_part"],
+        "allowed_conclusions": ["rapeseed_downy_mildew", "rapeseed_fungal_disease"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "rapeseed-002",
+      "process_id": "rapeseed",
+      "scene": "油菜苗期叶片发黄（占位集，题目保守）",
+      "inputs": {
+        "message": "油菜苗叶子发黄",
+        "answers": {"rapeseed_symptom_part": "叶片", "rapeseed_growth_stage": "苗期"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rapeseed",
+        "must_ask_slots": ["rapeseed_growth_stage"],
+        "allowed_conclusions": ["rapeseed_nutrient_deficiency", "rapeseed_yellowing"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "rapeseed-003",
+      "process_id": "rapeseed",
+      "scene": "油菜田排水不畅（占位集，题目保守）",
+      "inputs": {
+        "message": "油菜地里积水了",
+        "answers": {"rapeseed_drainage": "排水不畅"},
+        "management": {"irrigation": "多雨"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rapeseed",
+        "must_ask_slots": ["rapeseed_drainage"],
+        "allowed_conclusions": ["rapeseed_waterlogging", "rapeseed_root_stress"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    }
+  ]
+}

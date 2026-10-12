@@ -1,0 +1,235 @@
+{
+  "process_id": "chili",
+  "config_version": 1,
+  "knowledge_version": "2026-09-01",
+  "cases": [
+    {
+      "case_id": "chili-001",
+      "process_id": "chili",
+      "scene": "辣椒植株突然整株萎蔫，维管束变褐",
+      "inputs": {
+        "message": "辣椒突然就蔫了，一天就趴下去",
+        "answers": {"chili_symptom_pattern": "整株萎蔫", "chili_symptom_speed": "一天内", "chili_vascular_bundle": "维管束变褐"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_symptom_pattern", "chili_symptom_speed", "chili_vascular_bundle"],
+        "allowed_conclusions": ["chili_bacterial_wilt", "chili_fusarium_wilt"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-002",
+      "process_id": "chili",
+      "scene": "辣椒茎秆切口有白色菌脓",
+      "inputs": {
+        "message": "辣椒杆子切开有白色的脓流出来",
+        "answers": {"chili_exudate": "白色菌脓", "chili_symptom_pattern": "萎蔫"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_exudate"],
+        "allowed_conclusions": ["chili_bacterial_wilt"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-003",
+      "process_id": "chili",
+      "scene": "辣椒叶片出现黄绿相间的花叶",
+      "inputs": {
+        "message": "辣椒叶子黄绿一块一块的，像花叶子",
+        "answers": {"chili_symptom_pattern": "花叶", "chili_symptom_speed": "逐渐出现"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_symptom_pattern"],
+        "allowed_conclusions": ["chili_viral_disease", "chili_nutrient_deficiency"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-004",
+      "process_id": "chili",
+      "scene": "辣椒果实出现褐色凹陷病斑",
+      "inputs": {
+        "message": "辣椒果子上有褐色的烂斑，凹进去的",
+        "answers": {"chili_symptom_pattern": "果实褐斑"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_symptom_pattern"],
+        "allowed_conclusions": ["chili_anthracnose", "chili_phytophthora_blight"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-005",
+      "process_id": "chili",
+      "scene": "大棚湿度高，叶片背面有霜霉状霉层",
+      "inputs": {
+        "message": "大棚里辣椒叶子背面有霉层，湿度挺大",
+        "answers": {"chili_greenhouse_humidity": "高湿", "chili_symptom_pattern": "叶背霉层"},
+        "management": {"irrigation": "大棚通风差"},
+        "env_reading": [{"metric": "air_humidity", "value": 92.0, "unit": "%"}]
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_greenhouse_humidity"],
+        "allowed_conclusions": ["chili_downy_mildew", "chili_gray_mold"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "chili-006",
+      "process_id": "chili",
+      "scene": "辣椒苗期，土壤偏黏重，根系发育差",
+      "inputs": {
+        "message": "辣椒苗长得不好，土是黏土",
+        "answers": {"chili_soil_type": "黏土", "chili_symptom_pattern": "生长不良"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_soil_type"],
+        "allowed_conclusions": ["chili_root_stress", "chili_nutrient_deficiency"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-007",
+      "process_id": "chili",
+      "scene": "辣椒叶片有白色小飞虫聚集",
+      "inputs": {
+        "message": "辣椒叶子上好多白色小飞虫",
+        "answers": {"chili_symptom_pattern": "白色小飞虫"},
+        "management": {"pesticide": "上周打过药"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_symptom_pattern"],
+        "allowed_conclusions": ["chili_whitefly", "chili_thrips"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-008",
+      "process_id": "chili",
+      "scene": "辣椒维管束未变褐，仅下部叶片发黄脱落",
+      "inputs": {
+        "message": "辣椒下面的叶子发黄掉了，杆子切开里面没事",
+        "answers": {"chili_vascular_bundle": "未变褐", "chili_symptom_pattern": "下部叶黄化"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_vascular_bundle"],
+        "allowed_conclusions": ["chili_nutrient_deficiency", "chili_root_stress"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-009",
+      "process_id": "chili",
+      "scene": "辣椒传染性萎蔫，几日内成片发生",
+      "inputs": {
+        "message": "辣椒这几天一片一片地蔫，越来越多了",
+        "answers": {"chili_symptom_speed": "几天内蔓延", "chili_symptom_pattern": "成片萎蔫"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_symptom_speed"],
+        "allowed_conclusions": ["chili_bacterial_wilt", "chili_phytophthora_blight"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-010",
+      "process_id": "chili",
+      "scene": "土壤湿度已知，辣椒落花落果",
+      "inputs": {
+        "message": "辣椒花开完就掉了，不结果",
+        "answers": {"chili_soil_reading": "土壤偏干", "chili_symptom_pattern": "落花落果"},
+        "management": {"irrigation": "浇水不足"},
+        "env_reading": [{"metric": "soil_moisture", "value": 25.0, "unit": "%"}]
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_soil_reading"],
+        "allowed_conclusions": ["chili_water_stress", "chili_nutrient_deficiency"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "chili-011",
+      "process_id": "chili",
+      "scene": "辣椒茎基部缢缩，近地面处腐烂",
+      "inputs": {
+        "message": "辣椒靠近地面的杆子烂了缩进去",
+        "answers": {"chili_symptom_pattern": "茎基缢缩"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_symptom_pattern"],
+        "allowed_conclusions": ["chili_damping_off", "chili_phytophthora_blight"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "chili-012",
+      "process_id": "chili",
+      "scene": "辣椒叶背有锈色疱状物",
+      "inputs": {
+        "message": "辣椒叶子背面有锈色的凸起",
+        "answers": {"chili_symptom_pattern": "叶背锈疱"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "chili",
+        "must_ask_slots": ["chili_symptom_pattern"],
+        "allowed_conclusions": ["chili_rust", "chili_mite"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    }
+  ]
+}

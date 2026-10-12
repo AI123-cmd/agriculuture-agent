@@ -20,6 +20,8 @@
 
 from __future__ import annotations
 
+import tomllib
+from pathlib import Path
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -31,11 +33,56 @@ from app.process_config.loader import get_process_config
 from app.process_config.redlines import RedlineValidator
 from app.process_config.version import build_ref
 
+from .report import DEFAULT_DROP_PP
 from .schema import EvalCase, EvalGate, EvalInputs, EvalResult
 
 # 续跑上限。中断次数有限（问诊轮次上限 + 闸门确认各一次），加一个上限是防止"恢复值被
 # 忽略导致图原地打转"这类实现错误把评测卡死——宁可失败也不无限循环。
 _MAX_RESUME_ROUNDS = 16
+
+# 分集权重文件（T6-02）。缺失时全部按 1.0 计，评测仍可跑（不因权重文件缺失而失败）。
+WEIGHTS_PATH = Path(__file__).resolve().parent / "cases" / "weights.toml"
+
+
+def load_weights(path: Path | None = None) -> dict[str, float]:
+    """读分集权重。文件缺失或没有 `[weights]` 段时返回空表（调用方按 1.0 兜底）。
+
+    权重是"改了要能看出来"的资产：`general` 的 1.5 不是常量而是文件里的数据，改它应当
+    改变加权一致率（T6-02 验收要求）。因此这里从文件读，不写死在代码里。
+    """
+    target = path if path is not None else WEIGHTS_PATH
+    if not target.exists():
+        return {}
+    data = tomllib.loads(target.read_text(encoding="utf-8"))
+    rows = data.get("weights") or {}
+    return {str(key): float(value) for key, value in rows.items()}
+
+
+def load_drop_pp(path: Path | None = None) -> float:
+    """读相对门禁阈值（百分点）。缺失时返回 `DEFAULT_DROP_PP`。"""
+    target = path if path is not None else WEIGHTS_PATH
+    if not target.exists():
+        return DEFAULT_DROP_PP
+    data = tomllib.loads(target.read_text(encoding="utf-8"))
+    thresholds = data.get("thresholds") or {}
+    return float(thresholds.get("consistency_drop_pp", DEFAULT_DROP_PP))
+
+
+def weighted_consistency(per_process: dict[str, tuple[int, int]], weights: dict[str, float]) -> float:
+    """按分集权重汇总一致率：Σ(权重 × 通过数) / Σ(权重 × 总数)。
+
+    权重缺省为 1.0。分母为 0 时返回 1.0（没有用例不构成失败，也不能除零）。
+    加权而非简单平均是 T6-02 的核心口径：`general` 是错误蓄水池，其失分不该与占位流程
+    的失分等权。
+    """
+    numerator = denominator = 0.0
+    for process_id, (passed, total) in per_process.items():
+        weight = weights.get(process_id, 1.0)
+        numerator += weight * passed
+        denominator += weight * total
+    if denominator == 0:
+        return 1.0
+    return numerator / denominator
 
 
 def build_initial_state(inputs: EvalInputs, *, process_id: Any = None) -> dict[str, Any]:
@@ -83,17 +130,24 @@ def _resume_value(payload: object, case: EvalCase) -> object:
 def _eval_gate(raw: object) -> EvalGate:
     """把生产 `GateResult` 序列化体映射成评测镜像 `EvalGate`。
 
-    映射点只有一处命名差异：生产叫 `checked_rules`，评测口径叫 `rules_hit`。
+    **`rules_hit` 取违规命中的规则 id（`violations[*].rule_id`），不是生产
+    `checked_rules`。** 两者语义不同：`checked_rules` 记录"执行过哪些规则"（一次完整
+    判定几乎等于全部十二条），`check_rules` 若拿来做 `expect_gate_rules` 断言，任何合法
+    规则名都会恒真，正是技术方案 14.1 警告的"最隐蔽的评测失效"。评测口径的"命中"是
+    "这条规则拦下了这份处方"，对应 `violations`。
+
     图未走到闸门时（如提前转人工）返回一个"未命中任何规则"的空壳，使
     `set(expect_gate_rules) <= set(result.gate.rules_hit)` 在"未期望规则"的题上成立。
     """
     if not isinstance(raw, dict):
         return EvalGate(passed=True, decision="allow", rules_hit=[], violations=[])
+    violations = list(raw.get("violations") or [])
+    hit = sorted({str(v.get("rule_id")) for v in violations if isinstance(v, dict) and v.get("rule_id")})
     return EvalGate(
         passed=bool(raw.get("passed", False)),
         decision=raw.get("decision", "allow"),
-        rules_hit=list(raw.get("checked_rules") or []),
-        violations=list(raw.get("violations") or []),
+        rules_hit=hit,
+        violations=violations,
     )
 
 
@@ -225,4 +279,11 @@ def _collect_asked(update: dict[str, Any], asked: list[str], seen: set[str]) -> 
             asked.append(key)
 
 
-__all__ = ["EvalRunner", "build_initial_state", "extract_result"]
+__all__ = [
+    "EvalRunner",
+    "build_initial_state",
+    "extract_result",
+    "load_drop_pp",
+    "load_weights",
+    "weighted_consistency",
+]

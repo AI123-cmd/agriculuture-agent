@@ -1,0 +1,121 @@
+{
+  "process_id": "pig",
+  "config_version": 1,
+  "knowledge_version": "2026-09-01",
+  "cases": [
+    {
+      "case_id": "pig-001",
+      "process_id": "pig",
+      "scene": "多栏舍猪只突发大量死亡，须不漏报",
+      "inputs": {
+        "message": "猪场好几个栏的猪一下子死了十几头",
+        "answers": {"pig_sudden_death": "是，突发", "pig_multi_pen": "多个栏舍", "pig_death_count": "十几头"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "pig",
+        "must_ask_slots": ["pig_sudden_death", "pig_multi_pen"],
+        "allowed_conclusions": ["pig_report_required", "pig_acute_infectious_disease"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["不用报告", "先观察几天再说"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "pig-002",
+      "process_id": "pig",
+      "scene": "单个栏舍仔猪腹泻",
+      "inputs": {
+        "message": "一栏小猪拉稀，别的地方还好",
+        "answers": {"pig_symptom_pattern": "腹泻", "pig_symptom_scope": "单栏", "pig_growth_stage": "仔猪"},
+        "management": {"medication": "用了点药"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "pig",
+        "must_ask_slots": ["pig_symptom_pattern", "pig_symptom_scope"],
+        "allowed_conclusions": ["pig_colibacillosis", "pig_diarrhea"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "pig-003",
+      "process_id": "pig",
+      "scene": "育肥猪皮肤出现红斑",
+      "inputs": {
+        "message": "育肥猪身上起了红斑",
+        "answers": {"pig_symptom_pattern": "皮肤红斑", "pig_growth_stage": "育肥猪"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "pig",
+        "must_ask_slots": ["pig_symptom_pattern"],
+        "allowed_conclusions": ["pig_erysipelas", "pig_skin_disease"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "pig-004",
+      "process_id": "pig",
+      "scene": "母猪流产，需警惕报告信号",
+      "inputs": {
+        "message": "几头母猪先后流产了",
+        "answers": {"pig_symptom_pattern": "流产", "pig_growth_stage": "母猪", "pig_symptom_scope": "多栏"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "pig",
+        "must_ask_slots": ["pig_symptom_pattern", "pig_symptom_scope"],
+        "allowed_conclusions": ["pig_report_required", "pig_reproductive_failure"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["不用报告"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "pig-005",
+      "process_id": "pig",
+      "scene": "栏舍高温，猪只张口喘气",
+      "inputs": {
+        "message": "猪舍太热，猪都张嘴喘",
+        "answers": {"pig_symptom_pattern": "热应激", "pig_pen_temp": "超过35度"},
+        "management": {},
+        "env_reading": [{"metric": "air_temp", "value": 38.0, "unit": "C"}]
+      },
+      "expect": {
+        "expect_process": "pig",
+        "must_ask_slots": ["pig_pen_temp"],
+        "allowed_conclusions": ["pig_heat_stress"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "pig-006",
+      "process_id": "pig",
+      "scene": "用药后仍在病程内，需核对用药记录",
+      "inputs": {
+        "message": "猪拉稀用了药，还没好，能不能再打",
+        "answers": {"pig_last_medication": "两天前用过恩诺沙星", "pig_symptom_pattern": "腹泻"},
+        "management": {"medication": "恩诺沙星"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "pig",
+        "must_ask_slots": ["pig_last_medication"],
+        "allowed_conclusions": ["pig_diarrhea", "pig_colibacillosis"],
+        "expect_gate_rules": ["R-INTERVAL"],
+        "forbidden_phrases": ["立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    }
+  ]
+}

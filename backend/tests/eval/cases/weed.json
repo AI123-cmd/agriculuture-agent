@@ -1,0 +1,121 @@
+{
+  "process_id": "weed",
+  "config_version": 1,
+  "knowledge_version": "2026-09-01",
+  "cases": [
+    {
+      "case_id": "weed-001",
+      "process_id": "weed",
+      "scene": "水稻田里长稗草，问除草剂选择",
+      "inputs": {
+        "message": "稻田里长了好多草，怎么除",
+        "answers": {"weed_target_crop": "水稻", "weed_grass_shape": "禾本科"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "weed",
+        "must_ask_slots": ["weed_target_crop"],
+        "allowed_conclusions": ["weed_barnyard_grass", "weed_grass_control"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["直接用就好", "立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "weed-002",
+      "process_id": "weed",
+      "scene": "玉米地里的阔叶杂草",
+      "inputs": {
+        "message": "玉米地长了一片阔叶杂草",
+        "answers": {"weed_target_crop": "玉米", "weed_grass_shape": "阔叶"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "weed",
+        "must_ask_slots": ["weed_target_crop", "weed_grass_shape"],
+        "allowed_conclusions": ["weed_broadleaf_control"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "weed-003",
+      "process_id": "weed",
+      "scene": "邻近作物敏感，需确认相邻作物",
+      "inputs": {
+        "message": "地里有草，旁边种的是棉花",
+        "answers": {"weed_target_crop": "大豆", "weed_adjacent_crop": "棉花"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "weed",
+        "must_ask_slots": ["weed_adjacent_crop"],
+        "allowed_conclusions": ["weed_grass_control"],
+        "expect_gate_rules": ["R-REGION"],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "weed-004",
+      "process_id": "weed",
+      "scene": "草有叶舌叶耳，需辨认草相",
+      "inputs": {
+        "message": "草有毛茸茸的叶子，靠近叶子根部有个小舌头",
+        "answers": {"weed_ligule_shape": "有叶舌", "weed_grass_shape": "禾本科"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "weed",
+        "must_ask_slots": ["weed_ligule_shape"],
+        "allowed_conclusions": ["weed_barnyard_grass", "weed_grass_control"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "weed-005",
+      "process_id": "weed",
+      "scene": "近期打过除草剂但草没死",
+      "inputs": {
+        "message": "上周打过除草剂，草没死",
+        "answers": {"weed_last_pesticide": "一周前打过草甘膦", "weed_target_crop": "果园"},
+        "management": {"pesticide": "草甘膦"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "weed",
+        "must_ask_slots": ["weed_last_pesticide"],
+        "allowed_conclusions": ["weed_pesticide_resistance", "weed_grass_control"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "weed-006",
+      "process_id": "weed",
+      "scene": "田埂地头零星杂草",
+      "inputs": {
+        "message": "地头上有点草，不多",
+        "answers": {"weed_symptom_scope": "零星", "weed_target_crop": "小麦"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "weed",
+        "must_ask_slots": ["weed_symptom_scope"],
+        "allowed_conclusions": ["weed_grass_control"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["照做就行"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    }
+  ]
+}

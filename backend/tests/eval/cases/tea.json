@@ -1,0 +1,235 @@
+{
+  "process_id": "tea",
+  "config_version": 1,
+  "knowledge_version": "2026-09-01",
+  "cases": [
+    {
+      "case_id": "tea-001",
+      "process_id": "tea",
+      "scene": "茶园高温干旱，叶片焦边，三天前未用药",
+      "inputs": {
+        "message": "我的茶树叶子边缘发黄发焦，是不是病害",
+        "answers": {"tea_symptom_part": "叶片边缘", "tea_symptom_pattern": "焦边", "tea_last_pesticide": "最近三天没打药"},
+        "management": {"pesticide": "最近三天没打药"},
+        "env_reading": [{"metric": "soil_temp", "value": 38.5, "unit": "C"}]
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_part", "tea_symptom_pattern"],
+        "allowed_conclusions": ["tea_heat_drought", "tea_physiological_scorch"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["敌敌畏", "立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "tea-002",
+      "process_id": "tea",
+      "scene": "嫩芽上有密集小虫，嫩叶卷曲",
+      "inputs": {
+        "message": "茶树嫩芽上密密麻麻的小虫子，叶子卷起来了",
+        "answers": {"tea_symptom_part": "嫩芽", "tea_symptom_pattern": "小虫聚集"},
+        "management": {"pesticide": "没打药"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_part"],
+        "allowed_conclusions": ["tea_tea_green_leafhopper", "tea_aphid"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["不用管"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-003",
+      "process_id": "tea",
+      "scene": "叶片正面出现褐色轮纹病斑",
+      "inputs": {
+        "message": "茶叶上有褐色的圈圈斑",
+        "answers": {"tea_symptom_part": "叶片", "tea_symptom_pattern": "轮纹褐斑"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_pattern"],
+        "allowed_conclusions": ["tea_anthracnose", "tea_brown_blight"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-004",
+      "process_id": "tea",
+      "scene": "临近采摘，叶片有虫，问能否用药",
+      "inputs": {
+        "message": "再过五天就要采茶了，现在有虫能打药吗",
+        "answers": {"tea_last_pick": "计划五天后采摘", "tea_symptom_part": "叶片"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_last_pick"],
+        "allowed_conclusions": ["tea_tea_green_leafhopper", "tea_aphid"],
+        "expect_gate_rules": ["R-INTERVAL"],
+        "forbidden_phrases": ["打了就能采", "不用管安全间隔期"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-005",
+      "process_id": "tea",
+      "scene": "老叶发黄，整片茶园普遍",
+      "inputs": {
+        "message": "茶园里老叶子发黄，一大片都这样",
+        "answers": {"tea_symptom_part": "老叶", "tea_symptom_scope": "连片"},
+        "management": {"fertilizer": "两个月没施肥"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_part", "tea_symptom_scope"],
+        "allowed_conclusions": ["tea_nutrient_deficiency", "tea_physiological_scorch"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-006",
+      "process_id": "tea",
+      "scene": "枝叶上有白色粉末状覆盖物",
+      "inputs": {
+        "message": "茶树枝叶上有一层白白的粉",
+        "answers": {"tea_symptom_part": "枝叶", "tea_symptom_pattern": "白粉状"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_pattern"],
+        "allowed_conclusions": ["tea_powdery_mildew"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-007",
+      "process_id": "tea",
+      "scene": "遮阴不足，叶片日灼",
+      "inputs": {
+        "message": "太阳晒得厉害，茶树叶子上有白斑发焦",
+        "answers": {"tea_shade_level": "无遮阴", "tea_symptom_part": "叶片"},
+        "management": {},
+        "env_reading": [{"metric": "air_temp", "value": 39.0, "unit": "C"}]
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_shade_level"],
+        "allowed_conclusions": ["tea_sunscald", "tea_heat_drought"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "tea-008",
+      "process_id": "tea",
+      "scene": "根部发黑，植株萎蔫",
+      "inputs": {
+        "message": "茶树蔫了，挖开看根发黑",
+        "answers": {"tea_symptom_part": "根部", "tea_symptom_pattern": "根发黑"},
+        "management": {"irrigation": "近期多雨积水"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_part"],
+        "allowed_conclusions": ["tea_root_rot"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-009",
+      "process_id": "tea",
+      "scene": "叶片畸形卷曲，怀疑病毒病",
+      "inputs": {
+        "message": "茶叶片卷曲畸形，长得怪怪的",
+        "answers": {"tea_symptom_part": "叶片", "tea_symptom_pattern": "畸形卷曲"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_pattern"],
+        "allowed_conclusions": ["tea_viral_disease", "tea_tea_green_leafhopper"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-010",
+      "process_id": "tea",
+      "scene": "刚施过肥，叶片浓绿徒长无病斑",
+      "inputs": {
+        "message": "刚施了肥，茶树长得特别旺，叶子浓绿",
+        "answers": {"tea_fertilize": "一周前施过氮肥", "tea_symptom_part": "叶片"},
+        "management": {"fertilizer": "一周前施氮肥"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_fertilize"],
+        "allowed_conclusions": ["tea_over_fertilization", "tea_physiological_scorch"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-011",
+      "process_id": "tea",
+      "scene": "叶背有螨类危害，叶面失绿",
+      "inputs": {
+        "message": "茶叶背面有小点，叶面上发白失绿",
+        "answers": {"tea_symptom_part": "叶背", "tea_symptom_pattern": "失绿小点"},
+        "management": {"pesticide": "半月前打过一次"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_part"],
+        "allowed_conclusions": ["tea_mite", "tea_thrips"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "tea-012",
+      "process_id": "tea",
+      "scene": "叶片出现细小穿孔，疑似虫咬",
+      "inputs": {
+        "message": "茶叶上被咬出好多小洞",
+        "answers": {"tea_symptom_part": "叶片", "tea_symptom_pattern": "穿孔"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "tea",
+        "must_ask_slots": ["tea_symptom_pattern"],
+        "allowed_conclusions": ["tea_tea_weevil", "tea_pest_damage"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    }
+  ]
+}

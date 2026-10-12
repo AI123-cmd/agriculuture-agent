@@ -1,0 +1,159 @@
+{
+  "process_id": "rice",
+  "config_version": 1,
+  "knowledge_version": "2026-09-01",
+  "cases": [
+    {
+      "case_id": "rice-001",
+      "process_id": "rice",
+      "scene": "水稻分蘖期，叶片出现梭形病斑，边缘有灰白中心",
+      "inputs": {
+        "message": "我家水稻叶子上有梭形的斑点，中间发白",
+        "answers": {"rice_symptom_part": "叶片", "rice_symptom_pattern": "梭形病斑", "rice_growth_stage": "分蘖期"},
+        "management": {"pesticide": "最近一周没打药"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_symptom_part", "rice_symptom_pattern"],
+        "allowed_conclusions": ["rice_blast", "rice_brown_spot"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即加倍用药", "不用管"],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "rice-002",
+      "process_id": "rice",
+      "scene": "水稻孕穗期，叶片从叶尖向下枯黄，田间成片",
+      "inputs": {
+        "message": "水稻叶子从尖上开始枯黄，一片一片的",
+        "answers": {"rice_symptom_part": "叶片", "rice_symptom_scope": "连片", "rice_growth_stage": "孕穗期"},
+        "management": {"fertilizer": "上周施过尿素", "pesticide": "没打药"},
+        "env_reading": [{"metric": "air_temp", "value": 35.0, "unit": "C"}]
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_symptom_part", "rice_symptom_scope"],
+        "allowed_conclusions": ["rice_physiological_leaf_aging", "rice_nutrient_deficiency"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即大量施用"],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "rice-003",
+      "process_id": "rice",
+      "scene": "水稻叶鞘基部有褐色病斑，植株矮缩",
+      "inputs": {
+        "message": "水稻靠根的地方发褐，棵子也比旁边矮",
+        "answers": {"rice_symptom_part": "叶鞘基部", "rice_growth_stage": "分蘖期"},
+        "management": {"pesticide": "半月前打过一次"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_symptom_part"],
+        "allowed_conclusions": ["rice_sheath_blight"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "rice-004",
+      "process_id": "rice",
+      "scene": "水稻田水层过深，叶片发黄",
+      "inputs": {
+        "message": "稻田里水挺深的，稻子有点发黄",
+        "answers": {"rice_water_layer": "超过10厘米", "rice_symptom_scope": "零星"},
+        "management": {"irrigation": "灌水偏多"},
+        "env_reading": [{"metric": "soil_moisture", "value": 95.0, "unit": "%"}]
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_water_layer"],
+        "allowed_conclusions": ["rice_root_hypoxia", "rice_nutrient_deficiency"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base", "env_reading"]
+      }
+    },
+    {
+      "case_id": "rice-005",
+      "process_id": "rice",
+      "scene": "水稻叶片被虫咬出白斑，虫粪明显",
+      "inputs": {
+        "message": "水稻叶子上有白斑，还有虫粪",
+        "answers": {"rice_symptom_part": "叶片", "rice_symptom_pattern": "白斑"},
+        "management": {"pesticide": "没打药"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_symptom_pattern"],
+        "allowed_conclusions": ["rice_leaf_folder", "rice_stem_borer"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["照做就行"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "rice-006",
+      "process_id": "rice",
+      "scene": "水稻刚打过药三天后又出现相同症状",
+      "inputs": {
+        "message": "稻子三天前刚打的药，现在又有了",
+        "answers": {"rice_symptom_part": "叶片", "rice_last_pesticide": "三天前打过吡虫啉"},
+        "management": {"pesticide": "吡虫啉"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_last_pesticide"],
+        "allowed_conclusions": ["rice_leaf_folder", "rice_pesticide_resistance"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": ["立即加倍用药"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "rice-007",
+      "process_id": "rice",
+      "scene": "水稻抽穗期叶片大量枯死，怀疑药害",
+      "inputs": {
+        "message": "水稻抽穗了，叶子大片枯死，是不是药打坏了",
+        "answers": {"rice_symptom_scope": "连片", "rice_growth_stage": "抽穗期", "rice_last_pesticide": "两天前打过除草剂"},
+        "management": {"pesticide": "除草剂误用"},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_growth_stage", "rice_last_pesticide"],
+        "allowed_conclusions": ["rice_herbicide_phytotoxicity"],
+        "expect_gate_rules": ["R-INTERVAL"],
+        "forbidden_phrases": ["继续打药就好"],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    },
+    {
+      "case_id": "rice-008",
+      "process_id": "rice",
+      "scene": "水稻田边杂草丛生，问除草剂选择",
+      "inputs": {
+        "message": "稻田边长了好多草，用什么药能除",
+        "answers": {"rice_symptom_scope": "田边"},
+        "management": {},
+        "env_reading": []
+      },
+      "expect": {
+        "expect_process": "rice",
+        "must_ask_slots": ["rice_symptom_scope"],
+        "allowed_conclusions": ["rice_weed_control"],
+        "expect_gate_rules": [],
+        "forbidden_phrases": [],
+        "allowed_sources": ["process_config", "knowledge_base"]
+      }
+    }
+  ]
+}
