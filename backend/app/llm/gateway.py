@@ -25,6 +25,10 @@ from app.llm.errors import AllProvidersFailedError, ModelUnavailableError
 from app.llm.providers.base import ModelProvider, ModelResponse
 from app.llm.router import ModelCandidate, ModelRouter
 
+# 可观测性入口。`app.observability` 是横切关注点，不属业务模块，符合 L3（网关不得导入
+# `app.agent`/`app.gate`/`app.services`）。
+from app.observability import generation_span, record_generation
+
 
 class CallAuditor:
     """内容审计：记录输入输出的哈希，用于事后追溯，不留原文。
@@ -93,7 +97,7 @@ class ModelGateway:
             if not self._circuit.allow(candidate.provider):
                 last_error = f"{candidate.provider} 熔断中"
                 continue
-            response = await self._invoke(candidate, trimmed, schema)
+            response = await self._invoke_observed(task_type, candidate, trimmed, schema)
             response = response.model_copy(update={"is_fallback": candidate is not decision.chain[0]})
             if response.error is None:
                 self._circuit.record_success(candidate.provider)
@@ -125,6 +129,32 @@ class ModelGateway:
                 input_digest=digest,
             )
         raise AllProvidersFailedError(str(task_type.value), last_error)
+
+    async def _invoke_observed(
+        self,
+        task_type: TaskType,
+        candidate: ModelCandidate,
+        messages: list[dict],
+        schema: type[BaseModel] | None,
+    ) -> ModelResponse:
+        """给一次候选调用套 generation span（14.4：每次模型调用 = 一个 generation）。
+
+        span 在**当前节点 span 内**开启，因此自动成为该节点的子 span，无需手工传 parent。
+        属性来自响应本身：失败响应也照写——失败调用的耗时与供应商归属是排障最需要的两条
+        信息，跳过反而让"重试链上哪一跳慢/挂"查不出来。
+        """
+        with generation_span(str(task_type.value)) as span:
+            response = await self._invoke(candidate, messages, schema)
+            record_generation(
+                span,
+                model=response.model,
+                provider=response.provider,
+                prompt_tokens=response.prompt_tokens,
+                completion_tokens=response.completion_tokens,
+                latency_ms=response.latency_ms,
+                degraded=candidate.is_degraded,
+            )
+            return response
 
     async def _invoke(
         self,
