@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import inspect
+import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from typing import Any
@@ -291,6 +292,7 @@ def traced_node(name: str, fn: Any, *, span_name: str | None = None) -> Callable
     if inspect.iscoroutinefunction(fn):
 
         async def _wrapped_async(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> Any:
+            started = time.perf_counter()
             with _tracer().start_as_current_span(label, record_exception=False, set_status_on_exception=False) as span:
                 _set_node_attributes(span, state)
                 try:
@@ -299,14 +301,17 @@ def traced_node(name: str, fn: Any, *, span_name: str | None = None) -> Callable
                     raise
                 except Exception as exc:
                     _mark_failure(span, exc)
+                    _observe_node(label, state, started, ok=False)
                     raise
                 _mark_success(span, result)
+                _observe_node(label, state, started, ok=True, degraded=_degraded_of(result))
                 return result
 
         _wrapped_async.__name__ = name
         return _wrapped_async
 
     def _wrapped_sync(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> Any:
+        started = time.perf_counter()
         with _tracer().start_as_current_span(label, record_exception=False, set_status_on_exception=False) as span:
             _set_node_attributes(span, state)
             try:
@@ -315,12 +320,42 @@ def traced_node(name: str, fn: Any, *, span_name: str | None = None) -> Callable
                 raise
             except Exception as exc:
                 _mark_failure(span, exc)
+                _observe_node(label, state, started, ok=False)
                 raise
             _mark_success(span, result)
+            _observe_node(label, state, started, ok=True, degraded=_degraded_of(result))
             return result
 
     _wrapped_sync.__name__ = name
     return _wrapped_sync
+
+
+def _degraded_of(result: Any) -> bool:
+    """节点产出是否标记了降级/重试（14.3 链路级指标"失败率与重试次数"）。
+
+    与 `node.ok` 不同源：`node.ok` 是"节点是否抛异常"，降级是"节点正常返回但走了备选/降档"。
+    两者都要采集，混在一起会掩盖问题（正常返回的降级最容易被忽略）。
+    """
+    if not isinstance(result, Mapping):
+        return False
+    gate = result.get("gate_result")
+    if isinstance(gate, Mapping) and gate.get("decision") == "degrade":
+        return True
+    return bool(result.get("degraded") or result.get("fallback"))
+
+
+def _observe_node(label: str, state: Mapping[str, Any], started: float, *, ok: bool, degraded: bool = False) -> None:
+    """把一次节点执行落进指标采集器（T6-09）。`process_id` 进标签供按流程切分 P50/P95。"""
+    from app.observability.metrics import observe_node_duration
+
+    process_id = _process_of(state)
+    observe_node_duration(
+        label,
+        (time.perf_counter() - started) * 1000.0,
+        process_id=None if process_id == "unknown" else process_id,
+        ok=ok,
+        degraded=degraded,
+    )
 
 
 def _mark_success(span: Span, result: Any) -> None:

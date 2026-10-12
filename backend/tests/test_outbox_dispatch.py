@@ -514,19 +514,27 @@ def test_unknown_event_falls_back_to_unhandled_task() -> None:
 
 
 def test_worker_registers_dispatch_cron() -> None:
-    """worker 上挂了三个 cron：发件箱投递（5 秒粒度）、每日到期扫描、窗口内触达扫描。
+    """worker 上挂了四个 cron：发件箱投递（5 秒粒度）、每日到期扫描、窗口内触达扫描、每日指标采集。
 
     T3-09 起 `cron_jobs` 从 1 条增至 2 条（加 `scan_due_followups`），T3-12 再加
-    `deliver_due_reach` 到 3 条。断言按协程对象定位而非下标，注册顺序变动不会误判。
+    `deliver_due_reach` 到 3 条，T6-09 再加 `collect_daily_metrics` 到 4 条。断言按协程对象
+    定位而非下标，注册顺序变动不会误判。
     """
     from app.broadcast.window import FARMER_TZ
-    from app.worker import WorkerSettings, deliver_due_reach, dispatch_outbox, scan_due_followups
+    from app.worker import (
+        WorkerSettings,
+        collect_daily_metrics,
+        deliver_due_reach,
+        dispatch_outbox,
+        scan_due_followups,
+    )
 
     assert dispatch_outbox in WorkerSettings.functions
     assert scan_due_followups in WorkerSettings.functions
     assert deliver_due_reach in WorkerSettings.functions
+    assert collect_daily_metrics in WorkerSettings.functions
     assert WorkerSettings.cron_jobs, "缺少投递 cron，事件会永远停在 pending"
-    assert len(WorkerSettings.cron_jobs) == 3
+    assert len(WorkerSettings.cron_jobs) == 4
 
     dispatch_cron = next(job for job in WorkerSettings.cron_jobs if job.coroutine is dispatch_outbox)
     # 每轮的秒位集合：12 个元素即每 5 秒一次
@@ -542,6 +550,11 @@ def test_worker_registers_dispatch_cron() -> None:
     # 任务内的 `is_sendable` 直接返回（ARQ cron 无法表达"6 点且分钟 >= 30"）
     assert deliver_cron.hour == {6, 7, 18}
     assert deliver_cron.minute == {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
+
+    metrics_cron = next(job for job in WorkerSettings.cron_jobs if job.coroutine is collect_daily_metrics)
+    # 指标采集：每天 3:00 跑一次，与到期扫描（7 点）和触达扫描（6/7/18 点）在时间上错开
+    assert metrics_cron.hour == 3
+    assert metrics_cron.minute == 0
 
     # 时区：全部 cron 按农户时区解释，否则容器默认 UTC，早晨窗口整体后移 8 小时
     assert WorkerSettings.timezone == FARMER_TZ

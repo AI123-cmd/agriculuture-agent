@@ -20,9 +20,14 @@ worker 需要额外的桥接层，ARQ 本身就是 asyncio 原生。
 推送，不必等下一次触达扫描。它与 T3-08 的快照消费者共用同一注册项（事件到任务的映射是
 1:1），本函数只落实"尝试推送"这一半，不影响首页提示。
 
-`reach_failed` 是 T3-14 落地的第三个真实消费者：把触达失败按 `fail_reason` 计入指标（当前为
-进程内采集器，T6-09 落地时换为落库写入器）。它不接触数据库，是"失败不得静默丢弃"在观测侧
-的收尾——生产侧已把失败写进 `reach_record`，消费侧只做聚合。
+`reach_failed` 是 T3-14 落地的第三个真实消费者：确认触达失败已落库并回执。失败信息在
+**生产侧**就写进了 `reach_record`（`fail_reason` 四类），T6-09 起失败构成由 `MetricsRepository`
+直接对 `reach_record` 聚合，故本消费者不再做进程内计数（那套计数会随进程重启丢失、无法跨进程
+汇总，与"跨天对比"冲突）。
+
+`collect_daily_metrics` 是 T6-09 落地的指标采集 cron：每自然日跑一次，把进程内的节点耗时/检查点
+耗时直方图导出到 `eval_run`、构建当日抽检批次、并按需生成提示词回退工单（见
+`app/observability/sampling.py`）。直方图在导出后即清空，故进程重启只丢未导出的样本、不会重复计数。
 
 **时区**：`WorkerSettings.timezone` 设为农户时区（`Asia/Shanghai`），使全部 `hour`/`minute`
 按北京时间而非服务器时区解释——否则容器默认 UTC，早晨窗口会被整体推后 8 小时。
@@ -54,7 +59,8 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.events.handlers import UNHANDLED_TASK, registered_task_names
 from app.events.outbox import OutboxDispatcher
-from app.observability import configure_logging, metrics
+from app.observability import configure_logging
+from app.observability.sampling import collect_daily_metrics
 from app.repositories import consult_repo, snapshot_repo
 from app.services.followup_service import dispatch_due, register_from_prescription
 
@@ -81,9 +87,9 @@ _DELIVER_MINUTES = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
 # （ARQ 后注册的会覆盖先注册的，顺序一旦变动就静默换实现）。
 _IMPLEMENTED_TASKS: frozenset[str] = frozenset({"prescription_created", "followup_due", "reach_failed"})
 
-# `reach.failed` 的指标名。T3-14 只把失败原因计入进程内指标采集器（T6-09 的占位实现）；
-# T6-09 落地时改为落库写入器，指标名与标签口径保持不变。
-_REACH_FAILED_METRIC = "reach_failed_total"
+# 每日指标采集的时刻（UTC 小时）。取凌晨 3 点：当天 0 点后就已"跨日"，此刻跑无需等待，
+# 又能避开 7 点的到期扫描与 6/7/18 点的触达扫描，让三套 cron 在时间上互不重叠。
+_METRICS_COLLECT_HOUR = 3
 
 
 async def dispatch_outbox(ctx: dict[str, Any]) -> int:
@@ -210,24 +216,23 @@ async def followup_due(ctx: dict[str, Any], payload: dict | None = None, **kwarg
 
 
 async def reach_failed(ctx: dict[str, Any], payload: dict | None = None, **kwargs: Any) -> int:
-    """`reach.failed` 的消费者（T3-14）：把触达失败按原因计入指标，返回计入条数。
+    """`reach.failed` 的消费者（T3-14 / T6-09）：确认失败已落库，返回处理条数。
 
     `reach.failed` 的消费者是"指标服务"（技术方案 6.6）：失败原因的分类已由 `notifier` 在
-    生产侧写进 `reach_record.fail_reason`，本函数不重算分类，只把事件载荷里的 `fail_reason`
-    计入进程内计数器——这是 T6-09 落地前的最小占位，保证"触达失败有指标"这条不断链。
-    T6-09 落地时把 `metrics.incr` 换成落库写入器即可，指标名与标签口径不变。
+    生产侧写进 `reach_record.fail_reason`，T6-09 起该表的失败构成由
+    `MetricsRepository.subscribe_once_delivery_rate` 直接聚合，故本函数**不再写任何指标**——
+    进程内计数器会随重启丢失、也无法跨 worker 汇总，与"跨天对比"的口径冲突。
+
+    保留本函数是因为事件已投出就必须有消费者：删掉它会让 `reach.failed` 落到占位实现并印出
+    "尚未实现"的日志，掩盖"这个事件其实已有归宿（`reach_record`）"这一事实。
 
     `quiet_hours` 不是失败（可重试的延迟），生产侧也**不投** `reach.failed`（见 T3-12 第三节），
-    故这里只处理 `no_grant` / `quota_exhausted` / `api_error` 三类真实失败；载荷缺失
-    `fail_reason` 时按 `unknown` 计数并记日志，不静默丢弃。
-
-    本消费者不接触数据库、不写任何业务表：触达记录已在生产侧落库，指标服务只做聚合，
-    因此无会话、无提交，也不产生副作用（兜底五）。
+    故这里只见到 `no_grant` / `quota_exhausted` / `api_error` 三类真实失败；载荷缺失
+    `fail_reason` 时按 `unknown` 记日志，不静默丢弃。本消费者不接触数据库、不写任何表。
     """
     payload = payload or {}
     reason = payload.get("fail_reason") or "unknown"
-    metrics.incr(_REACH_FAILED_METRIC, tags={"reason": str(reason)})
-    logger.info("触达失败计入指标 reason=%s item=%s", reason, payload.get("prompt_item_id"))
+    logger.info("触达失败已落库 reason=%s item=%s", reason, payload.get("prompt_item_id"))
     return 1
 
 
@@ -286,14 +291,17 @@ class WorkerSettings:
         dispatch_outbox,
         scan_due_followups,
         deliver_due_reach,
+        collect_daily_metrics,
     ]
-    # 三套节奏：每 5 秒投一轮发件箱（`run_at_startup=True` 让 worker 起来先投一轮，
+    # 四套节奏：每 5 秒投一轮发件箱（`run_at_startup=True` 让 worker 起来先投一轮，
     # 不必干等到下一个整 5 秒边界）；每天 7 点扫描一次到期回访；触达扫描在最佳窗口所在
-    # 的小时内每 5 分钟一次（窗口外由 `deliver_due_reach` 内的 `is_sendable` 直接返回）。
+    # 的小时内每 5 分钟一次（窗口外由 `deliver_due_reach` 内的 `is_sendable` 直接返回）；
+    # 每天 3 点采集一次线上指标并做当日抽检。
     cron_jobs = [
         cron(dispatch_outbox, second=_DISPATCH_SECONDS, run_at_startup=True),
         cron(scan_due_followups, hour=_DUE_SCAN_HOUR, minute=0),
         cron(deliver_due_reach, hour=_DELIVER_HOURS, minute=_DELIVER_MINUTES),
+        cron(collect_daily_metrics, hour=_METRICS_COLLECT_HOUR, minute=0),
     ]
     # 单条任务的执行超时。投递本身只是入队，占位消费者也只写日志；回访登记与扫描
     # 涉及少量数据库写，给 60 秒远超需要，留足余量以容忍 Redis 抖动时的重连。
@@ -315,6 +323,7 @@ assert UNHANDLED_TASK in {fn.__qualname__ for fn in WorkerSettings.functions}
 __all__ = [
     "WorkerSettings",
     "_on_startup",
+    "collect_daily_metrics",
     "deliver_due_reach",
     "dispatch_outbox",
     "followup_due",

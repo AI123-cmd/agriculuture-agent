@@ -1,7 +1,11 @@
 """Checkpointer 单例：PostgreSQL 短期记忆/断点持久化。"""
 
+import time
+from collections.abc import Sequence
 from typing import Any
 
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import ChannelVersions, Checkpoint, CheckpointMetadata
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
@@ -12,6 +16,55 @@ from app.core.config import get_settings
 _saver: AsyncPostgresSaver | None = None
 # 显式标注连接行类型：kwargs 里传 row_factory=dict_row，mypy 无法从 dict 推断，需在此声明
 _pool: AsyncConnectionPool[AsyncConnection[dict[str, Any]]] | None = None
+
+
+class _ObservedPostgresSaver(AsyncPostgresSaver):
+    """在最外层写入路径上埋点的检查点器。
+
+    检查点写入发生在图推进的空隙、不在任何 span 树里（14.3 特意点出"LangGraph checkpoint
+    是隐式成本，量大时不可忽略"），故只能直接在 `aput` / `aput_writes` 上计时。用子类而非
+    "在调用点包一层"是因为这两个方法由 LangGraph 内部调用（`build_graph` 编译期绑定），
+    没有可供外部包装的调用点。
+
+    计时只覆盖真正的 DB 写入（`super()` 的 await），不含上游构造开销；埋点异常一律吞掉——
+    观测路径不得让问诊失败（与追踪导出失败被丢弃同一原则）。
+    """
+
+    async def aput(
+        self,
+        config: RunnableConfig,
+        checkpoint: Checkpoint,
+        metadata: CheckpointMetadata,
+        new_versions: ChannelVersions,
+    ) -> RunnableConfig:
+        started = time.perf_counter()
+        try:
+            return await super().aput(config, checkpoint, metadata, new_versions)
+        finally:
+            _observe(started)
+
+    async def aput_writes(
+        self,
+        config: RunnableConfig,
+        writes: Sequence[tuple[str, Any]],
+        task_id: str,
+        task_path: str = "",
+    ) -> None:
+        started = time.perf_counter()
+        try:
+            await super().aput_writes(config, writes, task_id, task_path)
+        finally:
+            _observe(started)
+
+
+def _observe(started: float) -> None:
+    """把一次写入耗时写进进程内直方图。埋点本身失败不得影响检查点写入。"""
+    from app.observability.metrics import observe_checkpoint_write_ms
+
+    try:
+        observe_checkpoint_write_ms((time.perf_counter() - started) * 1000.0)
+    except Exception:  # noqa: BLE001  观测路径绝不打断写入
+        pass
 
 
 async def get_checkpointer() -> AsyncPostgresSaver:
@@ -41,7 +94,7 @@ async def get_checkpointer() -> AsyncPostgresSaver:
         # AsyncPostgresSaver.setup() 只建表不建 schema，schema 必须由调用方保证存在
         async with _pool.connection() as conn:
             await conn.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema)))
-        _saver = AsyncPostgresSaver(_pool)
+        _saver = _ObservedPostgresSaver(_pool)
         await _saver.setup()
     return _saver
 

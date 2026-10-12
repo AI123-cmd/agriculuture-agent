@@ -14,6 +14,7 @@ from .enums import (
     SourceKind,
 )
 from .env_reading import EnvReading
+from .eval_run import EvalRun
 from .event_outbox import EventOutbox
 from .farmer_profile import FarmerProfile
 from .field import Field
@@ -53,6 +54,7 @@ __all__ = [
     "KnowledgeReviewLog",
     "LlmCall",
     "EventOutbox",
+    "EvalRun",
     "ProcessConfigRow",
     "ProcessRedlineRow",
     "GateAudit",

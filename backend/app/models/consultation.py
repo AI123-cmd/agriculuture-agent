@@ -158,6 +158,15 @@ class PrescriptionCard(Base, OwnedMixin):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     process_id: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="七条流程之一")
     diagnosis_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="诊断摘要，来自处方契约")
+    # T6-09：人工抽检结论（14.5）。三值 usable/needs_fix/unusable，未标注为空。
+    # 落在卡片上而非只落 `eval_run`：看板按天聚合走 `eval_run`，业务侧"这张卡被标注过什么"
+    # 需要按卡片反查，故两处一并写。取值由 `app/models/eval_run.py` 的常量给出。
+    quality_label: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, comment="usable/needs_fix/unusable，未标注为空"
+    )
+    quality_labeled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="标注时点"
+    )
 
 
 class FollowupTask(Base, OwnedMixin):

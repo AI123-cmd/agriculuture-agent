@@ -50,6 +50,7 @@ _TABLES = (
     "event_outbox",
     "gate_audit",
     "gate_review_ticket",
+    "eval_run",
     "process_redline",
     "process_config",
     "ai_message",

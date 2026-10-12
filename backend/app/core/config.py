@@ -177,6 +177,19 @@ class Settings(BaseSettings):
 
     # 质量评估
     HARNESS_PASS_RATE_THRESHOLD: float = 0.90
+    # 问诊最多收集轮次（技术方案 14.3）。"超 3 轮问诊"是最重要的单一指标，阈值取此值而不是
+    # 写死在 `over_round_rate` 里；产品说明书要求最多 3 轮，改动此处即改动告警口径。
+    MAX_COLLECT_ROUNDS: int = 3
+    # 抽检不可用占比阈值（T6-09，14.5）。与 `HARNESS_PASS_RATE_THRESHOLD` 是两个不同口径：
+    # 前者是人工标注的"不可用"占抽检样本的比例，后者是评测一致率。刻意不复用同一常量——
+    # 复用会让"人工抽检"与"离线评测"两个口径互相污染。
+    QUALITY_BAD_RATE_THRESHOLD: float = 0.10
+    # 每条流程每日最少抽检例数（14.5）。按流程分层抽，低频流程（rapeseed/pig）的提示词
+    # 最缺验证，全局随机会让它们长期抽不到，故设下限。
+    QUALITY_SAMPLE_MIN_PER_PROCESS: int = 3
+    # 不可用占比连续高于阈值的天数，达到即生成提示词回退工单（15.5）。默认 2 可配但不建议改：
+    # 单日越线可能是抽样波动，连续两日才指向提示词约束不足。
+    QUALITY_ROLLBACK_CONSECUTIVE_DAYS: int = 2
 
     # 链路追踪（T6-06，技术方案 14.4）。
     # OTEL_ENABLED 默认 False：关闭时不注册 provider，`start_as_current_span` 退化为

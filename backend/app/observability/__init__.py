@@ -10,7 +10,18 @@
 
 from .logging import bind_context, bound_context, clear_context, configure_logging, log
 from .masker import ObservabilityMasker
-from .metrics import MetricsCollector, metrics
+from .metrics import (
+    MetricsCollector,
+    checkpoint_write_samples,
+    drain_checkpoint_write_samples,
+    drain_node_duration_groups,
+    metrics,
+    node_duration_groups,
+    observe_checkpoint_write_ms,
+    observe_node_duration,
+    over_round_rate,
+    should_rollback_prompt,
+)
 from .prompts import record_prompt_identity
 from .tracing import (
     GENERATION_SPAN_NAME,
@@ -32,17 +43,25 @@ __all__ = [
     "ROOT_SPAN_NAME",
     "bind_context",
     "bound_context",
+    "checkpoint_write_samples",
     "clear_context",
     "configure_logging",
     "configure_tracing",
     "consultation_span",
     "current_trace_context",
+    "drain_checkpoint_write_samples",
+    "drain_node_duration_groups",
     "force_flush",
     "generation_span",
     "log",
     "metrics",
+    "node_duration_groups",
+    "observe_checkpoint_write_ms",
+    "observe_node_duration",
+    "over_round_rate",
     "record_generation",
     "record_prompt_identity",
     "reset_tracing",
+    "should_rollback_prompt",
     "traced_node",
 ]

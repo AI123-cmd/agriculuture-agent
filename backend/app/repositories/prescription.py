@@ -7,8 +7,17 @@
 
 只用基类的既有组合，不自造裸查询（守全局约定 L4，禁止 `db.query`）：
 `get` 直接沿用基类（按 id 取并强制归属），`mark_ledger_saved` 走 `update_fields` 回写布尔列。
+
+`pick_for_quality_sample` 是一个**显式孤立的无归属查询**（T6-09 线上抽检）：抽检是全平台口径，
+横跨全部农户按流程分层取卡，无法按 `user_id` 过滤——与 `ReachRepository.count_by_status`
+同属"指标/采样类跨农户读"，故不经 `OwnedRepository` 的归属路径，直接 `select()`（仍在
+`app/repositories/` 内，L4 合法）。
 """
 
+from collections.abc import Sequence
+from datetime import UTC, date, datetime, time
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import PrescriptionCard
@@ -29,6 +38,36 @@ class PrescriptionRepository(OwnedRepository[PrescriptionCard]):
         归属过滤由基类 `update_fields` 施加，他人卡片影响 0 行。
         """
         return await self.update_fields(db, user_id, card_id, ledger_saved=True)
+
+    async def pick_for_quality_sample(
+        self,
+        db: AsyncSession,
+        process_id: str,
+        day: date,
+        *,
+        limit: int,
+        exclude_ids: frozenset[str] | set[str] = frozenset(),
+    ) -> Sequence[PrescriptionCard]:
+        """按流程取某日已开方的处方卡作为抽检候选（全局口径，跨农户）。
+
+        抽检样本来自 `prescription_card`（已开方）而非全部问诊：抽检目标是"模型改写的质量"，
+        没有处方的问题不涉及改写（14.5）。按 `process_id` 分层取，使低频流程（`rapeseed`/
+        `pig`）也能被抽到——全局随机会让它们长期缺席。`exclude_ids` 排除当天已入样的卡，
+        与 `eval_run` 的部分唯一索引一起构成幂等（先查后插，不依赖撞库）。
+
+        按 `created_at` 升序取前 `limit` 张：同日样本的时间分布无所谓，稳定顺序让重复调用
+        结果可复现（幂等的一个可观测性质）。
+        """
+        start = datetime.combine(day, time.min, tzinfo=UTC)
+        end = datetime.combine(day, time.max, tzinfo=UTC)
+        stmt = select(PrescriptionCard).where(
+            PrescriptionCard.process_id == process_id,
+            PrescriptionCard.created_at.between(start, end),
+        )
+        if exclude_ids:
+            stmt = stmt.where(PrescriptionCard.id.not_in(exclude_ids))
+        stmt = stmt.order_by(PrescriptionCard.created_at, PrescriptionCard.id).limit(limit)
+        return (await db.execute(stmt)).scalars().all()
 
 
 prescription_repo = PrescriptionRepository()
