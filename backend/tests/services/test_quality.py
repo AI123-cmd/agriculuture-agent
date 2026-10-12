@@ -65,7 +65,9 @@ def test_future_timestamp_beyond_tolerance_is_suspect() -> None:
 
 def test_missing_timestamp_is_stale() -> None:
     now = datetime.now(UTC)
-    reading = Reading(metric="air_temp", value=26.5, raw_field="t1", unit=None, observed_at=None, timestamp_source="server")  # type: ignore[arg-type]
+    reading = Reading(
+        metric="air_temp", value=26.5, raw_field="t1", unit=None, observed_at=None, timestamp_source="server"
+    )  # type: ignore[arg-type]
     assert classify_quality(reading, now=now) == "stale"
 
 
@@ -158,7 +160,9 @@ def test_ownership_rejection_blocks_write(client, engine, caplog) -> None:
 # ---- 三级取数：source 取值 ----
 
 
-def _insert_reading(engine, user_id: str, metric: str, value: float, *, quality: str = "ok", minutes_ago: float = 1.0) -> None:
+def _insert_reading(
+    engine, user_id: str, metric: str, value: float, *, quality: str = "ok", minutes_ago: float = 1.0
+) -> None:
     factory = async_sessionmaker(bind=engine, expire_on_commit=False)
 
     async def _run() -> None:

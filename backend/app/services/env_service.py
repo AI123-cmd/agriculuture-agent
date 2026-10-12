@@ -20,7 +20,6 @@
 **除 403 外任何失败都返回 200 + `note`**，避免设备固件对 5xx 重试形成压力风暴。
 """
 
-import json
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -208,7 +207,9 @@ def classify_quality(reading: Reading, *, now: datetime) -> str:
     return "ok"
 
 
-def _to_env_readings(user_id: str, device_id: str, farm_entry_id: str | None, readings: Sequence[Reading]) -> list[EnvReading]:
+def _to_env_readings(
+    user_id: str, device_id: str, farm_entry_id: str | None, readings: Sequence[Reading]
+) -> list[EnvReading]:
     """把读数对象转成待落库的 `env_reading` 行。
 
     `source` 固定 `sensor`：本入口的读数一律来自设备直报（天气与静态兜底不走此路径）。

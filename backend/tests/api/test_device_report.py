@@ -42,9 +42,7 @@ def _configure(client, token: str, device_id: str, sample: str, mappings: list[d
     """走完三步接入的前两步半：样例解析（写缓存）+ 保存映射。"""
     resp = client.post(_PARSE_URL, json={"deviceId": device_id, "payload": sample}, headers=_headers(token))
     assert resp.status_code == 200, resp.text
-    resp = client.post(
-        _MAPPING_URL, json={"deviceId": device_id, "mappings": mappings}, headers=_headers(token)
-    )
+    resp = client.post(_MAPPING_URL, json={"deviceId": device_id, "mappings": mappings}, headers=_headers(token))
     assert resp.status_code == 200, resp.text
 
 
@@ -57,9 +55,7 @@ def _reading_rows(engine, sn: str) -> list[EnvReading]:
 
     async def _run() -> list[EnvReading]:
         async with factory() as db:
-            device = (
-                await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == sn))
-            ).scalar_one()
+            device = (await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == sn))).scalar_one()
             stmt = select(EnvReading).where(EnvReading.device_id == device.id).order_by(EnvReading.metric)
             return list((await db.execute(stmt)).scalars().all())
 

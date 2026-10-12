@@ -23,7 +23,13 @@ from app.broadcast.inputs.env_facts import EnvFacts, collect_env_facts
 from app.domain.metrics import StandardMetric
 from app.models import EnvReading
 from app.schemas.environment import SourceBadge
-from app.services.environment_service import _badge_of, _freshness_note, _metric_quality, _metric_status, _to_board_metric
+from app.services.environment_service import (
+    _badge_of,
+    _freshness_note,
+    _metric_quality,
+    _metric_status,
+    _to_board_metric,
+)
 from app.tools import weather as weather_mod
 from app.tools.weather import WeatherFacts
 
