@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from typing import Any
 
@@ -197,11 +197,7 @@ def _set_outcome_attributes(span: Span, updates: Mapping[str, Any]) -> None:
         )
     slots = updates.get("slots")
     if isinstance(slots, Mapping):
-        hit = [
-            str(key)
-            for key, slot in slots.items()
-            if isinstance(slot, Mapping) and slot.get("status") == "filled"
-        ]
+        hit = [str(key) for key, slot in slots.items() if isinstance(slot, Mapping) and slot.get("status") == "filled"]
         span.set_attribute(INTERVIEW_SLOTS_HIT, csv(hit))
 
     evidence = updates.get("evidence")
@@ -224,7 +220,7 @@ def _set_outcome_attributes(span: Span, updates: Mapping[str, Any]) -> None:
         span.set_attribute(GATE_RULES_HIT, csv(rules))
 
 
-def traced_node(name: str, fn: Callable[..., Any], *, span_name: str | None = None) -> Callable[..., Any]:
+def traced_node(name: str, fn: Any, *, span_name: str | None = None) -> Callable[..., Any]:
     """把一个节点函数包成带 span 的节点。
 
     包裹而非"节点内各写一行"：七个工厂与主图十余个节点若各自 `start_as_current_span`，
@@ -249,9 +245,7 @@ def traced_node(name: str, fn: Callable[..., Any], *, span_name: str | None = No
     if inspect.iscoroutinefunction(fn):
 
         async def _wrapped_async(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> Any:
-            with _tracer().start_as_current_span(
-                label, record_exception=False, set_status_on_exception=False
-            ) as span:
+            with _tracer().start_as_current_span(label, record_exception=False, set_status_on_exception=False) as span:
                 _set_node_attributes(span, state)
                 try:
                     result = await fn(state, *args, **kwargs)
