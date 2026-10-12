@@ -140,9 +140,7 @@ def _check_option_limits(config: ProcessConfig, problems: list[str]) -> None:
     checked += [(q.slot_key, q.options) for q in config.offline_questions]
     for key, options in checked:
         if options is not None and len(options) > MAX_OPTIONS_PER_QUESTION:
-            problems.append(
-                f"槽位 {key} 选项数 {len(options)} 超过适老上限 {MAX_OPTIONS_PER_QUESTION}"
-            )
+            problems.append(f"槽位 {key} 选项数 {len(options)} 超过适老上限 {MAX_OPTIONS_PER_QUESTION}")
 
 
 def _check_item_chars(config: ProcessConfig, problems: list[str]) -> None:
