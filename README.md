@@ -1,19 +1,53 @@
 # 话农点金（HNDJ）
 
-面向农户与农技人员的微信小程序，提供**农事播报、环境监测、AI 农技诊断问答**等能力。小程序端采用原生微信小程序 + TypeScript，后端采用 FastAPI（全异步），AI 诊断基于 **LangGraph 多智能体编排**，配套**流程配置层、安全闸门、知识库检索与模型网关**，对接 DeepSeek 兼容大模型。
+> 把一个**懂流程、守红线、可追溯**的 AI 农技员，装进农户的微信里。
+
+面向农户与农技人员的微信小程序：农户用大白话描述庄稼或猪场的问题，AI 按**七条专业流程**分诊、看现场、问五情、查知识库、下判断、开处方——而每一张处方在到达农户之前，都必须先过一道**拥有否决权的安全闸门**。
+
+这不是一个"套壳聊天机器人"。它要解决的是农业 AI 落地最难的三件事：
+
+1. **瞎开药会出人命**——农药处方一旦错了，轻则绝收、重则农残超标。所以本项目把「生成」与「校验」在架构上物理隔离：处方由大模型产出，但能不能给农户看，由一套纯规则、可单测、零模型的**安全闸门**说了算。
+2. **农户说不清楚**——"叶子黄了"不是一个可用的诊断输入。系统用流程配置驱动多轮问诊，把"五情"（种情/肥情/墒情/苗情/病虫情）逐个槽位问全，模型离线时整条链路仍可用规则兜底。
+3. **模型挂了服务不能挂**——模型网关带熔断降级链，`ZERO_MODEL_MODE` 下一行配置即可切断全部模型调用，农事播报照发不误。
 
 ![系统架构](docs/photo/architecture.svg)
 
-## 技术栈
+## 核心亮点
 
-| 层 | 技术 |
-| --- | --- |
-| 小程序端 | 原生小程序 · TypeScript · glass-easel · 自定义 tabBar · 适老化样式 token |
-| 后端 | Python 3.11+ · FastAPI · SQLAlchemy 2.0（async）· Alembic · ARQ（异步任务） |
-| 数据 | PostgreSQL 16+（pgvector 向量检索 · TimescaleDB 时序）· Redis 7 |
-| AI | LangGraph 多智能体 · MCP 工具层 · PostgreSQL 检查点 · DeepSeek 兼容模型 |
+### 1. 受理即分流的诊断状态机
 
-> 底座已统一为 **PostgreSQL 单一栈**：知识检索的「向量相似度 + 元数据过滤」在一条 SQL 内完成，LangGraph 检查点由 `AsyncPostgresSaver` 持久化，取代了早期的 MySQL + SQLite 组合。
+诊断不是一问一答的聊天，而是一条 LangGraph 编排的闭环链路：
+
+**受理分流 → 看现场 → 问五情 → 查依据 → 下判断 → 开处方 → 安全校验 → 登记回访**
+
+![AI 诊断状态机](docs/photo/ai-diagnosis-flow.svg)
+
+- 进入图后的**第一条边就是路由**：按入口提示或分诊结果直达七条流程子图之一（水稻 / 茶 / 油菜 / 辣椒 / 杂草 / 养猪 / 通用兜底），不存在"先聊三句再猜你在种什么"。
+- 多智能体分工：分诊、现场采集、问诊、证据核查、判定、受限并行会诊、处方、报告守卫、转人工，各司其职。
+- 流程差异不写死在代码里：七条流程由 `backend/app/process_config/seeds/*.yaml` 声明（必填槽位、追问顺序、术语大白话映射、紧急判定阈值、流程红线），支持版本化与热加载。
+
+### 2. 安全闸门：唯一拥有否决权的组件
+
+处方产出后必须过独立闸门子图，裁定 `allow / degrade / block` 三态，命中红线一律转人工：
+
+- 10 条规则各自独立可测：药剂白名单、登记作物匹配、剂量区间与每季次数、安全间隔期、用药史冲突、地区适宜性、数字溯源、流程专属红线、红线加载校验、表述语气。
+- 处方的剂量、间隔期等数字**只能从知识库条目照抄**（"模板出事实、模型只改写"），闸门的数字溯源规则会反向扫描最终展示文本——模型说出的每个数字都要在知识库里找到出处。
+- 支持 `shadow`（灰度观察）/ `enforce`（全量拦截）两种模式，全部判定落审计表，block 事件自动触发知识条目复核工单。
+
+### 3. 知识库：一条 SQL 完成混合检索
+
+`pgvector` 向量相似度 + 元数据过滤（流程、地区、条目状态）在一条 SQL 内完成，配合**地区回退匹配**（县 → 市 → 省 → 全国逐级兜底）与重排序。知识条目上架必须经人工核准，运营白名单接口与农户侧完全隔离。
+
+### 4. 规则优先的农事播报
+
+播报不依赖模型在线：环境事实三级回退采集（传感器 → 天气服务 → 档案推断），阈值规则与病虫害气象风险规则先出文案，模型只做润色。快照幂等生成，按农户时区在最佳触达窗口内推送，额度、静默时段、失败归因全链路可观测。
+
+### 5. 工程质量：被 CI 强制的架构约束
+
+- **四条分层硬规则**由 `backend/scripts/check_layers.py` 检查，违反即构建失败：闸门不得依赖智能体层、智能体不得直接导入 ORM、模型网关不得反向依赖业务、任何模块不得直接 `db.query`。
+- 全项目枚举只在一处定义；自由文本转枚举失败即抛异常，**禁止静默兜底**。
+- 归属安全：`OwnedMixin` + `OwnedRepository` 基类保证任何接口拿不到别家农户的数据。
+- 300+ pytest 用例：契约测试、图路径测试、闸门规则覆盖矩阵、离线评测集回归，测试环境用 mock LLM 与独立测试库，不碰真实大模型。
 
 ## 界面预览
 
@@ -26,68 +60,65 @@
   </tr>
 </table>
 
+## 技术栈
+
+| 层 | 技术 |
+| --- | --- |
+| 小程序端 | 原生微信小程序 · TypeScript · glass-easel · 自定义 tabBar · 适老化样式 token · 语音朗读/输入 |
+| 后端 | Python 3.11+ · FastAPI（全异步）· SQLAlchemy 2.0（async）· Alembic · ARQ（异步任务） |
+| 数据 | PostgreSQL 16+（pgvector 向量检索 · TimescaleDB 时序）· Redis 7 |
+| AI | LangGraph 多智能体 · MCP 工具层 · PostgreSQL 检查点（断点续问）· DeepSeek 兼容模型 |
+
+> 底座统一为 **PostgreSQL 单一栈**：知识检索一条 SQL、LangGraph 检查点 `AsyncPostgresSaver` 持久化，取代了早期的 MySQL + SQLite 组合。
+
 ## 目录结构
 
 ```
 agriculuture-agent/
 ├── miniprogram/            # 微信小程序前端
 │   ├── pages/              # 页面（login/profile/index/ai/history/mine/env）
-│   ├── api/                # 后端接口封装（ai/auth/farmer/broadcast/environment/...）
-│   ├── components/         # 自定义组件（sprout-mascot）
+│   ├── api/                # 后端接口封装
 │   ├── custom-tab-bar/     # 自定义 tabBar
-│   ├── styles/             # 公共样式 token（tokens.wxss）
-│   ├── utils/              # 请求、鉴权 guard、常量、定位、语音（voice）
-│   └── app.json            # 页面/权限/tabBar 配置
-├── backend/                # FastAPI 后端
+│   ├── styles/             # 公共样式 token（适老化，由门禁脚本守护）
+│   └── utils/              # 请求、鉴权 guard、定位、语音
+├── backend/
 │   ├── app/
-│   │   ├── agent/          # LangGraph 编排（state/agents/contracts/graph/prompts/blackboard）
-│   │   ├── broadcast/      # 农事播报：输入采集/规则/文案/快照/触达
-│   │   ├── gate/           # 安全闸门规则引擎（白名单/剂量/间隔期/红线等）
-│   │   ├── knowledge/      # 知识库（索引/混合检索/地区回退/重排/种子 JSONL）
-│   │   ├── llm/            # 模型网关（供应商适配/路由/档位/熔断降级/计量）
-│   │   ├── process_config/ # 流程配置（七条流程 YAML + 红线 + 版本化）
-│   │   ├── tools/          # MCP 工具层（传感器/天气/档案/知识库/目录）
-│   │   ├── services/       # 业务服务层
-│   │   ├── repositories/   # 数据访问层（归属安全基类 OwnedRepository）
-│   │   ├── api/            # 路由 + 鉴权依赖
-│   │   ├── models/         # SQLAlchemy 模型
-│   │   ├── schemas/        # 接口出入参契约
-│   │   ├── integrations/   # 外部集成（微信/天气/逆地理/存储）
-│   │   ├── observability/  # 日志与指标
-│   │   ├── main.py         # 应用入口
-│   │   └── worker.py       # ARQ 任务进程（发件箱投递/触达扫描/回访）
+│   │   ├── agent/          # LangGraph 编排：state / contracts / agents / graph / prompts
+│   │   ├── gate/           # 安全闸门：规则引擎 + 10 条可单测规则 + 审计
+│   │   ├── process_config/ # 流程配置层：七条流程 YAML + 红线 + 版本化热加载
+│   │   ├── knowledge/      # 知识库：索引 / 混合检索 / 地区回退 / 重排 / 种子 JSONL
+│   │   ├── llm/            # 模型网关：供应商适配 / 路由档位 / 熔断降级 / token 计量
+│   │   ├── broadcast/      # 农事播报：输入采集 / 规则引擎 / 文案 / 快照 / 触达
+│   │   ├── services/ + repositories/ + api/ + models/ + schemas/
+│   │   ├── events/         # 事务性发件箱
+│   │   ├── main.py         # API 入口
+│   │   └── worker.py       # ARQ 任务进程（发件箱投递 / 触达扫描 / 回访）
 │   ├── alembic/            # 数据库迁移
-│   ├── scripts/            # 迁移、分层检查、CI 脚本
-│   ├── tests/              # pytest 测试
-│   ├── requirements.txt
-│   └── pyproject.toml
-├── docs/                   # 设计与任务文档
-│   ├── tasks/              # 分阶段改造任务总表（见 docs/tasks/README.md）
+│   ├── scripts/            # 分层检查、迁移校验、CI 脚本
+│   └── tests/              # pytest：契约 / 图路径 / 闸门 / 评测集
+├── docs/
+│   ├── tasks/              # 115 项分阶段改造任务（六阶段，含验收标准）
 │   └── photo/              # 架构与界面资源
-├── scripts/                # 前端样式 token 门禁脚本
-└── project.config.json     # 小程序项目配置（miniprogramRoot=miniprogram/）
+└── project.config.json
 ```
 
 ## 快速开始
 
 ### 1. 后端
 
-前置：PostgreSQL 16+（需带 `pgvector` 与 `timescaledb` 扩展，推荐 `timescale/timescaledb-ha:pg16` 镜像）、Redis 7+。
+前置：PostgreSQL 16+（需 `pgvector` 与 `timescaledb` 扩展，推荐 `timescale/timescaledb-ha:pg16` 镜像）、Redis 7+。
 
 ```bash
 cd backend
 
-# 创建并激活虚拟环境
 python -m venv .venv
 # Windows
 .venv\Scripts\activate
 # macOS / Linux
 source .venv/bin/activate
 
-# 安装依赖
 pip install -r requirements.txt
 
-# 配置环境变量（复制样例并填写）
 cp .env.example .env   # Windows: copy .env.example .env
 
 # 初始化数据库（PostgreSQL 需先建库 huanong）
@@ -99,12 +130,14 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 启动后（`DEBUG=true` 时开放文档）：
 
-- 接口文档（Swagger UI）：<http://127.0.0.1:8000/docs>
+- Swagger UI：<http://127.0.0.1:8000/docs>
 - ReDoc：<http://127.0.0.1:8000/redoc>
+
+`USE_MOCK_LLM=true`（默认值）时全部模型调用走确定性 mock，**不申请任何大模型 key 也能跑通完整诊断链路**；`WECHAT_APP_SECRET` 未配置时登录走 mock，不影响其余接口调试。
 
 ### 2. 后台任务进程（可选）
 
-发件箱投递、触达扫描与回访登记由独立的 ARQ worker 承担，与 API 进程分开部署：
+发件箱投递、触达扫描与回访登记由独立的 ARQ worker 承担：
 
 ```bash
 cd backend
@@ -119,76 +152,35 @@ arq app.worker.WorkerSettings
 
 ## 环境变量
 
-核心配置见 [backend/.env.example](backend/.env.example)，常用项：
+完整配置见 [backend/.env.example](backend/.env.example)，关键项：
 
 | 变量 | 说明 |
 | --- | --- |
-| `ENV` | 运行环境，取值 `development` / `staging` / `production`（启动时校验） |
-| `DATABASE_URL` | 业务库异步连接串，driver 必须是 `asyncpg`（`postgresql+asyncpg://...`） |
-| `CHECKPOINT_DB_URL` | LangGraph 检查点连接串，driver 为裸 `postgresql`（psycopg v3） |
-| `CHECKPOINT_SCHEMA` | 检查点表所在 schema（默认 `checkpoint`） |
-| `REDIS_URL` | Redis 地址（缓存、额度、事件发件箱队列） |
-| `REDIS_REQUIRED` | 生产环境置 `true`，缺失时启动自检拒绝启动 |
-| `JWT_SECRET` / `JWT_ALGORITHM` | 令牌签名密钥与算法（密钥只放 `.env`，勿提交） |
+| `ENV` | `development` / `staging` / `production`，启动时校验 |
+| `DATABASE_URL` / `CHECKPOINT_DB_URL` | 业务库（asyncpg）与 LangGraph 检查点库（psycopg v3）连接串 |
+| `JWT_SECRET` | 令牌签名密钥（只放 `.env`，勿提交） |
 | `GATE_MODE` | 安全闸门模式：灰度期 `shadow`，全量生产 `enforce` |
-| `CORS_ORIGINS` | CORS 白名单（JSON 数组或逗号分隔），生产为空或含 `*` 时拒绝启动 |
-| `EMBEDDING_DIM` | 知识条目向量维度，须与 embedding 模型输出一致 |
-| `WECHAT_APP_ID` / `WECHAT_APP_SECRET` | 小程序凭证（secret 缺失时登录走 mock） |
-| `FARM_LLM_API_URL` / `FARM_API_KEY` | 农业大模型兼容 API 地址与密钥 |
-| `USE_MOCK_LLM` | `true` 时模型调用走确定性 mock（联调与测试用） |
-| `ZERO_MODEL_MODE` | `true` 时关闭全部模型调用，仅用规则层能力产出文案 |
-| `KNOWLEDGE_REVIEW_OPERATOR_IDS` | 知识条目核准接口的运营白名单（空 = 无人可调用） |
+| `USE_MOCK_LLM` | `true` 时模型调用走确定性 mock（联调与测试默认） |
+| `ZERO_MODEL_MODE` | `true` 时切断全部模型调用，仅用规则层能力产出文案 |
+| `CORS_ORIGINS` | CORS 白名单，生产为空或含 `*` 时拒绝启动 |
 
-## API 接口
+密钥类变量只写入本地 `.env`，不要提交到仓库。
 
-统一响应结构：`{ "code": 200, "message": "success", "data": ... }`，除登录外均需 `Authorization: Bearer <token>`。
+## API 一览
 
-| 方法 | 路径 | 说明 |
+统一响应结构 `{ "code": 200, "message": "success", "data": ... }`，除登录外均需 `Authorization: Bearer <token>`。
+
+| 分组 | 端点示例 | 说明 |
 | --- | --- | --- |
-| POST | `/api/login` | 微信登录 |
-| POST | `/api/logout` | 登出（令牌吊销） |
-| GET/POST | `/api/farmer/profile` | 获取 / 保存农户档案 |
-| GET | `/api/location/reverse-geocode` | 逆地理编码 |
-| POST | `/api/location/set` | 设置农户位置 |
-| GET/POST | `/api/broadcast/snapshot` | 读取 / 生成当日提示快照 |
-| POST | `/api/broadcast/items/{item_id}/execute` | 提示条目执行回执（勾选/取消） |
-| GET | `/api/environment/summary` | 环境监测汇总 |
-| GET | `/api/environment/detail` | 环境监测详情 |
-| POST | `/api/ai/chat` | AI 农技诊断对话（图驱动） |
-| GET | `/api/ai/history` | 对话历史 |
-| DELETE | `/api/ai/history/{session_id}` | 删除对话 |
-| POST | `/api/ai/prescription/{card_id}/ledger` | 处方卡存入农事台账（幂等） |
-| GET | `/api/subscription/quota` | 查询推送额度 |
-| POST | `/api/subscription/grant` | 记录订阅授权结果 |
-| POST | `/api/knowledge/review/{knowledge_id}` | 知识条目核准（运营白名单） |
-| POST | `/api/user/avatar/upload` | 上传头像 |
-| DELETE | `/api/user/cancel` | 注销账户 |
-
-## AI 农技诊断
-
-诊断链路为「受理即分流 → 看现场 → 问五情 → 查依据 → 下判断 → 开方 → 安全校验 → 登记回访」的闭环，基于 LangGraph 状态机实现：
-
-![AI 诊断状态机](docs/photo/ai-diagnosis-flow.svg)
-
-- **受理即分流**：进入图后的第一条边即为条件边，按 `processHint` 或分诊结果路由到七条流程子图之一（水稻 / 茶 / 油菜 / 辣椒 / 杂草 / 养猪 / 通用兜底），不存在「先问症状再猜流程」。
-- **七条流程子图**：由 `app/agent/graph/factories.py` 工厂函数装配，配置来自 `app/process_config/seeds/*.yaml`。
-- **多智能体分工**：`triage`（分诊）、`field_observer`（现场采集）、`interviewer`（问诊）、`retriever`（证据核查）、`diagnoser`（判定）、`panel`（受限并行会诊）、`prescriber`（处方）、`report_guard`（报告守卫）、`handoff`（转人工）等。
-- **安全闸门**：处方产出后经独立闸门子图判定（`allow` / `degrade` / `block`），命中红线一律转人工，所有规则可单测（见 `app/gate/rules/`）。
-- **知识库取证**：`app/knowledge/` 提供向量 + 关键词混合检索、地区回退匹配与重排序，药剂白名单、安全间隔期等规则的比对基准均来自知识库。
-- **模型网关**：`app/llm/` 统一供应商适配、任务路由与档位、熔断降级与 token 计量；`ZERO_MODEL_MODE` 下可完全断开模型仅用规则。
-- **记忆与断点**：短期由 PostgreSQL 检查点器持久化，支持中断恢复与断点续问；长期用 `memory_service` 存取画像与关键事实。
-
-## 农事播报
-
-播报生成采用**规则优先**策略，规则未命中时逐级兜底，保证任何环境下都能产出当日提醒：
-
-![农事播报生成链路](docs/photo/broadcast-flow.svg)
-
-- **输入采集**：`app/broadcast/inputs/` 收敛环境事实（三级回退）、农事历、问诊与回访信号。
-- **规则引擎**：`app/broadcast/rules/` 提供阈值规则（高温/低温/墒情/高湿/降雨/大风）与病虫害气象风险。
-- **优先级与条数**：`app/broadcast/priority.py` 排序并控制当日条数。
-- **文案生成**：`app/broadcast/writer.py` 由模板出事实，必要时经模型网关润色。
-- **快照与触达**：`app/broadcast/snapshot.py` 幂等生成快照，`notifier.py` + `window.py` 在最佳窗口内按额度推送。
+| 认证 | `POST /api/login`、`POST /api/logout` | 微信登录、登出（令牌吊销） |
+| 档案 | `GET/POST /api/farmer/profile`、`POST /api/location/set` | 农户档案与位置 |
+| 播报 | `GET/POST /api/broadcast/snapshot` | 读取 / 生成当日提示快照（幂等） |
+| 环境 | `GET /api/environment/summary`、`/detail` | 环境监测汇总与详情（来源标注） |
+| AI 诊断 | `POST /api/ai/chat`、`GET /api/ai/history` | 图驱动多轮诊断、对话历史 |
+| 台账 | `POST /api/ai/prescription/{card_id}/ledger` | 处方卡存入农事台账（幂等） |
+| 设备 | 设备绑定 / 上报 / 列表解绑 | 传感器接入与字段映射 |
+| 订阅 | `GET /api/subscription/quota`、`POST /grant` | 推送额度与订阅授权 |
+| 运营 | `POST /api/knowledge/review/{knowledge_id}` | 知识条目核准（白名单隔离） |
 
 ## 质量门禁与测试
 
@@ -203,24 +195,22 @@ bash scripts/ci.sh        # ruff format/check → mypy → check_layers → pyte
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest -q     # Windows
-python -m pytest -q                      # macOS / Linux
+python -m pytest -q
 ```
 
 - 测试使用 PostgreSQL 测试库（`TEST_DATABASE_URL`）与 mock LLM 隔离环境，不调用真实大模型。
-- `scripts/check_layers.py` 强制分层依赖（如闸门不得依赖智能体层、禁止直接 `db.query`）。
+- `scripts/check_layers.py` 强制四条分层依赖规则，白名单条目有上限且需登记失效任务编号。
 - 前端适老化样式由根目录 `scripts/check_wxss_tokens.mjs` 门禁校验（字号/行距/热区只允许定义在 `tokens.wxss`）。
-- CI 流程见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
+- 离线评测集（`backend/tests/eval/`）对七条流程做加权一致率回归。
 
-## 注意事项
+## 设计与任务文档
 
-- `project.config.json` 为共享配置（已纳入版本库），个人配置 `project.private.config.json` 已加入 `.gitignore`。
-- 密钥类变量（`JWT_SECRET`、`WECHAT_APP_SECRET`、`FARM_API_KEY` 等）只写入本地 `.env`，不要提交到仓库。
-- `WECHAT_APP_SECRET` 未配置时登录走 mock，不影响其余接口调试。
-- 生产上线前：将 `BASE_URL` 替换为 HTTPS 域名、配置微信 request 合法域名、把 `ENV` 置为 `production` 并将 `GATE_MODE` 切到 `enforce`，同时补全 `.env` 中的密钥。
-
-## 相关文档
+本项目按「任务驱动」方式改造，每个任务是一份自足的施工说明（做什么 / 依赖什么 / 改哪些文件 / 怎么验收），共 115 项、六个阶段：底座归位 → 流程与问诊重构 → 提示与触达 → 适老化 → 传感器接入 → 质量与交付。
 
 - 任务总表：[docs/tasks/README.md](docs/tasks/README.md)
-- 全局约定与执行规范：[docs/tasks/00-全局约定与执行规范.md](docs/tasks/00-全局约定与执行规范.md)
-- 产品说明书与技术实现方案见 `docs/` 目录。
+- 全局约定与执行规范（动手前必读）：[docs/tasks/00-全局约定与执行规范.md](docs/tasks/00-全局约定与执行规范.md)
+- 产品说明书与技术实现方案见 `docs/` 目录
+
+## License
+
+见 [LICENSE](LICENSE)。
