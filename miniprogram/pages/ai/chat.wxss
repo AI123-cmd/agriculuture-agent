@@ -1,4 +1,4 @@
-@import '../../styles/tokens.wxss';
+﻿@import '../../styles/tokens.wxss';
 /* pages/ai/chat.wxss */
 page {
   background: #ffffff;

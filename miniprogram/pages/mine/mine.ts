@@ -1,5 +1,6 @@
 // pages/mine/mine.ts
 import { uploadAvatar, cancelAccount } from '../../api/user'
+import { logout as logoutApi } from '../../api/auth'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
 import { BASE_URL } from '../../utils/config'
@@ -69,21 +70,29 @@ Page({
       content: '确定要退出登录吗？',
       confirmColor: '#d32f2f',
       success: (res) => {
-        if (res.confirm) {
-          // 清除所有本地存储的用户数据
-          wx.removeStorageSync(KEY.TOKEN);
-          wx.removeStorageSync(KEY.USER_ID);
-          wx.removeStorageSync(KEY.USER_INFO);
-          wx.removeStorageSync(KEY.HAS_LOGIN);
-          wx.removeStorageSync(KEY.FARMER_NAME);
-          wx.removeStorageSync(KEY.FARMER_CROPS);
-          wx.removeStorageSync(KEY.FARMER_PROFILE);
-          wx.removeStorageSync(KEY.FARM_LOCATION);
+        if (!res.confirm) return;
 
-          wx.reLaunch({ url: '/pages/login/login' });
-        }
+        // 先调后端吊销令牌（此时 token 仍在 storage 中，才能被注入请求头）。
+        // 无论成功与否都要清本地并退出：网络异常不应把用户困在已登出意愿里。
+        logoutApi()
+          .catch(() => {})
+          .then(() => this.clearLocalAndToLogin());
       },
     });
+  },
+
+  /** 清除本地用户数据并回到登录页 */
+  clearLocalAndToLogin() {
+    wx.removeStorageSync(KEY.TOKEN);
+    wx.removeStorageSync(KEY.USER_ID);
+    wx.removeStorageSync(KEY.USER_INFO);
+    wx.removeStorageSync(KEY.HAS_LOGIN);
+    wx.removeStorageSync(KEY.FARMER_NAME);
+    wx.removeStorageSync(KEY.FARMER_CROPS);
+    wx.removeStorageSync(KEY.FARMER_PROFILE);
+    wx.removeStorageSync(KEY.FARM_LOCATION);
+
+    wx.reLaunch({ url: '/pages/login/login' });
   },
 
   cancelAccount() {

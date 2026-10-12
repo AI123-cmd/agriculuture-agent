@@ -23,7 +23,8 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const WXML = join(ROOT, 'miniprogram/pages/index/index.wxml');
 
 const COUNTED = { onAsk: 'ask', onUpdateTips: 'view-tips' };
-const EXEMPT = new Set(['onToggleExecuted', 'chooseLocation']);
+// onReadTip（朗读）见 T4-03 §七：属提示阅读的辅助动作，与执行勾选同级，不构成导航分叉，不计入两处。
+const EXEMPT = new Set(['onToggleExecuted', 'chooseLocation', 'onReadTip']);
 
 /** 取 <view class="page-content"> 内层文本（按 view 标签配对计数）。 */
 function extractContentArea(src) {
