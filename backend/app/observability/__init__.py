@@ -11,7 +11,10 @@
 from .logging import log
 from .metrics import MetricsCollector, metrics
 from .tracing import (
+    GENERATION_SPAN_NAME,
+    ROOT_SPAN_NAME,
     configure_tracing,
+    consultation_span,
     current_trace_context,
     force_flush,
     generation_span,
@@ -21,8 +24,11 @@ from .tracing import (
 )
 
 __all__ = [
+    "GENERATION_SPAN_NAME",
     "MetricsCollector",
+    "ROOT_SPAN_NAME",
     "configure_tracing",
+    "consultation_span",
     "current_trace_context",
     "force_flush",
     "generation_span",

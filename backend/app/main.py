@@ -28,6 +28,7 @@ from app.core.exceptions import AppException
 from app.core.response import error_response
 from app.core.startup_check import run_startup_checks, verify_checkpoint_schema, verify_schema_revision
 from app.db.session import engine
+from app.observability import configure_tracing, force_flush
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -37,6 +38,9 @@ settings = get_settings()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 配置自检必须排在最前：配置不安全时不应先建连接再退出
     await run_startup_checks()
+    # 追踪器早于图构建装配：图节点的 span 包装在导入期已绑定 `_tracer()`，provider 需在
+    # 首次执行前就位，否则本轮 trace 会落到空操作 provider 上。
+    configure_tracing(settings)
     # 迁移版本校验必须在预热之前：结构漂移时不应先建连接再退出
     await verify_schema_revision(engine)
     # 预热：初始化 checkpointer 与诊断图单例（顺带由 setup() 建出检查点表）
@@ -44,7 +48,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 检查点表由 setup() 自建，故数量断言必须排在预热之后
     await verify_checkpoint_schema(engine)
     yield
-    # 收尾：先关检查点连接池，再释放业务引擎
+    # 收尾：把批量导出器缓冲里的 span 刷出，再关检查点连接池与业务引擎
+    force_flush()
     await close_checkpointer()
     await engine.dispose()
 

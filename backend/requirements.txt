@@ -33,6 +33,8 @@ structlog>=24.1.0
 opentelemetry-api>=1.24.0
 opentelemetry-sdk>=1.24.0
 opentelemetry-instrumentation-fastapi>=0.45b0
+# OTLP 导出器（T6-06）：生产把 span 推到自建 collector；无 collector 时用控制台/空导出器
+opentelemetry-exporter-otlp>=1.24.0
 
 # HTTP / 工具
 # httpx 0.28+ 移除了 Client(app=...) 参数，与 starlette<0.37 的 TestClient 不兼容

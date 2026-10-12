@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
+import inspect
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from typing import Any
 
@@ -28,7 +29,7 @@ from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
-from opentelemetry.trace import NoOpTracerProvider, Span, Tracer
+from opentelemetry.trace import NoOpTracerProvider, Span, Status, StatusCode, Tracer
 
 from app.observability.attributes import (
     CONSULTATION_ID,
@@ -196,11 +197,7 @@ def _set_outcome_attributes(span: Span, updates: Mapping[str, Any]) -> None:
         )
     slots = updates.get("slots")
     if isinstance(slots, Mapping):
-        hit = [
-            str(key)
-            for key, slot in slots.items()
-            if isinstance(slot, Mapping) and slot.get("status") == "filled"
-        ]
+        hit = [str(key) for key, slot in slots.items() if isinstance(slot, Mapping) and slot.get("status") == "filled"]
         span.set_attribute(INTERVIEW_SLOTS_HIT, csv(hit))
 
     evidence = updates.get("evidence")
@@ -223,36 +220,93 @@ def _set_outcome_attributes(span: Span, updates: Mapping[str, Any]) -> None:
         span.set_attribute(GATE_RULES_HIT, csv(rules))
 
 
-def traced_node(name: str, fn: Callable[..., Awaitable[dict]]) -> Callable[..., Awaitable[dict]]:
+def traced_node(name: str, fn: Any, *, span_name: str | None = None) -> Callable[..., Any]:
     """把一个节点函数包成带 span 的节点。
 
     包裹而非"节点内各写一行"：七个工厂与主图十余个节点若各自 `start_as_current_span`，
     字段口径必然分叉。包装后「每个智能体 = 一个 span」成为结构性质，不依赖执行者自觉。
 
+    同步与异步节点都吃（主图 `confirm_object`/`subgraph_router`/`followup` 是同步函数）。
+    包裹体保持与来源一致的调用形态，LangGraph 才能照常 `await` 异步节点、直接调用同步节点。
+
+    `name` 同时作为 `__name__`（工厂依赖它区分流程，`test_factories` 会断言）；`span_name`
+    用于 span 名，缺省与 `name` 相同。子图节点传入图上的注册名（如 `"observe"`），使
+    "子 span 名为节点名"成立，而 `__name__` 仍是 `observe_rice`。
+
     异常处理的一条例外：LangGraph 的 `GraphBubbleUp`（含 `interrupt` 抛出的
     `GraphInterrupt`）是控制流信号而不是失败，必须原样上抛且**不**记 `node.ok=False`
     ——否则中断等待农户回答的节点会被统计成"失败节点"。
     """
+    label = span_name or name
 
-    async def _wrapped(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> dict:
-        with _tracer().start_as_current_span(name) as span:
+    # `record_exception=False, set_status_on_exception=False`：把"记异常/置失败状态"完全交给
+    # 下面的显式分支。默认 True 会让**任何**穿过 `with` 的异常都被记成 ERROR，包括 LangGraph
+    # 的中断控制流，从而把"等待农户回答"误报成"节点失败"。
+    if inspect.iscoroutinefunction(fn):
+
+        async def _wrapped_async(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> Any:
+            with _tracer().start_as_current_span(label, record_exception=False, set_status_on_exception=False) as span:
+                _set_node_attributes(span, state)
+                try:
+                    result = await fn(state, *args, **kwargs)
+                except GraphBubbleUp:
+                    raise
+                except Exception as exc:
+                    _mark_failure(span, exc)
+                    raise
+                _mark_success(span, result)
+                return result
+
+        _wrapped_async.__name__ = name
+        return _wrapped_async
+
+    def _wrapped_sync(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> Any:
+        with _tracer().start_as_current_span(label, record_exception=False, set_status_on_exception=False) as span:
             _set_node_attributes(span, state)
             try:
-                result = await fn(state, *args, **kwargs)
+                result = fn(state, *args, **kwargs)
             except GraphBubbleUp:
-                # 控制流信号（中断/图冒泡）：不标记失败，直接上抛。
                 raise
             except Exception as exc:
-                span.set_attribute(NODE_OK, False)
-                span.record_exception(exc)
+                _mark_failure(span, exc)
                 raise
-            span.set_attribute(NODE_OK, True)
-            if isinstance(result, Mapping):
-                _set_outcome_attributes(span, result)
+            _mark_success(span, result)
             return result
 
-    _wrapped.__name__ = name
-    return _wrapped
+    _wrapped_sync.__name__ = name
+    return _wrapped_sync
+
+
+def _mark_success(span: Span, result: Any) -> None:
+    span.set_attribute(NODE_OK, True)
+    if isinstance(result, Mapping):
+        _set_outcome_attributes(span, result)
+
+
+def _mark_failure(span: Span, exc: BaseException) -> None:
+    """失败：属性记 `node.ok=False` 并置 span 状态为 `ERROR`，异常由调用方继续上抛。
+
+    显式 `set_status(StatusCode.ERROR)`：`record_exception` 只把异常记进事件列表，
+    不改变 span 状态；而后端按 `status = ERROR` 聚合失败率（14.3 链路级指标"各节点
+    失败率"），不设状态就查不到。二者必须同时写。
+    """
+    span.set_attribute(NODE_OK, False)
+    span.record_exception(exc)
+    span.set_status(Status(StatusCode.ERROR, str(exc)))
+
+
+@contextmanager
+def consultation_span(session_id: str | None, process_id: object = None) -> Iterator[Span]:
+    """一次问诊的根 span（14.4：一次问诊 = 一个 trace）。
+
+    在问诊入口（`AIService` 调图处）打开，把 `session_id`（即检查点 `thread_id`）写进
+    `consultation.id`，使 trace 可按会话检索。子节点与 generation 因处于当前 span 栈内，
+    自动成为它的后代，无需手工传 parent。
+    """
+    with _tracer().start_as_current_span(ROOT_SPAN_NAME) as span:
+        span.set_attribute(CONSULTATION_ID, str(session_id) if session_id else EMPTY_VALUE)
+        span.set_attribute(PROCESS_ID, str(getattr(process_id, "value", process_id) or "unknown"))
+        yield span
 
 
 @contextmanager
@@ -296,6 +350,7 @@ __all__ = [
     "GENERATION_SPAN_NAME",
     "ROOT_SPAN_NAME",
     "configure_tracing",
+    "consultation_span",
     "current_trace_context",
     "force_flush",
     "generation_span",

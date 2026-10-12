@@ -28,6 +28,11 @@ dependencies = [
     "PyYAML>=6.0",
     # 中文分词（T2-17 追问候选池的相关性粗排；同时也是知识库检索的关键词兜底分词器）
     "jieba>=0.42.1",
+    # 链路追踪（T6-06，技术方案 14.4）
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-instrumentation-fastapi>=0.45b0",
+    "opentelemetry-exporter-otlp>=1.24.0",
 ]
 
 [project.optional-dependencies]

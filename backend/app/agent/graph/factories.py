@@ -54,6 +54,7 @@ from app.agent.budget import ConsultBudget
 from app.agent.contracts import EvidenceItem, EvidenceQuery, ImageCandidate, dump_contract
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, TaskType
 from app.llm import get_gateway
+from app.observability import traced_node
 from app.process_config.loader import get_process_config
 from app.process_config.models import ProcessConfig
 
@@ -70,6 +71,18 @@ def get_config(process_id: ProcessId) -> ProcessConfig:
     正确处置是在加载阶段终结，由路由层把该流程指向 `handoff`。
     """
     return get_process_config(process_id)
+
+
+def _traced(kind: str, config: ProcessConfig, node: NodeFn) -> NodeFn:
+    """给工厂产出的节点套统一追踪（T6-06）。
+
+    集中在工厂里包一次，七个节点与新增流程都自动获得 span，避免逐个节点手写——
+    属性口径一旦分散，后端的失败率与成本分组就会因写法差异而漏数。
+
+    `name` 保持 `{kind}_{流程}`（工厂靠它区分流程，`test_factories` 会断言），
+    `span_name` 用图上的注册名（`observe`/`interview`/…），使"子 span 名为节点名"成立。
+    """
+    return cast(NodeFn, traced_node(f"{kind}_{config.process_id.value}", node, span_name=kind))
 
 
 # ---- 外部端口占位实现 ----
@@ -145,8 +158,7 @@ def make_observe_node(config: ProcessConfig) -> NodeFn:
         result = await observer.run(state, _context_for(state, config, TaskType.OBSERVE))
         return {"observations": dump_contract(result), "stage": ConsultStage.OBSERVE}
 
-    observe.__name__ = f"observe_{config.process_id.value}"
-    return observe
+    return _traced("observe", config, observe)
 
 
 def make_interview_node(config: ProcessConfig) -> NodeFn:
@@ -185,7 +197,7 @@ def make_interview_node(config: ProcessConfig) -> NodeFn:
         }
 
     interview.__name__ = f"interview_{config.process_id.value}"
-    return interview
+    return _traced("interview", config, interview)
 
 
 def make_verify_node(config: ProcessConfig) -> NodeFn:
@@ -201,7 +213,7 @@ def make_verify_node(config: ProcessConfig) -> NodeFn:
         }
 
     verify.__name__ = f"verify_{config.process_id.value}"
-    return verify
+    return _traced("verify", config, verify)
 
 
 def make_judge_node(config: ProcessConfig) -> NodeFn:
@@ -219,7 +231,7 @@ def make_judge_node(config: ProcessConfig) -> NodeFn:
         return out
 
     judge.__name__ = f"judge_{config.process_id.value}"
-    return judge
+    return _traced("judge", config, judge)
 
 
 def make_prescribe_node(config: ProcessConfig) -> NodeFn:
@@ -232,7 +244,7 @@ def make_prescribe_node(config: ProcessConfig) -> NodeFn:
         return {"prescription": dump_contract(result), "stage": ConsultStage.PRESCRIBE}
 
     prescribe.__name__ = f"prescribe_{config.process_id.value}"
-    return prescribe
+    return _traced("prescribe", config, prescribe)
 
 
 def make_panel_node(config: ProcessConfig) -> NodeFn | None:
@@ -258,7 +270,7 @@ def make_panel_node(config: ProcessConfig) -> NodeFn | None:
         }
 
     panel.__name__ = f"panel_{config.process_id.value}"
-    return panel
+    return _traced("panel", config, panel)
 
 
 def make_handoff_node(config: ProcessConfig) -> NodeFn:
@@ -267,7 +279,7 @@ def make_handoff_node(config: ProcessConfig) -> NodeFn:
     直接复用 `build_handoff_node(config)`：转人工的判定与渲染是通用实现，形态与报告守卫的
     `build_report_guard_node(config)` 保持一致，子图与主图共用同一节点函数。
     """
-    return build_handoff_node(config)
+    return _traced("handoff", config, build_handoff_node(config))
 
 
 __all__ = [
