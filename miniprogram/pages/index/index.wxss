@@ -16,7 +16,7 @@ page {
   top: 0;
   left: 0;
   width: 100%;
-  background: linear-gradient(150deg, #43a047 0%, #2e7d32 55%, #1f5c24 100%);
+  background: var(--grad-header);
   padding: 24rpx 30rpx;
   padding-top: calc(110rpx + env(safe-area-inset-top));
   padding-bottom: 32rpx;
@@ -24,7 +24,8 @@ page {
   z-index: 100;
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 0 0 36rpx 36rpx;
+  border-radius: 0 0 40rpx 40rpx;
+  box-shadow: 0 8rpx 24rpx rgba(46, 125, 50, 0.18);
 }
 
 /* 头部装饰圆：纯装饰图形 */
@@ -148,10 +149,14 @@ page {
   font-weight: 500;
 }
 
-/* —— 环境一行状态：只读，不可点击 —— */
+/* —— 环境一行状态：只读，不可点击；半透白胶囊衬托信息 —— */
 .env-line {
   display: flex;
   align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 999rpx;
+  padding: 14rpx 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(46, 125, 50, 0.06);
 }
 
 .env-line-text {
@@ -204,10 +209,23 @@ page {
 }
 
 .tip-callout {
+  display: flex;
+  align-items: center;
   font-size: var(--font-body);
   font-weight: 700;
   color: var(--text-primary);
   line-height: var(--line-tight);
+}
+
+/* 要点前置圆点：纯装饰图形，尺寸登记在 scripts/wxss-token-whitelist.json */
+.tip-callout::before {
+  content: '';
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  margin-right: 14rpx;
+  flex-shrink: 0;
 }
 
 .tip-fact {
@@ -237,6 +255,10 @@ page {
   font-weight: 400;
 }
 
+.tip-done .tip-callout::before {
+  background: #c9d4c0;
+}
+
 .tip-actions {
   display: flex;
   align-items: center;
@@ -249,7 +271,7 @@ page {
    .tip-read-btn / .tip-read-icon 视觉定义在 app.wxss（公共类） */
 
 .tip-check-done {
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: var(--grad-brand);
   border-color: transparent;
 }
 
@@ -270,14 +292,10 @@ page {
 
 .update-btn {
   width: 100%;
-  color: #ffffff;
-  background: linear-gradient(135deg, #43a047, #2e7d32);
 }
 
-/* —— 核心动作：我要提问 —— */
+/* —— 核心动作：我要提问；渐变与阴影由公共类 .btn-primary 提供 —— */
 .ask-btn {
   width: 100%;
-  color: #ffffff;
-  background: linear-gradient(135deg, #43a047, #2e7d32);
-  box-shadow: 0 8rpx 20rpx rgba(46, 125, 50, 0.25);
+  letter-spacing: 4rpx;
 }

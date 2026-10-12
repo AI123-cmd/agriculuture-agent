@@ -1,20 +1,20 @@
 @import '../../styles/tokens.wxss';
 /* pages/history/list.wxss */
 page {
-  background: #f0f4ea;
+  background: var(--bg-page);
 }
 
 .history-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f0f4ea;
+  background: var(--bg-page);
 }
 
 /* 头部 */
 .header {
   position: relative;
-  background: linear-gradient(150deg, #43a047 0%, #2e7d32 55%, #1f5c24 100%);
+  background: var(--grad-header);
   padding-top: calc(110rpx + env(safe-area-inset-top));
   padding-bottom: 32rpx;
   padding-left: 30rpx;
@@ -26,7 +26,8 @@ page {
   justify-content: space-between;
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 0 0 36rpx 36rpx;
+  border-radius: 0 0 40rpx 40rpx;
+  box-shadow: 0 8rpx 24rpx rgba(46, 125, 50, 0.18);
 }
 
 .header-deco {
@@ -84,12 +85,17 @@ page {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.22);
   padding: 12rpx 24rpx;
-  border-radius: 32rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.4);
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.45);
   min-height: var(--tap-min);
   box-sizing: border-box;
+  transition: background 0.15s ease;
+}
+
+.new-chat-btn:active {
+  background: rgba(255, 255, 255, 0.34);
 }
 
 .plus-icon {
@@ -112,7 +118,10 @@ page {
 }
 
 .history-list {
-  padding: 24rpx 0;
+  padding: 24rpx 30rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
 }
 
 .conversation-item {
@@ -121,6 +130,13 @@ page {
   padding: 32rpx;
   background: #fff;
   gap: 24rpx;
+  border-radius: 24rpx;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease;
+}
+
+.conversation-item:active {
+  transform: scale(0.98);
 }
 
 .conv-icon {
@@ -175,12 +191,6 @@ page {
   color: #595959;
 }
 
-.conv-divider {
-  height: 1rpx;
-  background: #f0f0f0;
-  margin-left: 144rpx;
-}
-
 /* 空状态 */
 .empty-state {
   display: flex;
@@ -209,15 +219,15 @@ page {
 
 .empty-btn {
   margin-top: 24rpx;
-  background: linear-gradient(135deg, #43a047, #2e7d32);
-  border-radius: 44rpx;
+  background: var(--grad-brand);
+  border-radius: 999rpx;
   padding: 20rpx 48rpx;
   min-height: var(--btn-primary-height);
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 20rpx rgba(46, 125, 50, 0.25);
+  box-shadow: var(--shadow-btn);
 }
 
 .empty-btn:active {

@@ -31,7 +31,6 @@
             <text class="delete-icon">✕</text>
           </view>
         </view>
-        <view class="conv-divider"></view>
       </block>
 
       <view wx:if="{{conversations.length === 0}}" class="empty-state">

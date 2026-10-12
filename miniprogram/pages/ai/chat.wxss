@@ -1,20 +1,20 @@
-﻿@import '../../styles/tokens.wxss';
+@import '../../styles/tokens.wxss';
 /* pages/ai/chat.wxss */
 page {
-  background: #ffffff;
+  background: var(--bg-page);
 }
 
 .chat-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #ffffff;
+  background: var(--bg-page);
 }
 
 /* 头部 */
 .header {
   position: relative;
-  background: linear-gradient(150deg, #43a047 0%, #2e7d32 55%, #1f5c24 100%);
+  background: var(--grad-header);
   padding-top: calc(110rpx + env(safe-area-inset-top));
   padding-bottom: 32rpx;
   padding-left: 30rpx;
@@ -25,7 +25,8 @@ page {
   align-items: center;
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 0 0 36rpx 36rpx;
+  border-radius: 0 0 40rpx 40rpx;
+  box-shadow: 0 8rpx 24rpx rgba(46, 125, 50, 0.18);
 }
 
 .header-deco {
@@ -84,7 +85,7 @@ page {
   justify-content: space-between;
   padding: 16rpx 30rpx;
   background: #fff;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid #e4ebdd;
   flex-shrink: 0;
 }
 
@@ -100,10 +101,11 @@ page {
 
 .crop-tag-current {
   font-weight: 600;
-  color: #2e7d32;
-  background: #e8f5e9;
+  color: #ffffff;
+  background: var(--grad-brand);
   padding: 6rpx 24rpx;
   border-radius: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.2);
 }
 
 .crop-tag-switch {
@@ -128,7 +130,7 @@ page {
   flex: 1;
   width: 100%;
   height: calc(100vh - 310rpx - env(safe-area-inset-top));
-  background: #f0f4ea;
+  background: var(--bg-page);
   padding: 24rpx 24rpx calc(260rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -194,13 +196,14 @@ page {
   background: #fff;
   color: #333;
   border-top-left-radius: 8rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4rpx 16rpx rgba(46, 125, 50, 0.07);
 }
 
 .user-bubble {
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: var(--grad-brand);
   color: #fff;
   border-top-right-radius: 8rpx;
+  box-shadow: 0 4rpx 14rpx rgba(46, 125, 50, 0.22);
 }
 
 /* AI消息旁的语音播放按钮：热区由 .tap-88 撑起 */
@@ -209,7 +212,8 @@ page {
   width: var(--tap-min);
   height: var(--tap-min);
   border-radius: 50%;
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: var(--grad-brand);
+  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -312,6 +316,12 @@ page {
   color: var(--text-brand);
   font-size: var(--font-body);
   font-weight: 600;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.qa-option:active {
+  background: #e3f2e4;
+  transform: scale(0.98);
 }
 
 .qa-unknown {
@@ -320,7 +330,11 @@ page {
   color: var(--text-muted);
 }
 
-/* —— 处方卡 —— */
+/* —— 处方卡：品牌绿左侧强调条 —— */
+.rx-card {
+  border-left: 8rpx solid #43a047;
+}
+
 .rx-summary {
   margin-bottom: var(--space-heading);
 }
@@ -360,7 +374,11 @@ page {
   color: #b07d2b;
 }
 
-/* —— 转人工卡 —— */
+/* —— 转人工卡：琥珀色左侧强调条，与处方卡区分 —— */
+.handoff-card {
+  border-left: 8rpx solid #f0a53c;
+}
+
 .handoff-points {
   margin-top: var(--space-heading);
 }
@@ -380,7 +398,8 @@ page {
   gap: 16rpx;
   padding: 16rpx 24rpx;
   background: #fff;
-  border-top: 1rpx solid #e0e0e0;
+  border-top: 1rpx solid #e4ebdd;
+  box-shadow: 0 -6rpx 24rpx rgba(46, 125, 50, 0.06);
   box-sizing: border-box;
   z-index: 99;
 }
@@ -396,7 +415,8 @@ page {
   width: var(--tap-min);
   height: var(--tap-min);
   border-radius: 50%;
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: var(--grad-brand);
+  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.25);
   font-size: 0;
   display: flex;
   align-items: center;
@@ -427,8 +447,9 @@ page {
 
 .input-wrap {
   flex: 1;
-  background: #f5f5f5;
-  border-radius: 36rpx;
+  background: #f0f6ee;
+  border: 1rpx solid #e0ead9;
+  border-radius: 44rpx;
   padding: 0 32rpx;
   min-height: var(--tap-min);
   display: flex;
@@ -444,16 +465,17 @@ page {
   width: var(--tap-min);
   height: var(--tap-min);
   border-radius: 50%;
-  background: #ccc;
+  background: #cfd6cb;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
   flex-shrink: 0;
 }
 
 .send-btn.active {
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: var(--grad-brand);
+  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.3);
 }
 
 .send-icon {
