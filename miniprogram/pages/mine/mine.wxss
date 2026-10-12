@@ -1,12 +1,12 @@
 @import '../../styles/tokens.wxss';
 /* pages/mine/mine.wxss */
 page {
-  background: #f0f4ea;
+  background: var(--bg-page);
 }
 
 .mine-page {
   min-height: 100vh;
-  background: #f0f4ea;
+  background: var(--bg-page);
   padding-bottom: calc(110rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -14,7 +14,7 @@ page {
 /* —— 顶部用户区域 —— */
 .header {
   position: relative;
-  background: linear-gradient(155deg, #4caf50 0%, #2e7d32 55%, #1b5e20 100%);
+  background: var(--grad-header);
   padding-top: calc(110rpx + env(safe-area-inset-top));
   padding-bottom: 44rpx;
   padding-left: 30rpx;
@@ -23,6 +23,7 @@ page {
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 0 0 40rpx 40rpx;
+  box-shadow: 0 8rpx 24rpx rgba(46, 125, 50, 0.18);
 }
 
 .header-deco {
@@ -193,9 +194,9 @@ page {
 .menu-section {
   margin: 0 30rpx;
   background: #fff;
-  border-radius: 28rpx;
+  border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 6rpx 24rpx rgba(46, 125, 50, 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 .menu-item {
@@ -380,7 +381,7 @@ page {
 .logout-btn {
   min-height: var(--btn-primary-height);
   background: #fff;
-  border-radius: 28rpx;
+  border-radius: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -388,7 +389,7 @@ page {
   color: #e53935;
   font-weight: 600;
   letter-spacing: 4rpx;
-  box-shadow: 0 6rpx 24rpx rgba(46, 125, 50, 0.08);
+  box-shadow: var(--shadow-card);
   transition: background 0.15s ease;
 }
 
@@ -493,10 +494,10 @@ page {
 }
 
 .edit-avatar-btn {
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: var(--grad-brand);
   color: #fff;
   font-size: var(--font-body);
-  border-radius: 14rpx;
+  border-radius: 16rpx;
   min-height: var(--btn-primary-height);
   line-height: var(--btn-primary-height);
   margin: 0;
@@ -507,7 +508,7 @@ page {
 }
 
 .edit-submit-btn {
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: var(--grad-brand);
   color: #fff;
   text-align: center;
   font-size: var(--font-body);
@@ -516,7 +517,7 @@ page {
   min-height: var(--btn-primary-height);
   line-height: var(--btn-primary-height);
   border-radius: 20rpx;
-  box-shadow: 0 6rpx 16rpx rgba(46, 125, 50, 0.25);
+  box-shadow: var(--shadow-btn);
 }
 
 .edit-submit-btn:active {
