@@ -50,6 +50,23 @@
 - **不锁定字号**：token 值用 rpx 而非 px，不使用 `text-size-adjust`，不写 `!important`
   覆盖字号，保证跟随系统字号缩放。
 
+## 前端不得截断（T4-05 配套）
+
+提示文案的长度上限与问诊选项的数量上限都由后端在生成侧收敛（见 `app/broadcast/limits.py`
+与 `app/agent/contracts/interview.py`）。前端只按后端给定内容渲染，**不做任何裁剪**——
+留到前端截断会在适老化验收时反复返工。三条禁止：
+
+1. 提示正文不得使用 `-webkit-line-clamp`、`text-overflow: ellipsis`、`white-space: nowrap`
+   做截断。历史列表的 `.conv-preview` 允许 `ellipsis`，因为它是列表摘要而非提示正文，
+   且点击后可见全文。
+2. 问诊选项不得由前端丢弃。后端给几个就渲染几个；若版面放不下，改为两行或纵向排列，
+   而不是删除选项。
+3. 前端不得写 `slice` / `substring` 处理面向农户的文案。历史列表标题/预览若用到
+   `slice`，必须在代码注释中写明"仅用于列表预览，不用于展示正文"。
+
+可检查落点：`grep -rn "line-clamp\|text-overflow\|\.slice(\|substring(" miniprogram/pages`
+的结果逐条评审，确认命中项都不涉及提示正文与问诊选项。
+
 ## 白名单申请流程
 
 门禁脚本 `scripts/check_wxss_tokens.mjs` 会把所有字面量命中报为违规。确有必要保留的例外
