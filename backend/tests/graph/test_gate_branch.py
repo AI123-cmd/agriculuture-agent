@@ -61,7 +61,16 @@ class _StubService:
 def _prescription_dict() -> dict:
     prescription = Prescription(
         diagnosis_summary="水稻稻飞虱若虫危害",
-        actions=[PrescriptionAction(order=1, action="建议喷施吡虫啉", timing="晴天傍晚", method="叶面均匀喷雾")],
+        actions=[
+            PrescriptionAction(
+                order=1,
+                action="建议喷施吡虫啉",
+                timing="晴天傍晚",
+                method="叶面均匀喷雾",
+                cautions=["避免高温施药"],
+                stop_conditions=["出现药害斑立即停用"],
+            )
+        ],
         safety_interval_days=7,
         max_uses_per_season=2,
         pesticide_items=[
