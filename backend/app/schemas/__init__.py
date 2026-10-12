@@ -27,11 +27,14 @@ from .device import (
     ParseSampleResponse,
 )
 from .environment import (
+    BoardMetric,
     DeviceItem,
+    EnvironmentBoard,
     EnvironmentDetail,
     EnvironmentSummary,
     KVItem,
     MetricItem,
+    SourceBadge,
 )
 from .farmer import CropItem, FarmProfile, FarmProfileResponse, ProfileRequest
 from .ledger import ExecuteRequest, ExecuteResponse, LedgerSaveResponse
@@ -59,6 +62,9 @@ __all__ = [
     "ParseSampleResponse",
     "EnvironmentSummary",
     "EnvironmentDetail",
+    "EnvironmentBoard",
+    "BoardMetric",
+    "SourceBadge",
     "MetricItem",
     "KVItem",
     "DeviceItem",

@@ -11,7 +11,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.session import SessionLocal
-from app.integrations.weather import fetch_current, get_weather_summary
+from app.integrations.weather import current, get_weather_summary
 from app.models import FarmerProfile
 from app.repositories import profile_repo
 
@@ -58,7 +58,7 @@ class WeatherService:
         if not region:
             # 档案缺地区：天气服务无法定位，归为不可用（T3-02 第三节）。
             return None
-        data = fetch_current(region)
+        data = current(region)
         if data is None:
             return None
         return WeatherFacts(values=data["values"], observed_at=data["observed_at"], region_hit_level=hit_level)

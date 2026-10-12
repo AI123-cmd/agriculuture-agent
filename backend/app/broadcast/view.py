@@ -31,17 +31,18 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.domain.metrics import SOURCE_LABELS
 from app.models import PromptItem, PromptSnapshot
 
 DisplayStatus = Literal["today", "yesterday", "stale"]
 
 # 环境来源四级 -> 界面文案。四值全覆盖，不允许"没数据就留空"；`sensor_stale` 的
 # `{stale_hours}` 由 `_hours_of` 从采集层的时效标注里规整提取后填入。
+# 四个基本文案与 `SOURCE_LABELS`（`app/domain/metrics.py`）同源：同一句话在环境看板
+# （T5-08）、问诊的 `environmentNote`（T2-33）与本模块三处出现，措辞只能有一处定义。
 ENV_SOURCE_LABEL: dict[str, str] = {
-    "sensor": "数据来源：本地传感器",
+    **SOURCE_LABELS,
     "sensor_stale": "数据来源：本地传感器（数据为 {stale_hours} 小时前）",
-    "weather": "数据来源：公共天气",
-    "none": "暂无环境数据，判断基于你的描述",
 }
 
 # 时效标注里的小时数：采集层措辞可能是"数据为 3.5 小时前"，界面要的是规整说法。

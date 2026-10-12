@@ -16,7 +16,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def fetch_current(region: str) -> dict | None:
+def current(region: str) -> dict | None:
     """按地区取当前天气；不可用返回 `None`。
 
     返回结构：`{"values": {标准指标: 数值}, "observed_at": datetime}`。
@@ -62,11 +62,11 @@ def fetch_current(region: str) -> dict | None:
 
 def get_weather_summary(location_name: str = "") -> str:
     """天气摘要文本（地点设置回显用）。不可用时返回空串，不构造推测文案。"""
-    current = fetch_current(location_name)
-    if current is None:
+    facts = current(location_name)
+    if facts is None:
         return ""
-    temp = current["values"].get("air_temp")
-    humidity = current["values"].get("air_humidity")
+    temp = facts["values"].get("air_temp")
+    humidity = facts["values"].get("air_humidity")
     parts = []
     if temp is not None:
         parts.append(f"{temp:.0f}°C")
@@ -75,4 +75,4 @@ def get_weather_summary(location_name: str = "") -> str:
     return " ".join(parts)
 
 
-__all__ = ["fetch_current", "get_weather_summary"]
+__all__ = ["current", "get_weather_summary"]

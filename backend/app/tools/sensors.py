@@ -53,6 +53,17 @@ def _as_aware(value: datetime) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
+def age_hours(observed_at: datetime) -> int:
+    """距现在几小时（向下取整，负值归零）。
+
+    单独成模块级函数而非只做 `Reading` 的方法：环境看板的时效标注（T5-08 的
+    `_freshness_note`）拿到的只是一个 `observed_at`，没有 `Reading` 对象可用。两处都算
+    "距现在几小时"，共用同一实现才不会因时区处理不一致而在两处得出不同小时数。
+    """
+    age = _now() - _as_aware(observed_at)
+    return max(int(age.total_seconds() // 3600), 0)
+
+
 class Reading:
     """一批读数（同一 `observed_at` 下的多指标）与新鲜度判定。"""
 
@@ -62,9 +73,8 @@ class Reading:
         self.quality = quality
 
     def age_hours(self) -> int:
-        """距现在几小时（向下取整，负值归零）。TT5-08 的时效标注共用它。"""
-        age = _now() - _as_aware(self.observed_at)
-        return max(int(age.total_seconds() // 3600), 0)
+        """距现在几小时（向下取整，负值归零）。T5-08 的时效标注共用它。"""
+        return age_hours(self.observed_at)
 
     def is_fresh(self, minutes: int = FRESH_WINDOW_MINUTES) -> bool:
         """新鲜 且 `quality=ok`。`suspect`/`stale` 一律为假，直接降级到下一级。"""
@@ -155,4 +165,4 @@ async def query_sensors(repos: Repositories | None, user_id: str) -> dict:
     }
 
 
-__all__ = ["Reading", "SensorService", "query_sensors", "sensor_service"]
+__all__ = ["Reading", "SensorService", "age_hours", "query_sensors", "sensor_service"]

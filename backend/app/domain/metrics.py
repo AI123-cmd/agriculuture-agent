@@ -78,6 +78,31 @@ P0_METRICS: frozenset[StandardMetric] = frozenset(
     }
 )
 
+# 环境来源四级 -> 界面文案。四值全覆盖，不允许"没数据就留空"（产品说明书 4.4.2 的透明度
+# 要求）。环境看板（T5-08）、问诊的 `environmentNote`（T2-33）与提示快照的来源标注三处共用
+# 同一份文案，避免硬编码在三处后措辞分叉。`sensor_stale` 的"数据为 XX 小时前"由
+# `freshness_note` 单独承载（与 `label` 分离，使两者的语义不互相污染）。
+SOURCE_LABELS: dict[str, str] = {
+    "sensor": "数据来源：本地传感器",
+    "sensor_stale": "数据来源：本地传感器",
+    "weather": "数据来源：公共天气",
+    "none": "暂无环境数据，判断基于你的描述",
+}
+
+# 全部标准指标的固定遍历序。环境看板（T5-08）按它生成指标行，顺序稳定才能让前端
+# 的展示位与上一次刷新一一对应，不会因字典序变化而跳动。
+STANDARD_METRICS: tuple[StandardMetric, ...] = (
+    StandardMetric.SOIL_TEMP,
+    StandardMetric.SOIL_MOISTURE,
+    StandardMetric.AIR_TEMP,
+    StandardMetric.AIR_HUMIDITY,
+    StandardMetric.RAINFALL,
+    StandardMetric.LIGHT_LUX,
+    StandardMetric.WIND_SPEED,
+    StandardMetric.SOIL_PH,
+    StandardMetric.SOIL_EC,
+)
+
 # 实时新鲜窗口：读数在该窗口内且 `quality=ok` 时判为 `source="sensor"`。
 FRESH_WINDOW_MINUTES = 30
 # 参考窗口：超过实时窗口但在该窗口内，判为 `sensor_stale`（可给弱提示，须标注时效）。
@@ -91,5 +116,7 @@ __all__ = [
     "METRIC_RANGES",
     "P0_METRICS",
     "REFERENCE_WINDOW_HOURS",
+    "SOURCE_LABELS",
+    "STANDARD_METRICS",
     "StandardMetric",
 ]
