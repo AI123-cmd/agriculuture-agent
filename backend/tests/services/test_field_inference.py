@@ -288,16 +288,21 @@ def test_parse_sample_template_hit_confidence_one(client, engine) -> None:
     token, _ = _login(client, "farmer-parse-08")
     device_id = _bind_and_get_device(client, engine, token, "HN-PARSE-0008")
 
-    resp = client.post(
-        _PARSE_URL,
-        json={"deviceId": device_id, "payload": '{"data": {"air_temp": 26.5, "air_humi": 78}}'},
-        headers=_headers(token),
-    )
+    # 报文需覆盖 `tpl_generic_http` 的 `field_spec` 全部键，模板才判定为"覆盖"。
+    payload = '{"data": {"air_temp": 26.5, "air_humi": 78, "soil_temp": 21.3, "soil_moisture": 45, "rainfall": 0}}'
+    resp = client.post(_PARSE_URL, json={"deviceId": device_id, "payload": payload}, headers=_headers(token))
 
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     assert data["parsed"] is True
     assert all(f["confidence"] == 1.0 for f in data["fields"])
+    assert {f["rawField"]: f["inferredMetric"] for f in data["fields"]} == {
+        "data.air_temp": "air_temp",
+        "data.air_humi": "air_humidity",
+        "data.soil_temp": "soil_temp",
+        "data.soil_moisture": "soil_moisture",
+        "data.rainfall": "rainfall",
+    }
 
 
 def test_parse_sample_template_not_covering_falls_back(client, engine) -> None:
