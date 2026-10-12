@@ -41,6 +41,13 @@ LLM_TOKENS = "llm.tokens"
 LLM_LATENCY_MS = "llm.latency_ms"
 LLM_DEGRADED = "llm.degraded"
 
+# ---- generation span：提示词身份（T6-07）----
+# 版本对比要按"环节 + 版本"聚合，故三个键必须同时存在：只有版本号时无法定位是哪个
+# 环节的提示词退化了，只有名字时无法区分同一环节的不同版本。
+PROMPT_NAME = "prompt.name"
+PROMPT_VERSION = "prompt.version"
+PROMPT_IS_FALLBACK = "prompt.is_fallback"
+
 # 一次问诊引用条目的写入上限。定在 20：常见问诊引用 3~8 条，写满 20 已能覆盖绝大多数
 # 排障场景，而 20 个条目 ID 拼成的字符串只有几百字节，不会让 span 膨胀。
 EVIDENCE_REF_IDS_LIMIT = 20
@@ -86,6 +93,9 @@ __all__ = [
     "NODE_OK",
     "NODE_ROUND",
     "PROCESS_ID",
+    "PROMPT_IS_FALLBACK",
+    "PROMPT_NAME",
+    "PROMPT_VERSION",
     "bounded_ids",
     "csv",
 ]

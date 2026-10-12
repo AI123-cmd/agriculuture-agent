@@ -1,0 +1,139 @@
+# Langfuse 私有化部署（T6-07，技术方案 14.4 与 17.2）
+#
+# 为什么必须私有化：LLM 观测要记录提示词与模型输出，云端 SaaS 等于把农事数据送出国境
+# 的第三方，与 17.2 的"境内云 API 为主 + 私有化兜底"直接冲突。
+#
+# 三处与官方示例的差异，均在 README.md 中说明：
+#   1. `expose` 而非 `ports`——界面不发布到宿主，只在 Compose 网络内可达；
+#   2. 给 web 与 clickhouse 设内存上限、给数据库与对象存储挂命名卷；
+#   3. 可选地把 Langfuse 自身的 span 上报到自建 collector。
+#
+# 启动：docker compose -f deploy/langfuse/docker-compose.langfuse.yml --env-file <env 文件> up -d
+# 该文件可独立起停，与业务 Compose 之间**不设 depends_on**（弱依赖，见 README 第五节）。
+
+name: huanong-langfuse
+
+services:
+  langfuse-web:
+    image: langfuse/langfuse:3
+    restart: unless-stopped
+    # `expose` 而不是 `ports`：官方文档为便于本地调试用 `ports: 3000:3000`，直接照抄会把
+    # 无鉴权界面的观测后端暴露到公网。界面通过 Caddy（T6-10）内网反代或 SSH 隧道访问。
+    expose:
+      - "3000"
+    environment:
+      # 三项密钥必须覆盖：官方说"测试可跳过、存敏感数据必须改"，本项目存的是真实农事数据。
+      SALT: ${LANGFUSE_SALT}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL}
+      # 依赖连接串。指向本文件内的服务名（不暴露到宿主）。
+      DATABASE_URL: postgresql://langfuse:${LANGFUSE_POSTGRES_PASSWORD}@langfuse-postgres:5432/langfuse
+      REDIS_CONNECTION_STRING: redis://langfuse-redis:6379
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD}
+      # 事件与多模态大对象落 MinIO。
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_MINIO_USER}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_MINIO_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      # 可选：把 Langfuse 自身的 span 送到自建 collector，纳入统一 APM。留空则不上报。
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_COLLECTOR_ENDPOINT:-}
+      OTEL_SERVICE_NAME: langfuse-web
+      # 关闭遥测回传（Langfuse 默认会向自身云端发匿名用量数据，私有化场景下应关掉）。
+      TELEMETRY_ENABLED: "false"
+    mem_limit: 2g
+    networks:
+      - langfuse
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    restart: unless-stopped
+    # worker 无需对外端口，只在网络内消费队列。它同样需要全部依赖连接串。
+    environment:
+      SALT: ${LANGFUSE_SALT}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY}
+      DATABASE_URL: postgresql://langfuse:${LANGFUSE_POSTGRES_PASSWORD}@langfuse-postgres:5432/langfuse
+      REDIS_CONNECTION_STRING: redis://langfuse-redis:6379
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_MINIO_USER}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_MINIO_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      TELEMETRY_ENABLED: "false"
+    mem_limit: 1g
+    networks:
+      - langfuse
+
+  langfuse-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_POSTGRES_PASSWORD}
+    # 不发布端口：观测数据不得从宿主或其他容器直连进来。
+    volumes:
+      - langfuse-postgres-data:/var/lib/postgresql/data
+    mem_limit: 1g
+    networks:
+      - langfuse
+
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: default
+    volumes:
+      - langfuse-clickhouse-data:/var/lib/clickhouse
+    # ClickHouse 是内存大户，观测数据量级远大于业务数据，必须单列上限。
+    mem_limit: 2g
+    networks:
+      - langfuse
+
+  langfuse-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${LANGFUSE_REDIS_PASSWORD}
+    volumes:
+      - langfuse-redis-data:/data
+    mem_limit: 512m
+    networks:
+      - langfuse
+
+  langfuse-minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${LANGFUSE_MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${LANGFUSE_MINIO_PASSWORD}
+    volumes:
+      - langfuse-minio-data:/data
+    mem_limit: 1g
+    networks:
+      - langfuse
+
+volumes:
+  # 观测数据全部落在命名卷上：升级 `up --pull always` 只换镜像，不动数据。
+  langfuse-postgres-data:
+  langfuse-clickhouse-data:
+  langfuse-redis-data:
+  langfuse-minio-data:
+
+networks:
+  # 独立网络。业务 Compose 若要访问 Langfuse，把业务服务加入同一 external 网络即可，
+  # 不需要也不应该发布 Langfuse 的端口。
+  langfuse:
+    name: huanong-langfuse

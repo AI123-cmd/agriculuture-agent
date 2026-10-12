@@ -182,14 +182,30 @@ class Settings(BaseSettings):
     # OTEL_ENABLED 默认 False：关闭时不注册 provider，`start_as_current_span` 退化为
     # 空操作，开销可忽略；由运维按环境显式打开，避免开发环境默认把 span 打到控制台。
     OTEL_ENABLED: bool = False
-    # 导出器三档：otlp（生产，指向自建 collector）、console（本地）、none（CI）。
-    # 默认 none 与 OTEL_ENABLED=false 一致：都不产出 span。
-    OTEL_EXPORTER: Literal["otlp", "console", "none"] = "none"
+    # 导出器四档：otlp（生产，指向自建 collector）、langfuse（T6-07，指向私有 Langfuse
+    # 的 OTLP 接收端）、console（本地）、none（CI）。默认 none 与 OTEL_ENABLED=false
+    # 一致：都不产出 span。
+    OTEL_EXPORTER: Literal["otlp", "langfuse", "console", "none"] = "none"
     # OTLP collector 的 gRPC 端点（如 `http://otel-collector:4317`）。生产开启追踪时必填，
     # 留空会让追踪静默走别处，故由启动检查拦下（见 startup_check.collect_violations）。
     OTEL_ENDPOINT: str = ""
     # 资源属性 `service.name`，用于后端区分服务。
     OTEL_SERVICE_NAME: str = "huanong-agent"
+
+    # Langfuse 私有化观测（T6-07，技术方案 14.4 与 17.2）。
+    # 选私有化而非云端 SaaS 是本项目的合规底线：LLM 观测要记录提示词与模型输出，
+    # 送出境外的第三方等于农事数据外流。`LANGFUSE_ENABLED=false` 时不构造任何客户端，
+    # 上游零请求；为 true 但地址/密钥缺失或不可达时静默降级，观测不得成为可用性依赖。
+    LANGFUSE_ENABLED: bool = False
+    # Langfuse 的 web 基址（如 `http://langfuse-web:3000`）。上报端点为
+    # `{host}/api/public/otel/v1/traces`，由 app/observability/langfuse.py 拼接。
+    LANGFUSE_HOST: str = ""
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_SECRET_KEY: str = ""
+    # 抽样比。本地默认 1.0 全量；生产建议 0.2——LLM 观测数据体量远大于普通 trace，
+    # 全量上报会把小内存机器上的 Langfuse 自己拖垮。抽样在根 span 创建时决定，
+    # 子 span 按父决定继承（`ParentBased`），不会出现"父在子不在"的残缺 trace。
+    LANGFUSE_TRACE_RATIO: float = 1.0
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 

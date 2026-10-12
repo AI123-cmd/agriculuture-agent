@@ -10,6 +10,7 @@
 
 from .logging import log
 from .metrics import MetricsCollector, metrics
+from .prompts import record_prompt_identity
 from .tracing import (
     GENERATION_SPAN_NAME,
     ROOT_SPAN_NAME,
@@ -35,6 +36,7 @@ __all__ = [
     "log",
     "metrics",
     "record_generation",
+    "record_prompt_identity",
     "reset_tracing",
     "traced_node",
 ]

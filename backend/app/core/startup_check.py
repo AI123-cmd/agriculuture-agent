@@ -70,8 +70,17 @@ def collect_violations(settings: Settings) -> list[Check]:
         violations.append(Check("cors", "生产环境不允许通配来源 *，必须显式列域名"))
     # 开启追踪却没配 collector 端点，导出器会静默落到控制台，trace 直接进容器日志——
     # 可能是隐私外泄路径（T6-06 与 T6-08 脱敏防线叠加）。故此处 fail-closed。
-    if settings.OTEL_ENABLED and not settings.OTEL_ENDPOINT:
+    # langfuse 档（T6-07）不指向 OTEL_ENDPOINT 而是 LANGFUSE_HOST，故不适用本条，
+    # 其缺项由下面的 langfuse 检查覆盖。
+    if settings.OTEL_ENABLED and settings.OTEL_EXPORTER != "langfuse" and not settings.OTEL_ENDPOINT:
         violations.append(Check("otel", "生产环境 OTEL_ENABLED=true 时 OTEL_ENDPOINT 必填，不得静默走控制台导出"))
+    # 选了 langfuse 档却缺地址或密钥：上报必然失败且被静默丢弃，等于"开了观测却什么都看不到"。
+    # 这类配置错误必须在启动时暴露（T6-07）——否则会被当成"Langfuse 出问题了"排查很久。
+    if settings.OTEL_EXPORTER == "langfuse":
+        if not settings.LANGFUSE_HOST:
+            violations.append(Check("langfuse", "OTEL_EXPORTER=langfuse 时 LANGFUSE_HOST 必填"))
+        if not settings.LANGFUSE_PUBLIC_KEY or not settings.LANGFUSE_SECRET_KEY:
+            violations.append(Check("langfuse", "OTEL_EXPORTER=langfuse 时 Langfuse 公钥与密钥必填"))
     return violations
 
 

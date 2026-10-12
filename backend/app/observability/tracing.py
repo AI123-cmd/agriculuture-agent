@@ -84,10 +84,12 @@ def configure_tracing(
     exporter: SpanExporter | None = None,
     service_name: str | None = None,
 ) -> TracerProvider | None:
-    """导出器三档：otlp（生产，指向自建 collector）、console（本地）、none（CI）。
+    """导出器四档：otlp（生产，指向自建 collector）、langfuse（T6-07，指向私有 Langfuse）、
+    console（本地）、none（CI）。
 
     `exporter` 供测试注入内存导出器；生产只传 `settings`。`OTEL_ENABLED=false` 或
     `OTEL_EXPORTER=none` 时**不注册 provider**（置为空操作 provider），开销为零。
+    选择 langfuse 档但客户端不可构造（地址/密钥缺失）时同样退化为空操作，业务不受影响。
 
     用批量导出器（`BatchSpanProcessor`）而非简单导出器是硬要求：简单导出器在每次 span
     结束时同步阻塞，会把"农闲期也能用的服务"变成"collector 抖动即问诊变慢"。
@@ -105,9 +107,14 @@ def configure_tracing(
             _tracer_provider = NoOpTracerProvider()
             return None
         exporter = _build_exporter(settings, kind)
+        if exporter is None:
+            # langfuse 档但客户端不可构造：与"关闭追踪"同义，不影响业务。
+            _tracer_provider = NoOpTracerProvider()
+            return None
 
     name = service_name or getattr(settings, "OTEL_SERVICE_NAME", None) or _DEFAULT_SERVICE_NAME
-    provider = TracerProvider(resource=Resource.create({"service.name": name}))
+    sampler = _build_sampler(settings, kind, exporter)
+    provider = TracerProvider(resource=Resource.create({"service.name": name}), sampler=sampler)
     provider.add_span_processor(BatchSpanProcessor(exporter))
     _tracer_provider = provider
     # 全局 provider 只设一次：进程内多服务实例共存时以首个为准，避免重复设置抛错。
@@ -117,8 +124,47 @@ def configure_tracing(
     return provider
 
 
-def _build_exporter(settings: Any, kind: str) -> SpanExporter:
-    """按档位构造导出器。otlp 的构造不建连接，endpoint 不可达只在导出时失败并被丢弃。"""
+def _build_sampler(settings: Any, kind: str, exporter: SpanExporter) -> Any:
+    """按导出器档位给出抽样器。
+
+    只有 langfuse 档带抽样比（T6-07）：LLM 观测数据体量远大于普通 trace，全量上报会把
+    小内存机器上的 Langfuse 自己拖垮。其余档位全采。抽样比优先向已构造的导出器要
+    （`LangfuseExporter.trace_ratio`），导出器不带该能力时回退读配置——测试注入内存导出器
+    时走后者，从而能独立验证抽样行为。
+
+    用 `ParentBased(TraceIdRatioBased(r))` 而非裸 `TraceIdRatioBased`：**抽样决策只发生在
+    根 span**，子 span 一律继承父的决定。裸比例抽样会对每个 span 独立掷骰子，产出
+    "父在子不在"的残缺 trace——那种 trace 在 Langfuse 界面上看起来就是"节点丢了"。
+    """
+    from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ALWAYS_ON, ParentBased, TraceIdRatioBased
+
+    if kind != "langfuse":
+        return ALWAYS_ON
+    ratio_reader = getattr(exporter, "trace_ratio", None)
+    if callable(ratio_reader):
+        ratio = float(ratio_reader())
+    else:
+        try:
+            ratio = float(getattr(settings, "LANGFUSE_TRACE_RATIO", 1.0))
+        except (TypeError, ValueError):
+            ratio = 1.0
+    if ratio >= 1.0:
+        return ALWAYS_ON
+    if ratio <= 0.0:
+        return ParentBased(ALWAYS_OFF)
+    return ParentBased(TraceIdRatioBased(ratio))
+
+
+def _build_exporter(settings: Any, kind: str) -> SpanExporter | None:
+    """按档位构造导出器。otlp 的构造不建连接，endpoint 不可达只在导出时失败并被丢弃。
+
+    langfuse 档（T6-07）交由 `app/observability/langfuse.py` 构造；不可用时返回 `None`，
+    由 `configure_tracing` 退化为空操作，不抛错到调用方。
+    """
+    if kind == "langfuse":
+        from app.observability.langfuse import build_langfuse_exporter
+
+        return build_langfuse_exporter(settings)
     if kind == "otlp":
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 

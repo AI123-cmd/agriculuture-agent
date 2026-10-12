@@ -27,7 +27,7 @@ from app.llm.router import ModelCandidate, ModelRouter
 
 # 可观测性入口。`app.observability` 是横切关注点，不属业务模块，符合 L3（网关不得导入
 # `app.agent`/`app.gate`/`app.services`）。
-from app.observability import generation_span, record_generation
+from app.observability import generation_span, record_generation, record_prompt_identity
 
 
 class CallAuditor:
@@ -97,8 +97,9 @@ class ModelGateway:
             if not self._circuit.allow(candidate.provider):
                 last_error = f"{candidate.provider} 熔断中"
                 continue
-            response = await self._invoke_observed(task_type, candidate, trimmed, schema)
-            response = response.model_copy(update={"is_fallback": candidate is not decision.chain[0]})
+            is_fallback = candidate is not decision.chain[0]
+            response = await self._invoke_observed(task_type, candidate, trimmed, schema, is_fallback=is_fallback)
+            response = response.model_copy(update={"is_fallback": is_fallback})
             if response.error is None:
                 self._circuit.record_success(candidate.provider)
                 self._auditor.record_output_digest(digest, response.content)
@@ -136,14 +137,21 @@ class ModelGateway:
         candidate: ModelCandidate,
         messages: list[dict],
         schema: type[BaseModel] | None,
+        *,
+        is_fallback: bool,
     ) -> ModelResponse:
         """给一次候选调用套 generation span（14.4：每次模型调用 = 一个 generation）。
 
         span 在**当前节点 span 内**开启，因此自动成为该节点的子 span，无需手工传 parent。
         属性来自响应本身：失败响应也照写——失败调用的耗时与供应商归属是排障最需要的两条
         信息，跳过反而让"重试链上哪一跳慢/挂"查不出来。
+
+        提示词身份三属性（`prompt.name`/`prompt.version`/`prompt.is_fallback`，T6-07）在
+        这里写入：版本号由 `app/observability/prompts.py` 单点解析，网关不直接触提示词
+        注册表——L3 禁止 `app.llm` 依赖 `app.agent`。
         """
         with generation_span(str(task_type.value)) as span:
+            record_prompt_identity(span, str(task_type.value), is_fallback=is_fallback)
             response = await self._invoke(candidate, messages, schema)
             record_generation(
                 span,

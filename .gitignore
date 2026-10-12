@@ -33,6 +33,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+# Langfuse 部署模板（T6-07）：与 .env.example 同理，只提交无真实值的模板
+!deploy/langfuse/.env.langfuse.example
 *.local.env
 backend/uploads/
 backend/_mig_test.db
