@@ -6,6 +6,12 @@
     "category": "decoration"
   },
   {
+    "file": "miniprogram/app.wxss",
+    "match": "card-title",
+    "reason": "卡片标题左侧装饰条为纯装饰图形，不可点击",
+    "category": "decoration"
+  },
+  {
     "file": "miniprogram/components/sprout-mascot/index.wxss",
     "match": "^",
     "reason": "小禾 IP 形象组件，整文件为纯装饰图形，无文字、无交互元素",
@@ -31,20 +37,14 @@
   },
   {
     "file": "miniprogram/pages/env/env.wxss",
-    "match": "refresh-icon|location-pin|metric-icon|device-dot|footer-placeholder",
-    "reason": "刷新/定位/指标/状态点图标与底部占位均为纯装饰图形，不可点击",
+    "match": "refresh-icon|location-pin|metric-icon|device-dot|footer-placeholder|data-label",
+    "reason": "刷新/定位/指标/状态点图标、数据标签前置圆点与底部占位均为纯装饰图形，不可点击",
     "category": "decoration"
   },
   {
-    "file": "miniprogram/pages/history/list.wxss",
-    "match": "conv-divider",
-    "reason": "会话列表项之间的结构性 1rpx 分隔线",
-    "category": "divider"
-  },
-  {
     "file": "miniprogram/pages/index/index.wxss",
-    "match": "location-pin",
-    "reason": "地点定位图标为纯装饰图形，不可点击",
+    "match": "location-pin|tip-callout",
+    "reason": "地点定位图标与提示要点前置圆点均为纯装饰图形，不可点击",
     "category": "decoration"
   },
   {

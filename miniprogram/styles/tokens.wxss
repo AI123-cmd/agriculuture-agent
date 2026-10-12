@@ -36,4 +36,10 @@ page {
   --bg-page:      #eef5ec;
   --bg-card:      #ffffff;
   --line-divider: #e0e0e0;
+
+  /* ---- 品牌渐变与阴影：全项目统一的头部、按钮、卡片质感 ---- */
+  --grad-header: linear-gradient(150deg, #43a047 0%, #2e7d32 55%, #1f5c24 100%);
+  --grad-brand:  linear-gradient(135deg, #43a047, #2e7d32);
+  --shadow-card: 0 4rpx 24rpx rgba(46, 125, 50, 0.07);
+  --shadow-btn:  0 8rpx 20rpx rgba(46, 125, 50, 0.25);
 }

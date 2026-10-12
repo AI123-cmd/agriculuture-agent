@@ -97,13 +97,13 @@
 | 文件 | match | 类别 | 理由 |
 | --- | --- | --- | --- |
 | `miniprogram/app.wxss` | `\.check-circle` | decoration | 勾选圆圈视觉 56rpx，热区由外层 `.tap-88` 撑满 |
+| `miniprogram/app.wxss` | `card-title` | decoration | 卡片标题左侧装饰条为纯装饰图形，不可点击 |
 | `miniprogram/components/sprout-mascot/index.wxss` | `^` | decoration | 小禾 IP 组件整文件为纯装饰图形，无文字、无交互 |
 | `miniprogram/custom-tab-bar/index.wxss` | `tab-icon\|home-icon\|history-icon\|mine-icon\|clock-hand` | decoration | Tab 图标为装饰图形，热区由 `.tab-item` 保证 |
 | `miniprogram/pages/ai/chat.wxss` | `msg-avatar` | decoration | 对话头像为展示性装饰，不可点击 |
 | `miniprogram/pages/ai/chat.wxss` | `vp-` | decoration | 语音喇叭为装饰，热区由 `.voice-play-btn`（`--tap-min`）保证 |
-| `miniprogram/pages/env/env.wxss` | `refresh-icon\|location-pin\|metric-icon\|device-dot\|footer-placeholder` | decoration | 刷新/定位/指标/状态点图标与底部占位均为装饰 |
-| `miniprogram/pages/history/list.wxss` | `conv-divider` | divider | 会话列表项之间的结构性 1rpx 分隔线 |
-| `miniprogram/pages/index/index.wxss` | `location-pin` | decoration | 地点定位图标为装饰，不可点击 |
+| `miniprogram/pages/env/env.wxss` | `refresh-icon\|location-pin\|metric-icon\|device-dot\|footer-placeholder\|data-label` | decoration | 刷新/定位/指标/状态点图标、数据标签圆点与底部占位均为装饰 |
+| `miniprogram/pages/index/index.wxss` | `location-pin\|tip-callout` | decoration | 地点定位图标与提示要点前置圆点为装饰，不可点击 |
 | `miniprogram/pages/login/login.wxss` | `\.checkbox` | decoration | 协议复选框视觉 44rpx，热区由外层 `.tap-88` 撑满 |
 | `miniprogram/pages/mine/mine.wxss` | `avatar-edit\|cam-body\|cam-lens\|tag-leaf\|section-label\|menu-icon\|mi-\|footer-dot\|sheet-bar` | decoration | 我的页图标、装饰点与弹层把手均为装饰 |
 | `miniprogram/pages/mine/mine.wxss` | `menu-divider` | divider | 菜单项之间的结构性 1rpx 分隔线 |

@@ -35,25 +35,44 @@
   border-radius: 16rpx;
   font-size: var(--font-body);
   font-weight: 600;
+  color: var(--text-inverse);
+  background: var(--grad-brand);
+  box-shadow: var(--shadow-btn);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.btn-primary:active {
+  transform: scale(0.97);
+  opacity: 0.95;
 }
 
 /* ---- 卡片与模块：合并此前三处各自定义的 .card 与 .card-title ---- */
 .card {
   background: var(--bg-card);
-  border-radius: 20rpx;
+  border-radius: 24rpx;
   padding: 36rpx 32rpx;
-  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }
 .card-title {
+  display: flex;
+  align-items: center;
   font-size: var(--font-heading);
   line-height: var(--line-tight);
   font-weight: 600;
   color: var(--text-brand);
   margin-bottom: var(--space-heading);
+}
+/* 标题左侧装饰条：纯装饰图形，尺寸登记在 scripts/wxss-token-whitelist.json */
+.card-title::before {
+  content: '';
+  width: 10rpx;
+  height: 34rpx;
+  border-radius: 5rpx;
+  background: var(--grad-brand);
+  margin-right: 16rpx;
+  flex-shrink: 0;
 }
 .block { margin-top: var(--space-block); }
 .block:first-child { margin-top: 0; }
