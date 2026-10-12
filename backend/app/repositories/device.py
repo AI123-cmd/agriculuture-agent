@@ -3,12 +3,12 @@
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import new_id
 from app.models import Device, DeviceConfig, FieldMapping
-from app.repositories.base import OwnedRepository, require_user_id
+from app.repositories.base import OwnedRepository, execute_write, require_user_id
 
 
 class DeviceRepository(OwnedRepository[Device]):
@@ -91,28 +91,42 @@ class DeviceConfigRepository(OwnedRepository[DeviceConfig]):
     ) -> DeviceConfig | None:
         """复用曾解绑的行：重置归属、绑定关系与密钥（T5-03）。
 
-        归属经 `update_fields` 强制带 `user_id` 条件：曾解绑的行可能属于他人，只有归属一致时才
-        能改写；越权调用受影响行数为 0，返回 `None`，由服务层折算为冲突。清空 `unbound_at` 与
-        `last_report_at`、复位 `online_status`：重新接入的设备此前的一切状态都不再有效。
-        `vendor_template_id` 一并清空，待服务层重新匹配后写入。
+        **刻意的归属例外**（与本类的 `get_by_sn` / `get_by_sn_any` 同源）：更新条件不是 `user_id`，
+        而是 `unbound_at IS NOT NULL`——只有"当前空闲的设备"才能被重新绑定并改写归属。
+
+        理由：`device_sn` 上建了唯一索引，一台设备在库中永远只有一行，解绑走软删除（写 `unbound_at`）
+        而非物理删除，因此重新绑定必须复用这一行、且可能换主人（设备转手/重新分配）。若更新带
+        `user_id` 条件，设备被解绑后除原主人外任何人都无法再接——设备被永久锁死，与产品预期冲突。
+
+        安全边界落在 `unbound_at IS NOT NULL`：它是"这台设备此刻无人认领"的判据，同时在并发下充当
+        乐观锁——若两个请求同时抢绑一台空闲设备，先到者把 `unbound_at` 置空，后到者的更新受影响
+        行数为 0，返回 `None`，由服务层折算为 409。仍在绑的设备（`unbound_at IS NULL`）绝不会被
+        本方法改写，数据串号在这一层被阻断。
+
+        `vendor_template_id` / `online_status` / `last_report_at` 一并清空：重新接入的设备此前的一切
+        状态都不再有效，模板待服务层重新匹配后写入。
         """
-        affected = await self.update_fields(
-            db,
-            user_id,
-            device_id,
-            farm_entry_id=farm_entry_id,
-            protocol_type="http_direct",
-            secret_ref=secret_ref,
-            secret_digest=secret_digest,
-            vendor_template_id=None,
-            online_status=None,
-            last_report_at=None,
-            bound_at=bound_at,
-            unbound_at=None,
+        uid = require_user_id(self.model.__name__, user_id)
+        stmt = (
+            update(DeviceConfig)
+            .where(DeviceConfig.id == device_id, DeviceConfig.unbound_at.is_not(None))
+            .values(
+                user_id=uid,
+                farm_entry_id=farm_entry_id,
+                protocol_type="http_direct",
+                secret_ref=secret_ref,
+                secret_digest=secret_digest,
+                vendor_template_id=None,
+                online_status=None,
+                last_report_at=None,
+                bound_at=bound_at,
+                unbound_at=None,
+            )
         )
+        affected = await execute_write(db, stmt)
         if affected == 0:
             return None
-        return await self.get(db, user_id, device_id)
+        return await self.get(db, uid, device_id)
 
     async def touch_last_report(
         self, db: AsyncSession, user_id: str, device_id: str, *, reported_at: datetime, online: str

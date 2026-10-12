@@ -221,9 +221,7 @@ async def test_device_config_get_by_sn_ignores_unbound(session_factory) -> None:
     async with session_factory() as db:
         assert await device_config_repo.get_by_sn(db, "SN-0001") is not None
         assert await device_config_repo.get_by_sn_any(db, "SN-0001") is not None
-        await device_config_repo.update_fields(
-            db, "u1", "d1", unbound_at=datetime(2026, 10, 12, tzinfo=timezone.utc)
-        )
+        await device_config_repo.update_fields(db, "u1", "d1", unbound_at=datetime(2026, 10, 12, tzinfo=timezone.utc))
         await db.commit()
         assert await device_config_repo.get_by_sn(db, "SN-0001") is None
         assert await device_config_repo.get_by_sn_any(db, "SN-0001") is not None

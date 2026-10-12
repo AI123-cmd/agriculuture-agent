@@ -129,9 +129,7 @@ def test_bind_secret_verifies_against_stored_digest(client, engine) -> None:
 
     async def _run() -> tuple[bool, bool]:
         async with factory() as db:
-            row = (
-                await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == "HN-BIND-0003"))
-            ).scalar_one()
+            row = (await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == "HN-BIND-0003"))).scalar_one()
             return verify_device_secret(row, secret), verify_device_secret(row, secret + "x")
 
     ok_correct, ok_wrong = asyncio.run(_run())
@@ -183,9 +181,7 @@ def test_rebind_after_unbind_reuses_row(client, engine) -> None:
 
     async def _unbind() -> None:
         async with factory() as db:
-            row = (
-                await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == "HN-BIND-0006"))
-            ).scalar_one()
+            row = (await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == "HN-BIND-0006"))).scalar_one()
             row.unbound_at = row.bound_at
             await db.commit()
 
@@ -269,9 +265,7 @@ def test_bind_accepts_optional_farm_entry(client, engine) -> None:
 
     async def _run() -> str | None:
         async with factory() as db:
-            row = (
-                await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == "HN-BIND-0012"))
-            ).scalar_one()
+            row = (await db.execute(select(DeviceConfig).where(DeviceConfig.device_sn == "HN-BIND-0012"))).scalar_one()
             return row.farm_entry_id
 
     assert asyncio.run(_run()) == "fe_0001"
