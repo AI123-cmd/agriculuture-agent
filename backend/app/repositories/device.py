@@ -164,7 +164,11 @@ class FieldMappingRepository(OwnedRepository[FieldMapping]):
         一次 `GROUP BY` 更稳。返回 `{device_id: 条数}`，无映射的设备不出现在结果里，调用方按 0 处理。
         """
         uid = require_user_id(self.model.__name__, user_id)
-        stmt = select(FieldMapping.device_id, func.count()).where(FieldMapping.user_id == uid).group_by(FieldMapping.device_id)
+        stmt = (
+            select(FieldMapping.device_id, func.count())
+            .where(FieldMapping.user_id == uid)
+            .group_by(FieldMapping.device_id)
+        )
         rows = (await db.execute(stmt)).all()
         return {device_id: count for device_id, count in rows}
 

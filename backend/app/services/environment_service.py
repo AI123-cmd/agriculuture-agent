@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.broadcast.inputs.env_facts import EnvFacts, collect_env_facts
 from app.core.config import get_settings
 from app.domain.metrics import DEFAULT_UNITS, METRIC_LABELS, SOURCE_LABELS, STANDARD_METRICS, StandardMetric
+from app.schemas.device import DeviceListItem
 from app.schemas.environment import BoardMetric, EnvironmentBoard, SourceBadge
 from app.services.device_service import list_devices
 from app.services.env_service import in_valid_range
