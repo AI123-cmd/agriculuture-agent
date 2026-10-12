@@ -243,10 +243,15 @@ def traced_node(name: str, fn: Callable[..., Any], *, span_name: str | None = No
     """
     label = span_name or name
 
+    # `record_exception=False, set_status_on_exception=False`：把"记异常/置失败状态"完全交给
+    # 下面的显式分支。默认 True 会让**任何**穿过 `with` 的异常都被记成 ERROR，包括 LangGraph
+    # 的中断控制流，从而把"等待农户回答"误报成"节点失败"。
     if inspect.iscoroutinefunction(fn):
 
         async def _wrapped_async(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> Any:
-            with _tracer().start_as_current_span(label) as span:
+            with _tracer().start_as_current_span(
+                label, record_exception=False, set_status_on_exception=False
+            ) as span:
                 _set_node_attributes(span, state)
                 try:
                     result = await fn(state, *args, **kwargs)
@@ -262,7 +267,7 @@ def traced_node(name: str, fn: Callable[..., Any], *, span_name: str | None = No
         return _wrapped_async
 
     def _wrapped_sync(state: Mapping[str, Any], *args: Any, **kwargs: Any) -> Any:
-        with _tracer().start_as_current_span(label) as span:
+        with _tracer().start_as_current_span(label, record_exception=False, set_status_on_exception=False) as span:
             _set_node_attributes(span, state)
             try:
                 result = fn(state, *args, **kwargs)
