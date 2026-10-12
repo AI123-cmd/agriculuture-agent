@@ -178,6 +178,19 @@ class Settings(BaseSettings):
     # 质量评估
     HARNESS_PASS_RATE_THRESHOLD: float = 0.90
 
+    # 链路追踪（T6-06，技术方案 14.4）。
+    # OTEL_ENABLED 默认 False：关闭时不注册 provider，`start_as_current_span` 退化为
+    # 空操作，开销可忽略；由运维按环境显式打开，避免开发环境默认把 span 打到控制台。
+    OTEL_ENABLED: bool = False
+    # 导出器三档：otlp（生产，指向自建 collector）、console（本地）、none（CI）。
+    # 默认 none 与 OTEL_ENABLED=false 一致：都不产出 span。
+    OTEL_EXPORTER: Literal["otlp", "console", "none"] = "none"
+    # OTLP collector 的 gRPC 端点（如 `http://otel-collector:4317`）。生产开启追踪时必填，
+    # 留空会让追踪静默走别处，故由启动检查拦下（见 startup_check.collect_violations）。
+    OTEL_ENDPOINT: str = ""
+    # 资源属性 `service.name`，用于后端区分服务。
+    OTEL_SERVICE_NAME: str = "huanong-agent"
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     @field_validator("CORS_ORIGINS", mode="before")

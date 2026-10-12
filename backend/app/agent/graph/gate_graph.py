@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph, StateNode
@@ -35,6 +35,7 @@ from app.gate.contracts import GateContext, GatePayload, GatePrescription, GateR
 from app.gate.enums import ProcessId as GateProcessId
 from app.gate.ports import KnowledgeEntrySnapshot, KnowledgeFacts
 from app.gate.service import GateService
+from app.observability import traced_node
 from app.process_config.redlines import LoadedRedlines
 from app.repositories.gate_audit import enqueue_review_ticket
 
@@ -267,7 +268,10 @@ def build_gate_node(knowledge: KnowledgeFacts, today: date | None = None) -> Gat
             "prescription_suppressed": True,
         }
 
-    return gate_node
+    # 套追踪（T6-06）：span 名 `gate_check`，由 `traced_node` 统一写 `gate.decision` /
+    # `gate.rules_hit`（从返回的 `gate_result` 取）与每节点三属性。闸门不读会话字段，
+    # 追踪包装只读节点返回的结构化判定，不触碰 `messages`/`reply`。
+    return cast(GateNode, traced_node("gate_check", gate_node))
 
 
 def build_gate_subgraph(knowledge: KnowledgeFacts | None = None) -> CompiledStateGraph:

@@ -12,6 +12,7 @@ from .logging import log
 from .metrics import MetricsCollector, metrics
 from .tracing import (
     configure_tracing,
+    consultation_span,
     current_trace_context,
     force_flush,
     generation_span,
@@ -23,6 +24,7 @@ from .tracing import (
 __all__ = [
     "MetricsCollector",
     "configure_tracing",
+    "consultation_span",
     "current_trace_context",
     "force_flush",
     "generation_span",

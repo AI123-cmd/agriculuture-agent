@@ -68,6 +68,10 @@ def collect_violations(settings: Settings) -> list[Check]:
         violations.append(Check("cors", "生产环境 CORS_ORIGINS 不能为空（技术方案 15.3）"))
     if "*" in settings.CORS_ORIGINS:
         violations.append(Check("cors", "生产环境不允许通配来源 *，必须显式列域名"))
+    # 开启追踪却没配 collector 端点，导出器会静默落到控制台，trace 直接进容器日志——
+    # 可能是隐私外泄路径（T6-06 与 T6-08 脱敏防线叠加）。故此处 fail-closed。
+    if settings.OTEL_ENABLED and not settings.OTEL_ENDPOINT:
+        violations.append(Check("otel", "生产环境 OTEL_ENABLED=true 时 OTEL_ENDPOINT 必填，不得静默走控制台导出"))
     return violations
 
 

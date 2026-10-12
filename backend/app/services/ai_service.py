@@ -26,6 +26,7 @@ from app.core.config import get_settings
 from app.db.uow import unit_of_work
 from app.events import EVENT_PRESCRIPTION_CREATED, emit
 from app.models import AIConversation, AIMessage
+from app.observability import consultation_span
 from app.process_config.loader import get_process_config, load_all_configs
 from app.process_config.models import ProcessConfig
 from app.process_config.redlines import RedlineValidator
@@ -121,8 +122,11 @@ class AIService:
         # 先定会话主键：归属不符时换新 id，后续持久化与检查点线程都用它（T1-06）。
         session_id = await conversation_repo.resolve_session_id(db, user_id, req.sessionId)
 
-        state = await self._resume_or_start(db, session_id, user_id, req)
-        response = self._build_response(session_id, state)
+        # 一次问诊 = 一个 trace（T6-06）：根 span 由本层打开，图内节点与模型调用因处于
+        # 当前 span 栈内自动成为其后代，无需在图或节点里手工传 parent。
+        with consultation_span(session_id, req.processHint):
+            state = await self._resume_or_start(db, session_id, user_id, req)
+            response = self._build_response(session_id, state)
 
         # 图执行刻意放在事务之外：把它包进事务会长时间持锁，且检查点写入由
         # AsyncPostgresSaver 自己的连接池管理，与业务事务并非同一连接。

@@ -40,6 +40,7 @@ from app.agent.graph.routes import (
 )
 from app.agent.graph.subgraphs import SUBGRAPH_BUILDERS
 from app.agent.state import ConsultationState, ConsultStage, ProcessId
+from app.observability import traced_node
 
 # 主图节点一律只吃 state、返回 state 增量，不带 `config` 形参：LangGraph 会把运行时
 # `RunnableConfig` 按形参名注入，而主图这些节点不需要它（与 `handoff`/`report_guard`
@@ -130,15 +131,16 @@ async def build_graph() -> CompiledStateGraph:
     """
     graph = StateGraph(ConsultationState)
 
-    # 主图节点
-    graph.add_node("intake", intake)
-    graph.add_node("triage", run_triage)
-    graph.add_node("confirm_object", confirm_object)
-    graph.add_node("subgraph_router", subgraph_router)
+    # 主图节点。每个节点经 `traced_node` 包裹（T6-06）：span 名即图上的注册名，
+    # 使"每个智能体 = 一个 span"成为装配层的结构性质，节点实现不必各写追踪代码。
+    graph.add_node("intake", traced_node("intake", intake))
+    graph.add_node("triage", traced_node("triage", run_triage))
+    graph.add_node("confirm_object", traced_node("confirm_object", confirm_object))
+    graph.add_node("subgraph_router", traced_node("subgraph_router", subgraph_router))
     # config=None：按 state 取红线。工厂返回的是 `Callable` 别名，须标成节点协议才能过 mypy。
-    graph.add_node("report_guard", cast(_Node, build_report_guard_node()))
-    graph.add_node("followup", followup)
-    graph.add_node("handoff", cast(_Node, build_handoff_node()))
+    graph.add_node("report_guard", cast(_Node, traced_node("report_guard", build_report_guard_node())))
+    graph.add_node("followup", traced_node("followup", followup))
+    graph.add_node("handoff", cast(_Node, traced_node("handoff", build_handoff_node())))
 
     # 七条流程子图（子图内部自带 observe / report_guard / interview / verify / judge / prescribe）
     for process_id, builder in SUBGRAPH_BUILDERS.items():
