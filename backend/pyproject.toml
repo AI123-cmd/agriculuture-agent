@@ -115,4 +115,9 @@ max_allowlist_entries = 5
 asyncio_mode = "auto"
 testpaths = ["tests"]
 # 评测回归用例打 `@pytest.mark.eval`（T6-01）：默认全跑，需要时可用 `-m "not eval"` 跳过。
-markers = ["eval: 离线评测集回归用例"]
+# 图路径用例打 `@pytest.mark.graph`（T6-04，`tests/graph/conftest.py` 自动施加）：
+# `pytest tests/graph -m graph` 可单独跑全部图测试。
+markers = [
+    "eval: 离线评测集回归用例",
+    "graph: 图路径与编排接线用例",
+]
