@@ -85,7 +85,14 @@ def _prescription_dict() -> dict:
         ],
         soil_level_actions=[],
         followup_plan=FollowupPlan(tasks=[]),
-        facts_provenance={},
+        facts_provenance={
+            "safety_interval_days": "knowledge:K-1001",
+            "max_uses_per_season": "knowledge:K-1001",
+            "pesticide_items[0].dosage_min": "knowledge:K-1001:field:dosage_min",
+            "pesticide_items[0].dosage_max": "knowledge:K-1001:field:dosage_max",
+            "pesticide_items[0].safety_interval_days": "knowledge:K-1001",
+            "pesticide_items[0].max_uses_per_season": "knowledge:K-1001",
+        },
         requires_tech_station=False,
         detail_terms={},
     )
