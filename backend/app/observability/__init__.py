@@ -8,7 +8,8 @@
 经它们写 span，不在各自模块里拼接属性键。
 """
 
-from .logging import log
+from .logging import bind_context, bound_context, clear_context, configure_logging, log
+from .masker import ObservabilityMasker
 from .metrics import MetricsCollector, metrics
 from .prompts import record_prompt_identity
 from .tracing import (
@@ -27,7 +28,12 @@ from .tracing import (
 __all__ = [
     "GENERATION_SPAN_NAME",
     "MetricsCollector",
+    "ObservabilityMasker",
     "ROOT_SPAN_NAME",
+    "bind_context",
+    "bound_context",
+    "clear_context",
+    "configure_logging",
     "configure_tracing",
     "consultation_span",
     "current_trace_context",

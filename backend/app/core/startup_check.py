@@ -81,6 +81,15 @@ def collect_violations(settings: Settings) -> list[Check]:
             violations.append(Check("langfuse", "OTEL_EXPORTER=langfuse 时 LANGFUSE_HOST 必填"))
         if not settings.LANGFUSE_PUBLIC_KEY or not settings.LANGFUSE_SECRET_KEY:
             violations.append(Check("langfuse", "OTEL_EXPORTER=langfuse 时 Langfuse 公钥与密钥必填"))
+    # 日志脱敏（T6-08）：坐标（latitude/longitude）属个人位置信息，生产必须脱敏。
+    # `MASK_GEO=None`（未配置）时由 `configure_logging` 按 `ENV` 派生为 True，合规；
+    # 只有**显式**设为 false 才是危险配置，必须拦下——本地调试想看的真实坐标，
+    # 一旦误带进生产就是位置信息外泄。
+    if settings.MASK_GEO is False:
+        violations.append(Check("logging", "生产环境 MASK_GEO 不允许为 false，坐标必须脱敏"))
+    # 输出格式：生产必须是 JSON，否则审计检索拿不到结构化字段（4.2）。
+    if settings.LOG_FORMAT != "json":
+        violations.append(Check("logging", "生产环境 LOG_FORMAT 必须为 json，便于审计检索"))
     return violations
 
 

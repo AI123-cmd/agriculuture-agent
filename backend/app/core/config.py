@@ -207,12 +207,30 @@ class Settings(BaseSettings):
     # 子 span 按父决定继承（`ParentBased`），不会出现"父在子不在"的残缺 trace。
     LANGFUSE_TRACE_RATIO: float = 1.0
 
+    # 结构化日志（T6-08，技术方案 14.4）。
+    # 生产用 json（便于审计检索），非生产用 console（便于本地阅读）。
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: Literal["json", "console"] = "json"
+    # 额外纳入脱敏的字段名（在默认清单之外）。逗号分隔，供环境变量覆盖。
+    MASK_EXTRA_FIELDS: list[str] = []
+    # 坐标（latitude/longitude）是否脱敏。`None` 表示按 `ENV` 派生（非生产不脱敏，便于本地
+    # 调试看真实坐标；生产脱敏）。显式设为 false 在生产环境会被启动检查拒绝（T6-08）。
+    MASK_GEO: bool | None = None
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:
         """pydantic-settings 读列表型环境变量时用 JSON 数组，这里额外兼容逗号分隔。"""
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v
+
+    @field_validator("MASK_EXTRA_FIELDS", mode="before")
+    @classmethod
+    def _split_mask_fields(cls, v: object) -> object:
+        """同 CORS_ORIGINS：兼容逗号分隔的环境变量写法。"""
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         return v

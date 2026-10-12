@@ -1,9 +1,9 @@
 """FastAPI 应用入口：装配配置、CORS、异常处理器、路由与静态资源。"""
 
 import asyncio
-import logging
 import os
 import sys
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -28,14 +28,22 @@ from app.core.exceptions import AppException
 from app.core.response import error_response
 from app.core.startup_check import run_startup_checks, verify_checkpoint_schema, verify_schema_revision
 from app.db.session import engine
-from app.observability import configure_tracing, force_flush
+from app.observability import (
+    bind_context,
+    clear_context,
+    configure_logging,
+    configure_tracing,
+    force_flush,
+    log,
+)
 
-logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # 日志最早配置：之后的所有启动步骤（自检、迁移校验）都要走统一脱敏入口。
+    configure_logging(settings)
     # 配置自检必须排在最前：配置不安全时不应先建连接再退出
     await run_startup_checks()
     # 追踪器早于图构建装配：图节点的 span 包装在导入期已绑定 `_tracer()`，provider 需在
@@ -79,6 +87,24 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next):
+    """给每个请求绑定 `request_id` 并回写响应头，请求结束清理上下文。
+
+    `clear_context` 必须在 `finally` 里：`contextvars` 在 asyncio 任务间继承，不清理会让
+    下一个请求的日志带上本请求的 `request_id`——串号是这类实现的经典缺陷。问诊链路再叠加
+    `consultation_id`（由 `AIService` 绑定），使"某次问诊的全部日志"可一次取齐。
+    """
+    request_id = request.headers.get("X-Request-Id") or uuid.uuid4().hex
+    bind_context(request_id=request_id)
+    try:
+        response = await call_next(request)
+    finally:
+        clear_context()
+    response.headers["X-Request-Id"] = request_id
+    return response
+
+
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     return error_response(exc.code, exc.message, status_code=exc.code, detail=exc.detail)
@@ -86,7 +112,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("未捕获异常：%s", exc)
+    log.exception("未捕获异常", error=str(exc))
     return error_response(500, "服务器内部错误", status_code=500)
 
 
