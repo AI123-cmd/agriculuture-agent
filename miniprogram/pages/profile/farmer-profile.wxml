@@ -1,5 +1,7 @@
-﻿<view class="page">
+<view class="page">
   <view class="header">
+    <view class="header-deco deco-1"></view>
+    <view class="header-deco deco-2"></view>
     <view class="back-btn" bindtap="goBack">‹</view>
     <view class="header-title">完善农户档案</view>
     <view class="header-sub">填写基础信息，获取精准农事建议</view>
