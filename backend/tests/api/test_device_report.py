@@ -191,12 +191,11 @@ def test_report_mapping_missing_returns_200(client, engine) -> None:
 
 
 def test_report_out_of_range_flagged_and_kept(client, engine) -> None:
-    """`t1=265` 映射为空气温度且 `scale_factor=1`：试算 265°C 超范围，标 `suspect` 且保留原值。"""
+    """上报值超量程：标 `suspect` 且保留原始换算值（标记而非丢弃）。"""
     token, _ = _login(client, "farmer-rep-07")
     device_id, secret = _bind(client, token, "HN-REP-0007")
-    # 保存时用 0.1 让换算级校验通过，上报时把样本值换成 265 触发超范围（scale 仍 0.1 → 26.5 合法）。
-    # 这里要构造"上报值超范围"，故映射用 scale=1 且样例值也在范围内（避免保存被拒），
-    # 上报时发一个放大后的值。
+    # 映射用 `scale=1` 且样例值本身在量程内（26.5），保存能通过换算级校验；
+    # 上报时发 265，同一映射换算得 265°C 超空气温度上限，触发 `suspect`。
     _configure(client, token, device_id, '{"t1": 26.5}', _AIR_ONLY)
 
     resp = _report(client, "HN-REP-0007", secret, '{"t1": 265}')
@@ -266,22 +265,25 @@ def test_report_updates_device_status(client, engine) -> None:
 # ---- 未鉴权：422 且不触发业务查询 ----
 
 
-def test_report_missing_secret_header_returns_422(client, engine) -> None:
+def test_report_missing_secret_header_returns_422(client, engine, monkeypatch) -> None:
+    """缺失 `X-Device-Secret` 由 FastAPI 在进入业务逻辑前拦下：422 且不触发任何业务查询。"""
     token, _ = _login(client, "farmer-rep-11")
     device_id, _secret = _bind(client, token, "HN-REP-0011")
     _configure(client, token, device_id, '{"t1": 26.5}', _AIR_ONLY)
 
-    queries: list[str] = []
+    from app.services import env_service
 
-    def _on_execute(conn, cursor, statement, parameters, context, executemany):  # noqa: ANN001
-        queries.append(statement)
+    calls: list[str] = []
+    original = env_service.device_config_repo.get_by_sn
 
-    engine.sync_engine.event.listen(engine.sync_engine, "before_cursor_execute", _on_execute)
-    try:
-        resp = client.post(_REPORT_URL.format(sn="HN-REP-0011"), content='{"t1": 26.5}')
-    finally:
-        engine.sync_engine.event.remove(engine.sync_engine, "before_cursor_execute", _on_execute)
+    async def _spy(db, device_sn):  # noqa: ANN001
+        calls.append(device_sn)
+        return await original(db, device_sn)
+
+    monkeypatch.setattr(env_service.device_config_repo, "get_by_sn", _spy)
+
+    resp = client.post(_REPORT_URL.format(sn="HN-REP-0011"), content='{"t1": 26.5}')
 
     assert resp.status_code == 422, resp.text
-    # 缺失请求头由 FastAPI 在进入业务逻辑前拦下，不应产生任何读写 env_reading 的语句。
-    assert not any("env_reading" in stmt for stmt in queries)
+    # 请求头缺失在依赖解析阶段即失败，业务查询（按 SN 定位设备）不应被触发。
+    assert calls == []

@@ -22,6 +22,7 @@ from app.db.session import SessionLocal
 from app.domain.metrics import FRESH_WINDOW_MINUTES, REFERENCE_WINDOW_HOURS
 from app.models import Device, EnvReading
 from app.repositories import Repositories, env_reading_repo
+from app.tools.weather import weather_service
 
 # StandardMetric 取值 -> 旧看板消费的键名。EnvironmentService 仍读这些键，
 # 收敛到一处避免两套命名在多个消费者之间漂移。
@@ -121,10 +122,12 @@ sensor_service = SensorService()
 
 
 async def query_sensors(repos: Repositories | None, user_id: str) -> dict:
-    """读农户名下传感器快照：真实读数 → 天气 → 静态兜底。
+    """读农户名下传感器快照：真实读数 → 天气服务 → 静态兜底（T5-07）。
 
-    `source` 三级分别为 `sensor` / `weather` / `fallback`。返回值保留旧看板消费的键名，
-    真实读数优先，缺项用兜底值补齐（`source` 标出真实来源）。
+    `source` 三级分别为 `sensor` / `weather` / `fallback`。静态兜底只在真实读数与天气都不可用时
+    才出现，且 `source="fallback"` 使其可识别为兜底值而非实测（产品说明书 6.4 红线四禁止"无数据
+    支撑的数字"，故不回退为伪装实测，只回退为可识别兜底）。返回值保留旧看板消费的键名，真实读数
+    优先，缺项用兜底值补齐。
     """
     devices: Sequence[Device] = [] if repos is None else await repos.device.list_for_user(repos.db, user_id)
 
@@ -135,6 +138,11 @@ async def query_sensors(repos: Repositories | None, user_id: str) -> dict:
         if reading is not None and reading.is_within_hours():
             values = {_LEGACY_KEYS.get(k, k): v for k, v in reading.values.items()}
             source = "sensor"
+        else:
+            weather = await weather_service.current_with(repos.db, user_id)
+            if weather is not None and weather.values:
+                values = {_LEGACY_KEYS.get(k, k): v for k, v in weather.values.items()}
+                source = "weather"
 
     return {
         **_FALLBACK_VALUES,

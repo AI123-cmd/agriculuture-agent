@@ -171,7 +171,7 @@ def in_valid_range(metric: str, value: float) -> bool:
 
 
 def _stale(observed_at: datetime | None, now: datetime) -> bool:
-    """超出参考窗口（24 小时）即 `stale`；`observed_at` 缺失视为 `stale`（无法证明新鲜）。"""
+    """超出参考窗口（`REFERENCE_WINDOW_HOURS`）即 `stale`；`observed_at` 缺失视为 `stale`（无法证明新鲜）。"""
     if observed_at is None:
         return True
     if observed_at.tzinfo is None:
