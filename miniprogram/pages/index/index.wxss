@@ -10,11 +10,11 @@ page {
   flex-direction: column;
 }
 
-/* ========== 沉浸式顶部区域 ========== */
+/* ========== 沉浸式顶部区域：收窄，只放用户卡片 ========== */
 .hero-section {
   position: relative;
   padding-top: calc(120rpx + env(safe-area-inset-top));
-  padding-bottom: 48rpx;
+  padding-bottom: 88rpx;
   padding-left: 30rpx;
   padding-right: 30rpx;
   box-sizing: border-box;
@@ -38,26 +38,18 @@ page {
 }
 
 .deco-1 {
-  width: 280rpx;
-  height: 280rpx;
-  right: -80rpx;
-  top: -100rpx;
+  width: 260rpx;
+  height: 260rpx;
+  right: -70rpx;
+  top: -90rpx;
 }
 
 .deco-2 {
-  width: 160rpx;
-  height: 160rpx;
-  right: 140rpx;
-  bottom: -60rpx;
+  width: 140rpx;
+  height: 140rpx;
+  right: 130rpx;
+  bottom: -50rpx;
   background: rgba(255, 255, 255, 0.05);
-}
-
-.deco-3 {
-  width: 100rpx;
-  height: 100rpx;
-  left: 60rpx;
-  top: 40rpx;
-  background: rgba(255, 255, 255, 0.04);
 }
 
 .hero-content {
@@ -70,7 +62,6 @@ page {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32rpx;
 }
 
 .user-left {
@@ -102,46 +93,57 @@ page {
   font-weight: 700;
   line-height: var(--line-tight);
   margin-bottom: 6rpx;
-  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
 }
 
 .user-name {
   font-size: var(--font-caption);
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.85);
   line-height: var(--line-body);
 }
 
 .mascot-wrap {
   flex-shrink: 0;
   margin-left: 20rpx;
-  filter: drop-shadow(0 4rpx 12rpx rgba(0, 0, 0, 0.15));
 }
 
-/* ---- 信息卡片组 ---- */
-.info-cards {
-  display: flex;
-  gap: 20rpx;
-}
-
-.info-card {
+/* ========== 主内容区 ========== */
+.main-content {
   flex: 1;
+  padding: 0 30rpx;
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  margin-top: -48rpx;
+  position: relative;
+  z-index: 2;
+}
+
+/* ---- 状态卡：位置+环境合并，全宽，半浮在 hero 下沿 ---- */
+.status-card {
+  background: var(--bg-card);
+  border-radius: 24rpx;
+  padding: 8rpx 28rpx;
+  box-shadow: 0 8rpx 32rpx rgba(46, 125, 50, 0.1);
+  box-sizing: border-box;
+}
+
+.status-row {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20rpx);
-  border-radius: 24rpx;
-  padding: 24rpx 28rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+  min-height: 104rpx;
+  padding: 20rpx 0;
   box-sizing: border-box;
-  min-height: 120rpx;
 }
 
-.info-card:active {
-  transform: scale(0.98);
-  opacity: 0.9;
+.status-row:active.location-row {
+  opacity: 0.7;
 }
 
-.info-icon {
+.status-divider {
+  height: 1rpx;
+  background: var(--line-divider);
+  margin-left: 84rpx;
+}
+
+.status-icon {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
@@ -160,6 +162,7 @@ page {
   background: linear-gradient(135deg, #fff3e0, #ffe0b2);
 }
 
+/* 定位图钉：纯装饰图形 */
 .pin {
   width: 28rpx;
   height: 28rpx;
@@ -168,6 +171,7 @@ page {
   transform: rotate(-45deg);
 }
 
+/* 环境圆点：纯装饰图形 */
 .env-dot {
   width: 24rpx;
   height: 24rpx;
@@ -175,19 +179,22 @@ page {
   background: linear-gradient(135deg, #ff9800, #f57c00);
 }
 
-.info-content {
+.status-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: baseline;
 }
 
-.info-label {
+.status-label {
   font-size: var(--font-caption);
   color: var(--text-muted);
   line-height: var(--line-body);
-  margin-bottom: 4rpx;
+  flex-shrink: 0;
+  margin-right: 16rpx;
 }
 
-.info-value {
+.status-value {
   font-size: var(--font-body);
   color: var(--text-primary);
   font-weight: 600;
@@ -195,37 +202,28 @@ page {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .env-value {
-  font-size: var(--font-caption);
+  font-weight: 400;
   color: var(--text-body);
 }
 
-.info-arrow {
-  font-size: 40rpx;
+.status-arrow {
+  font-size: var(--font-heading);
   color: var(--text-muted);
   margin-left: 12rpx;
   font-weight: 300;
-}
-
-/* ========== 主内容区 ========== */
-.main-content {
-  flex: 1;
-  padding: 0 30rpx;
-  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
-  margin-top: -24rpx;
-  position: relative;
-  z-index: 2;
+  flex-shrink: 0;
 }
 
 /* ---- 今日提示卡片 ---- */
 .tips-card {
-  background: var(--bg-card);
   border-radius: 28rpx;
   padding: 36rpx 32rpx;
   box-shadow: 0 8rpx 32rpx rgba(46, 125, 50, 0.08);
-  box-sizing: border-box;
 }
 
 .card-header {
@@ -241,8 +239,9 @@ page {
 }
 
 .card-title-icon {
-  font-size: 40rpx;
+  font-size: var(--font-title);
   margin-right: 12rpx;
+  line-height: var(--line-tight);
 }
 
 .card-title {
@@ -359,7 +358,7 @@ page {
 }
 
 .empty-icon {
-  font-size: 80rpx;
+  font-size: var(--font-display);
   margin-bottom: 20rpx;
 }
 
@@ -410,41 +409,6 @@ page {
 }
 
 .ask-icon {
-  font-size: 40rpx;
-}
-
-/* ---- 覆盖公共样式，增强视觉效果 ---- */
-.btn-primary {
-  border-radius: 20rpx;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.btn-primary:active {
-  transform: scale(0.96);
-}
-
-.tip-read-btn {
-  background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-  transition: transform 0.15s ease;
-}
-
-.tip-read-btn:active {
-  transform: scale(0.9);
-}
-
-.check-circle {
-  transition: all 0.2s ease;
-}
-
-.check-circle:active {
-  transform: scale(0.9);
-}
-
-.tip-check-done {
-  background: var(--grad-brand);
-  border-color: transparent;
-}
-
-.tip-check-done .check-icon {
-  color: #ffffff;
+  font-size: var(--font-title);
+  line-height: var(--line-tight);
 }
