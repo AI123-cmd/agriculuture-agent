@@ -16,10 +16,19 @@ import { getToken } from '../request'
 import type { AsrAdapter } from '../voice'
 
 class DefaultAsrAdapter implements AsrAdapter {
-  private recorder: WechatMiniprogram.RecorderManager | null = null
-  private settled = false
-  private resolveFn: ((v: { text: string; viaDialect: boolean }) => void) | null = null
-  private rejectFn: ((e: Error) => void) | null = null
+  // 字段在构造器里赋值（不用类字段初始化器）：类字段是 ES2022 语法，真机基础库不认，
+  // 会报 `Unexpected token =`。显式构造器赋值是 ES5 语句，任何基础库都能跑。
+  private recorder: WechatMiniprogram.RecorderManager | null
+  private settled: boolean
+  private resolveFn: ((v: { text: string; viaDialect: boolean }) => void) | null
+  private rejectFn: ((e: Error) => void) | null
+
+  constructor() {
+    this.recorder = null
+    this.settled = false
+    this.resolveFn = null
+    this.rejectFn = null
+  }
 
   recognize(opts: { dialect?: boolean }): Promise<{ text: string; viaDialect: boolean }> {
     void opts

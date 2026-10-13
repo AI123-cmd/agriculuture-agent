@@ -300,9 +300,10 @@ Page({
 
     chat({
       sessionId: this.data.sessionId || null,
-      message: payload.message ?? null,
+      // 不用 `??`：编译目标须兼容真机基础库，`??` 在旧内核会报 Unexpected token ?
+      message: payload.message === undefined ? null : payload.message,
       processHint: this.data.currentCropName || null,
-      answers: payload.answers ?? null,
+      answers: payload.answers === undefined ? null : payload.answers,
     })
       .then((res) => {
         this.stopLoadingHints();

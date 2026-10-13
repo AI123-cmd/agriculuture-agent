@@ -11,8 +11,9 @@ async function persist(name: string, lat?: number, lng?: number, source = 'manua
   try {
     await setLocation({
       locationName: name,
-      latitude: lat ?? null,
-      longitude: lng ?? null,
+      // 不用 `??`：编译目标须兼容真机基础库，`??` 在旧内核会报 Unexpected token ?
+      latitude: lat === undefined ? null : lat,
+      longitude: lng === undefined ? null : lng,
       source,
     })
   } catch (e) {

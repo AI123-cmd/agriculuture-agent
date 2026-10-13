@@ -16,8 +16,15 @@ interface TtsResult {
 }
 
 class DefaultTtsAdapter implements TtsAdapter {
-  private ctx: WechatMiniprogram.InnerAudioContext | null = null
-  private speaking = false
+  // 字段在构造器里赋值（不用类字段初始化器）：类字段是 ES2022 语法，真机基础库不认，
+  // 会报 `Unexpected token =`。显式构造器赋值是 ES5 语句，任何基础库都能跑。
+  private ctx: WechatMiniprogram.InnerAudioContext | null
+  private speaking: boolean
+
+  constructor() {
+    this.ctx = null
+    this.speaking = false
+  }
 
   speak(text: string): Promise<void> {
     const content = (text || '').trim()
