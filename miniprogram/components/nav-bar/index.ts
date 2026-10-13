@@ -30,7 +30,7 @@ Component({
   data: {
     statusBarHeight: 0,
     navBarHeight: 44, // 默认导航栏高度（px）
-    menuButtonInfo: null as any,
+    sideWidth: 88, // 左右两侧占位宽度，保证标题绝对居中
   },
 
   lifetimes: {
@@ -41,11 +41,13 @@ Component({
 
       // 导航栏内容高度 = 胶囊按钮高度 + 上下间距
       const navBarHeight = menuButtonInfo.height + (menuButtonInfo.top - statusBarHeight) * 2;
+      // 右侧胶囊占用宽度 = 屏幕宽 - 胶囊左边界，左右两侧同宽保证标题居中
+      const sideWidth = systemInfo.windowWidth - menuButtonInfo.left;
 
       this.setData({
         statusBarHeight,
         navBarHeight,
-        menuButtonInfo,
+        sideWidth,
       });
     },
   },

@@ -1,0 +1,94 @@
+/* components/nav-bar/index.wxss */
+@import '../../styles/tokens.wxss';
+
+.nav-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.status-bar {
+  width: 100%;
+}
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12rpx;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* 左右两侧占位，保证标题绝对居中 */
+.nav-side {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.nav-left {
+  justify-content: flex-start;
+}
+
+.nav-right {
+  justify-content: flex-end;
+}
+
+/* ========== 标题：优雅字体排版 ========== */
+.nav-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--font-title);
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  line-height: var(--line-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+
+/* 主题：white（深绿底白字） */
+.nav-wrapper.white .nav-title {
+  color: #ffffff;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+}
+
+.nav-wrapper.white .back-arrow {
+  border-color: #ffffff;
+}
+
+/* 主题：dark（浅色底深色字） */
+.nav-wrapper.dark .nav-title {
+  color: var(--text-primary);
+}
+
+.nav-wrapper.dark .back-arrow {
+  border-color: var(--text-primary);
+}
+
+/* ========== 返回按钮 ========== */
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-btn:active {
+  opacity: 0.6;
+}
+
+/* 纯 CSS 返回箭头 */
+.back-arrow {
+  width: 20rpx;
+  height: 20rpx;
+  border-left: 3rpx solid;
+  border-bottom: 3rpx solid;
+  transform: rotate(45deg);
+  border-radius: 2rpx;
+}
