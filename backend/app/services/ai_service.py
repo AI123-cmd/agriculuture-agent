@@ -20,7 +20,7 @@ from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.blackboard import progress_of
-from app.agent.contracts import resolve_process_hint
+from app.agent.contracts import match_object_alias, resolve_process_hint
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, SlotValue
 from app.core.config import get_settings
 from app.db.base import new_id
@@ -290,6 +290,10 @@ class AIService:
             # 作物上下文按农户所选作物的**原始名称**查主作物（`crop_name` 存的就是中文），
             # 与上面归一后的流程标识用途不同，故两处取值刻意分开。
             "context": await self.build_context(db, user_id, req.processHint),
+            # 档案快照（T2-14）：图内 `triage` / `candidate_pool` 读的是 `profile` 系列
+            # 契约键，而非展示用的 `context`。缺了这一步，`source_hint: [profile]` 的槽位
+            # 会被反复追问、对象确认失效，`format_entries` 恒为"无"。
+            **await self.build_profile_snapshot(db, user_id),
             "messages": [{"role": "user", "content": req.message or ""}],
         }
         self._inject_config(initial_state, resolved_hint)
@@ -643,6 +647,71 @@ class AIService:
                 "plantMu": float(crop.plant_mu) if crop else None,
             },
             "profile_tags": tag.tags if tag and tag.tags else [],
+        }
+
+    async def build_profile_snapshot(self, db: AsyncSession, user_id: str) -> dict:
+        """组装图内契约要求的档案快照（T2-14），是"档案 → 问诊图"的唯一接通点。
+
+        图内 `triage`（对象确认、降级标签）与候选池筛选器读的是 `profile` /
+        `profile_process_id` / `profile_process_hint` 三个键，而不是展示用的 `context`。
+        缺了本方法，`source_hint: [profile]` 的槽位会被反复追问、对象确认失效，
+        分诊提示词里的经营条目也恒为"无"。
+
+        `slot_values` 的键必须与目标流程 `required_slots` 的 key 一致，否则筛选器
+        （`_collect_auto_facts`）无法据此剔除候选。填充口径是"档案里的值确实落在该槽位
+        声明的 `options` 内"——`Crop.growth_stage` 存的是农户在档案页选的阶段词，恰好能对上
+        各流程的阶段槽位（`rice_growth_stage` / `pig_growth_stage` 等）。其余槽位（最近用药、
+        上次采摘等）在用药史/农事记录落地前一律不写入——宁可多问一句，也不写入伪造值。
+
+        `prescription_history` 显式给空列表：它表示"暂无已知用药史"这一事实，而非占位。
+        """
+        profile = await profile_repo.first(db, user_id)
+        crops = await crop_repo.list_for_profile(db, user_id)
+        configs = _alias_configs()
+
+        entries: list[dict] = []
+        for crop in crops:
+            pid = match_object_alias(crop.crop_name or "", configs)
+            entries.append(
+                {
+                    "process_id": pid.value if pid is not None else None,
+                    "start_date": crop.sowing_date.isoformat() if crop.sowing_date else None,
+                    "display_name": crop.crop_name or "",
+                }
+            )
+
+        # 主条目：`list_for_profile` 已按"主作物优先"排序，取首条即档案的代表作物。
+        main_crop = crops[0] if crops else None
+        main_pid = match_object_alias(main_crop.crop_name or "", configs) if main_crop is not None else None
+
+        slot_values: dict[str, str] = {}
+        stage = (main_crop.growth_stage or "").strip() if main_crop is not None else ""
+        if main_pid is not None and stage:
+            for spec in get_process_config(main_pid).required_slots:
+                if "profile" in spec.source_hint and spec.options and stage in spec.options:
+                    slot_values[spec.key] = stage
+
+        object_label = ""
+        if main_crop is not None:
+            label_parts = [main_crop.crop_name or ""]
+            if main_crop.plant_mu:
+                label_parts.append(f"{float(main_crop.plant_mu):g}亩")
+            object_label = "·".join(part for part in label_parts if part)
+
+        location = f"{profile.province or ''}{profile.city or ''}{profile.district or ''}" if profile else ""
+        # 无档案且无作物：`profile` 给空字典，使 `triage.degrade` 的 `profile_ready=bool(profile)`
+        # 如实为假，而不是被一堆空键误判为"档案已就绪"。
+        snapshot = {} if profile is None and not entries else {
+            "location": location,
+            "entries": entries,
+            "object_label": object_label,
+            "slot_values": slot_values,
+        }
+        return {
+            "profile": snapshot,
+            "profile_process_id": main_pid.value if main_pid is not None else None,
+            "profile_process_hint": main_pid.value if main_pid is not None else None,
+            "prescription_history": [],
         }
 
     async def history(self, db: AsyncSession, user_id: str, page: int = 1, size: int = 20) -> dict:

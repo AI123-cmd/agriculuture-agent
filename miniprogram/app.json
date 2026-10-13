@@ -22,6 +22,11 @@
     "navigationBarTitleText": "话农点金",
     "navigationBarBackgroundColor": "#2e7d32"
   },
+  "networkTimeout": {
+    "request": 180000,
+    "uploadFile": 60000,
+    "downloadFile": 60000
+  },
   "tabBar": {
     "custom": true,
     "color": "#999999",

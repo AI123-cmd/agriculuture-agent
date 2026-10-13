@@ -15,7 +15,12 @@ export interface LoginResult {
 /* ---------- 农户档案 ---------- */
 export interface CropItem {
   cropName: string
+  /** 流程类型（七选一，取 ProcessId 值）；'other' / 空表示自由输入作物名 */
+  processType?: string
+  cropVariety?: string | null
   plantMu?: number | null
+  /** 播种 / 起始时间（YYYY-MM-DD）；农事历推算依赖它 */
+  sowingDate?: string | null
   growthStage?: string
 }
 

@@ -170,8 +170,9 @@ class CropRepository(OwnedRepository[Crop]):
         """覆盖式重建：先按归属清空，再逐条写入，首条为主作物。
 
         清空与写入必须在调用方的同一事务内完成（T1-09），否则"约束失败导致
-        作物列表被清空"会真实发生。`items` 的键用 `crop_name`/`plant_mu`/`growth_stage`，
-        与请求模型的驼峰命名解耦（转换放在服务层）。
+        作物列表被清空"会真实发生。`items` 的键用 `crop_name`/`crop_variety`/
+        `plant_mu`/`sowing_date`/`growth_stage`，与请求模型的驼峰命名解耦（转换放在服务层）。
+        `sowing_date` 是农事历推算的起始时间，缺它则农事历不产出（见 `broadcast/inputs/calendar.py`）。
         """
         uid = require_user_id(self.model.__name__, user_id)
         await self.delete_all(db, uid)
@@ -179,7 +180,9 @@ class CropRepository(OwnedRepository[Crop]):
             crop = Crop(
                 id=new_id("crop"),
                 crop_name=item["crop_name"],
+                crop_variety=item.get("crop_variety") or None,
                 plant_mu=item.get("plant_mu") or 0,
+                sowing_date=item.get("sowing_date"),
                 growth_stage=item.get("growth_stage") or "",
                 is_main=1 if index == 0 else 0,
             )

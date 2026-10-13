@@ -43,6 +43,9 @@ Page({
   /** 本轮卡片的作答暂存（slotKey -> 答案），不入 data，避免无谓渲染 */
   qaAnswers: {} as Record<string, { slotKey: string; value: string; status: 'filled' | 'unknown' }>,
 
+  /** loading 文案升级用的定时器句柄（出方一轮可能耗时较久） */
+  hintTimers: [] as ReturnType<typeof setTimeout>[],
+
   onLoad() {
     this.loadCropTags();
     this.initChat();
@@ -291,7 +294,9 @@ Page({
 
   /** 调用后端图驱动问诊接口 */
   requestAIResponse(payload: { message?: string; answers?: { slotKey: string; value: string; status: 'filled' | 'unknown' }[] }) {
-    wx.showLoading({ title: '思考中...' });
+    // 末轮（判定 → 出方 → 闸门）可能耗时一分钟以上。loading 文案随时间递进，
+    // 让农户知道系统仍在工作，而不是误以为卡死；文案只提示、不改动结果。
+    this.startLoadingHints();
 
     chat({
       sessionId: this.data.sessionId || null,
@@ -300,7 +305,7 @@ Page({
       answers: payload.answers ?? null,
     })
       .then((res) => {
-        wx.hideLoading();
+        this.stopLoadingHints();
         const aiMsg: Message = {
           id: Date.now(),
           role: 'ai',
@@ -326,12 +331,33 @@ Page({
         });
       })
       .catch((err) => {
-        wx.hideLoading();
+        this.stopLoadingHints();
         // 网络异常：保留用户已发送消息，提示离线，不伪造 AI 回复。解除提交锁，
         // 让农户可直接重试，否则 submitting 会一直为真、卡片再也点不动。
         this.setData({ submitting: false });
         wx.showToast({ title: (err && err.message) || '网络异常，请稍后重试', icon: 'none' });
       });
+  },
+
+  /** 按等待时长递进 loading 文案，并在解除时清理所有定时器 */
+  startLoadingHints() {
+    this.stopLoadingHints();
+    wx.showLoading({ title: '思考中...', mask: true });
+    const steps: { delay: number; title: string }[] = [
+      { delay: 8000, title: '正在分析，请稍候' },
+      { delay: 25000, title: '正在综合判断，请稍候' },
+      { delay: 50000, title: '仍在分析，请勿退出' },
+    ];
+    this.hintTimers = steps.map((step) =>
+      setTimeout(() => wx.showLoading({ title: step.title, mask: true }), step.delay)
+    );
+  },
+
+  /** 清理 loading 定时器并关闭 loading */
+  stopLoadingHints() {
+    this.hintTimers.forEach((t) => clearTimeout(t));
+    this.hintTimers = [];
+    wx.hideLoading();
   },
 
   /**
@@ -446,6 +472,7 @@ Page({
 
   /** 录音中离开页面时取消本次识别 */
   onUnload() {
+    this.stopLoadingHints();
     getAsrAdapter().cancel();
     getTtsAdapter().stop();
   },

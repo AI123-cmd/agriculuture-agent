@@ -4,8 +4,11 @@ from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.state import ProcessId
 from app.db.uow import unit_of_work
 from app.models import Crop, FarmerProfile
+from app.process_config.errors import ConfigLoadError
+from app.process_config.loader import get_process_config
 from app.repositories import crop_repo, profile_repo
 from app.schemas import ProfileRequest
 from app.services.profile_service import ProfileService
@@ -13,6 +16,21 @@ from app.services.profile_service import ProfileService
 
 def _float(v: float | None) -> float | None:
     return float(v) if v is not None else None
+
+
+def _normalize_crop_name(process_type: str, crop_name: str) -> str:
+    """把档案页选的流程类型归一为流程展示名，使 `object_aliases` 稳定命中。
+
+    `processType` 非空且不是 `other` 时（如 `rice`），落库的 `crop_name` 取流程配置的
+    `display_name`（"水稻"）而不是农户手输的任意写法——后者可能匹配不到任何别名，使这条
+    经营条目在问诊与农事历里都被跳过。`other` / 空值时保留农户自由输入，保持兼容。
+    """
+    if not process_type or process_type == "other":
+        return crop_name
+    try:
+        return get_process_config(ProcessId(process_type)).display_name
+    except (ValueError, ConfigLoadError):
+        return crop_name
 
 
 class FarmerService:
@@ -54,8 +72,10 @@ class FarmerService:
                 user_id,
                 [
                     {
-                        "crop_name": item.cropName,
+                        "crop_name": _normalize_crop_name(item.processType, item.cropName),
+                        "crop_variety": item.cropVariety,
                         "plant_mu": item.plantMu,
+                        "sowing_date": item.sowingDate,
                         "growth_stage": item.growthStage,
                     }
                     for item in req.crops
@@ -63,7 +83,9 @@ class FarmerService:
             )
 
             # 归档保存后刷新画像标签（不提交，同属本事务）
-            await ProfileService().update_tags(db, user_id, [c.cropName for c in req.crops])
+            await ProfileService().update_tags(
+                db, user_id, [_normalize_crop_name(c.processType, c.cropName) for c in req.crops]
+            )
 
         return await self.get_profile(db, user_id)
 
@@ -85,7 +107,9 @@ class FarmerService:
             "crops": [
                 {
                     "cropName": c.crop_name,
+                    "cropVariety": c.crop_variety,
                     "plantMu": _float(c.plant_mu),
+                    "sowingDate": c.sowing_date.isoformat() if c.sowing_date else None,
                     "growthStage": c.growth_stage or "",
                 }
                 for c in crops
