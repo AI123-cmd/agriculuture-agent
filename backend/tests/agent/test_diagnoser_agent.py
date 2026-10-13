@@ -274,14 +274,18 @@ async def test_parse_failure_triggers_retry_with_repair_hint(chili_config: Proce
 # ---- 第二组：不确定来源的补全 ----
 
 
-async def test_empty_evidence_forces_uncertain(chili_config: ProcessConfig, ctx: AgentContext) -> None:
-    """证据集为空时 `confidence_level` 被覆写为 `uncertain`，来源写明"未检索到支撑条目"。"""
+async def test_empty_evidence_keeps_model_confidence(chili_config: ProcessConfig, ctx: AgentContext) -> None:
+    """检索无命中也**不**改写把握程度：判据在垂直领域模型内部，外部知识库只是佐证。
+
+    本项是「知识库为空即一路转人工」的回归：此前空证据会把模型给的 `preliminary` 覆写成
+    `uncertain` 并记入来源，判定随即滚入补问回环、最终转人工。
+    """
     agent, _ = _agent([_ok()])
 
     result = await agent.run(_state(), ctx)
 
-    assert result.confidence_level == "uncertain"
-    assert "未检索到支撑条目" in result.uncertainty_source
+    assert result.confidence_level == "preliminary"
+    assert "未检索到支撑条目" not in result.uncertainty_source
 
 
 async def test_evidence_present_keeps_model_confidence(chili_config: ProcessConfig, ctx: AgentContext) -> None:

@@ -11,7 +11,8 @@
   `ContractViolation` 触发重试（带修复提示），重试仍失败走不确定降级——降级比输出
   一个没做鉴别的确定结论安全：辣椒的青枯病与枯萎病处置方向完全不同，猜错的代价是无效用药。
 - **不确定必须说明来源**：契约层已拦"既不说明来源也不说缺什么"的输出（T2-11），本模块
-  再补两条由系统写入的来源——证据集为空、并行会诊未收敛（T2-20 写 `panel_force_uncertain`）。
+  再补一条由系统写入的来源——并行会诊未收敛（T2-20 写 `panel_force_uncertain`）。检索无
+  命中**不**算作强制不确定的理由：判据在农业垂直领域模型内部，外部知识库是佐证而非前置。
 
 `terminology_profile` 由代码从 `process_id` 填入而不是让模型生成：问诊已经在某流程内进行，
 这个值就是确定的，让模型生成只会引入不一致。
@@ -106,11 +107,15 @@ class DiagnoserAgent(BaseAgent[DiagnosisResult]):
     async def post_validate(
         self, result: DiagnosisResult, state: ConsultationState, ctx: AgentContext
     ) -> DiagnosisResult:
-        """四处覆写：术语档、无证据强制不确定、面板未收敛强制不确定、超边界补原因。
+        """三处覆写：术语档、面板未收敛强制不确定、超边界补原因。
 
-        三条强制不确定的来源都记入 `uncertainty_source`：无证据、面板未收敛、以及模型自身
-        判断不确定。三者分开记录，让线上能区分"知识库覆盖不足"与"真难判断"——前者要补知识，
-        后者要补判据。
+        `panel_force_uncertain` 由 T2-20 写入，与模型自身判断的 `uncertain` 分开记入
+        `uncertainty_source`，让线上能区分"多视角未能收敛"与"模型自报不确定"。
+
+        证据集为空**不再**强制不确定：本流程面向的是农业垂直领域模型，判据知识已在模型内部，
+        外部知识库是佐证而非给出结论的前置条件。此前"检索为空即 uncertain"会让每一次问诊
+        在知识库尚未灌数时都滚入回环、最终转人工。无佐证不等于判不了，此处尊重模型自身的
+        把握程度。
 
         分数在这里写入 `state["confidence_score"]` 供 T2-24 的条件边使用。用原地写入与
         其余智能体一致；节点工厂需把该键一并作为返回值提交，否则 LangGraph 不会持久化它。
@@ -118,11 +123,8 @@ class DiagnoserAgent(BaseAgent[DiagnosisResult]):
         updates: dict[str, Any] = {}
         # 1. 术语档位由代码填入，不由模型自由生成。
         updates["terminology_profile"] = ctx.process_config.process_id.value
-        # 2. 证据集为空时强制不确定。
+        # 2. 证据集仅用于内部置信度的微弱加成，不再改写 `confidence_level`。
         evidence = state.get("evidence") or []
-        if not evidence and result.confidence_level != "uncertain":
-            updates["confidence_level"] = "uncertain"
-            _append_source(updates, result, "未检索到支撑条目")
         # 3. 面板未收敛时强制不确定（由 T2-20 写入 state 标记）。
         if bool(cast(dict[str, Any], state).get("panel_force_uncertain")):
             updates["confidence_level"] = "uncertain"

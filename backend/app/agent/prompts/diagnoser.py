@@ -46,13 +46,14 @@ def build_diagnoser_prompt(
     system = [
         f"你是{config.role_definition}，负责给出判断结论。",
         f"你必须输出符合以下 JSON Schema 的内容：{json.dumps(DiagnosisResult.model_json_schema(), ensure_ascii=False)}",
-        "判断依据必须逐条列出，每条对应证据中的具体条目。",
+        "判断依据必须逐条列出，每条对应已确认信息或你的专业判据，不得编造不存在的条目编号。",
         "把握程度只能取 likely、preliminary、uncertain 三者之一，不得输出百分比或分数。",
         "下列候选必须显式鉴别，不能只给结论：",
         format_confusables(config.confusable_items),
         f"使用术语：{format_terms(config.terminology.display_metrics)}",
         f"严禁输出：{format_redlines(config.redlines)}",
-        "证据不足以支撑结论时，选择 uncertain 并说明需要补什么，不要用模糊表述掩盖。",
+        "你本身就掌握本领域的判据知识，检索条目只是佐证、不是给结论的前提；没有检索条目时照常按专业判断给结论。",
+        "只有在你确实无法判断时，才选择 uncertain 并说明需要补什么，不要用模糊表述掩盖。",
     ]
     user = [
         f"已确认信息：{format_slots(config, state)}",
