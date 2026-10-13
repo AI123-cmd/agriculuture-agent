@@ -4,8 +4,8 @@
 
 1. 排除项校验：辣椒流程缺一个候选时抛 `ContractViolation` 并触发重试，重试仍缺则降级；
   结论本身就是候选时不要求它出现在排除项里；无易混淆项的流程不做该校验；
-2. 不确定来源：证据集为空时强制 `uncertain`，面板未收敛时同样强制并记入来源，
-   两者与模型自身判断的 `uncertain` 分开记录；
+2. 不确定来源：检索无命中**不**改写把握程度（判据在垂直领域模型内部），面板未收敛时强制
+   `uncertain` 并记入来源，与模型自身判断的 `uncertain` 分开记录；
 3. 术语档位：`terminology_profile` 恒等于 `process_config.process_id.value`，模型给的值被覆写；
 4. 分数不出契约：`DiagnosisResult` 无分数字段，`internal_confidence` 的结果只落 state；
 5. 回环判据：`judge_loops` 与 `round` 任一达到上限即不再回环，超边界一律不回环；
@@ -308,14 +308,18 @@ async def test_panel_force_uncertain_overrides(chili_config: ProcessConfig, ctx:
     assert any("并行会诊" in source for source in result.uncertainty_source)
 
 
-async def test_two_uncertain_sources_are_distinguished(chili_config: ProcessConfig, ctx: AgentContext) -> None:
-    """无证据与面板未收敛是两条独立来源，同时命中时都要留下。"""
+async def test_panel_uncertain_is_recorded_as_source(chili_config: ProcessConfig, ctx: AgentContext) -> None:
+    """面板未收敛是**唯一**由系统写入的不确定来源；检索无命中不再写来源。
+
+    两条来源都消失会让农户收到一句无出处的不确定话术，因此系统写入的这一条必须留下。
+    """
     agent, _ = _agent([_ok()])
 
     result = await agent.run(_state(panel_force_uncertain=True), ctx)
 
-    assert "未检索到支撑条目" in result.uncertainty_source
+    assert result.confidence_level == "uncertain"
     assert any("并行会诊" in source for source in result.uncertainty_source)
+    assert "未检索到支撑条目" not in result.uncertainty_source
 
 
 async def test_uncertain_without_reason_gets_fallback(chili_config: ProcessConfig, ctx: AgentContext) -> None:
