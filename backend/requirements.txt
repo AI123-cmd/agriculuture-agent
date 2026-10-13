@@ -1,6 +1,10 @@
 # Web 框架
 fastapi>=0.110.0
-uvicorn[standard]>=0.27.0
+# uvicorn 上限 <0.36：0.36 起用 loop_factory 直接构造事件循环，绕过
+# asyncio.set_event_loop_policy，使 app/main.py 在 win32 下设置的
+# WindowsSelectorEventLoopPolicy 失效，psycopg 异步连接池随之报
+# "cannot use the 'ProactorEventLoop'"（详见 app/main.py 顶部注释）。
+uvicorn[standard]>=0.27.0,<0.36.0
 pydantic>=2.6.0
 pydantic-settings>=2.1.0
 python-dotenv>=1.0.0

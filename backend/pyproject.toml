@@ -5,7 +5,9 @@ description = "话农点金 - AI 农事助手后端服务"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.27.0",
+    # 上限 <0.36：0.36 起改用 loop_factory，绕过 asyncio.set_event_loop_policy，
+    # 使 app/main.py 在 win32 下设置的 SelectorEventLoop 失效（psycopg 异步池不可用）
+    "uvicorn[standard]>=0.27.0,<0.36.0",
     "pydantic>=2.6.0",
     "pydantic-settings>=2.1.0",
     "python-dotenv>=1.0.0",
