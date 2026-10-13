@@ -1,5 +1,6 @@
 // pages/ai/chat.ts
 import { chat } from '../../api/ai'
+import { savePrescriptionToLedger } from '../../api/ledger'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
 import { getTtsAdapter, getAsrAdapter } from '../../utils/voice'
@@ -29,6 +30,8 @@ Page({
     questions: [] as QuestionView[],
     prescription: null as PrescriptionView | null,
     handoff: null as HandoffView | null,
+    /** 处方卡是否已存入台账（驱动按钮文案与抑制重复点击） */
+    ledgerSaved: false,
     // 录音态：驱动按钮视觉反馈
     recording: false,
   },
@@ -191,6 +194,7 @@ Page({
           questions: res.questions || [],
           prescription: res.prescription || null,
           handoff: res.handoff || null,
+          ledgerSaved: false,
           scrollWithAnimation: true,
         }, () => {
           wx.nextTick(() => this.scrollToBottom(true));
@@ -233,6 +237,23 @@ Page({
     tts.speak(msg.content).catch(() => {
       wx.showToast({ title: '现在读不出来，稍后再试', icon: 'none' });
     });
+  },
+
+  /** 处方卡存入农事台账（幂等；需后端下发 cardId，缺失时按钮不渲染） */
+  onSaveLedger() {
+    const cardId = this.data.prescription && this.data.prescription.cardId;
+    if (!cardId || this.data.ledgerSaved) return;
+    wx.showLoading({ title: '正在存入...' });
+    savePrescriptionToLedger(cardId)
+      .then(() => {
+        wx.hideLoading();
+        this.setData({ ledgerSaved: true });
+        wx.showToast({ title: '已存入农事台账', icon: 'success' });
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        wx.showToast({ title: (err && err.message) || '存入失败', icon: 'none' });
+      });
   },
 
   /** 朗读转人工卡片（朗读面向农户的文案，不含内部字段） */

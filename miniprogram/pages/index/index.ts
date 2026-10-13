@@ -1,6 +1,7 @@
 // index.ts
 import { getSnapshot, postSnapshot, executeItem } from '../../api/broadcast'
 import { getSummary } from '../../api/environment'
+import { getQuota, grant } from '../../api/subscription'
 import { autoLocate, manualInputLocation } from '../../utils/location'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
@@ -122,6 +123,8 @@ Page({
         } else {
           wx.showToast({ title: '已更新', icon: 'success' });
         }
+        // 生成快照后查询推送额度，决定是否索要订阅授权
+        this.checkSubscribeQuota();
       })
       .catch((err) => {
         wx.showToast({ title: (err && err.message) || '更新失败', icon: 'none' });
@@ -129,6 +132,45 @@ Page({
       .finally(() => {
         this.setData({ updating: false });
       });
+  },
+
+  /**
+   * 查询推送额度：weakened 为真（多次拒绝）只做弱提示，不再弹强索要；
+   * 否则弹授权确认，农户同意后回传后端。
+   */
+  checkSubscribeQuota() {
+    getQuota()
+      .then((q) => {
+        if (q.weakened) {
+          wx.showToast({ title: '开启消息推送，可及时收到农事提醒', icon: 'none', duration: 2500 });
+          return;
+        }
+        if (q.remaining > 0) return;
+        this.askSubscribeGrant();
+      })
+      .catch(() => {
+        // 额度查询失败不阻断主流程
+      });
+  },
+
+  askSubscribeGrant() {
+    wx.showModal({
+      title: '开启农事提醒',
+      content: '允许接收天气突变、病虫害预警等农事提醒推送吗？',
+      confirmText: '允许',
+      cancelText: '以后再说',
+      success: (res) => {
+        grant({ granted: !!res.confirm, scene: 'after_snapshot' })
+          .then(() => {
+            if (res.confirm) {
+              wx.showToast({ title: '已开启提醒', icon: 'success' });
+            }
+          })
+          .catch(() => {
+            // 授权结果回传失败不阻断主流程
+          });
+      },
+    });
   },
 
   applySnapshot(snapshot: any) {

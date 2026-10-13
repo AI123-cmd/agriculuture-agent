@@ -177,6 +177,97 @@ export interface EnvironmentDetail {
   sourceBadge?: SourceBadge | null
 }
 
+/** 看板单个指标行（后端 BoardMetric）：status 反映阈值、quality 反映读数可信度 */
+export interface BoardMetric {
+  metric: string
+  label: string
+  value: number | null
+  unit: string
+  status: string
+  quality: string
+  observedAt: string | null
+}
+
+/** 环境看板出参（后端 EnvironmentBoard） */
+export interface EnvironmentBoard {
+  metrics: BoardMetric[]
+  sourceBadge: SourceBadge
+  devices: DeviceListItem[]
+  lastUpdateAt: string | null
+}
+
+/* ---------- 设备接入（三步向导，与后端 device schema 对齐） ---------- */
+/** 绑定入参：deviceSn 必填，可选关联地块 */
+export interface BindRequest {
+  deviceSn: string
+  farmEntryId?: string | null
+}
+
+/** 绑定结果：下一步引导 + 一次性下发的密钥与上报地址 */
+export interface BindResponse {
+  deviceId: string
+  vendorTemplateMatched: boolean
+  templateId?: string | null
+  /** 命中模板走确认页（confirm_template），未命中走粘贴页（provide_sample） */
+  nextStep: string
+  reportUrl?: string | null
+  /** 明文设备密钥，仅绑定时下发一次；幂等分支为 null */
+  deviceSecret?: string | null
+}
+
+/** 解析出的单个字段（供农户确认或改选） */
+export interface DetectedField {
+  rawField: string
+  sampleValue: string
+  inferredMetric?: string | null
+  candidates: string[]
+  confidence: number
+}
+
+/** 样例报文解析结果 */
+export interface ParseSampleResponse {
+  parsed: boolean
+  fields: DetectedField[]
+  inferError?: string | null
+}
+
+/** 单条字段映射（保存时的完整视图，整体替换语义） */
+export interface MappingItem {
+  rawField: string
+  standardMetric: string
+  unit?: string
+  scaleFactor?: number
+  offsetValue?: number
+  dataType?: string
+  sampleRaw?: string | null
+}
+
+export interface MappingSaveRequest {
+  deviceId: string
+  mappings: MappingItem[]
+}
+
+/** 保存后预览的一行：原始字段 → 换算后的标准读数 */
+export interface MappingPreview {
+  rawField: string
+  sampleRaw: string
+  standardMetric: string
+  value: number
+  unit: string
+}
+
+export interface MappingSaveResponse {
+  deviceId: string
+  saved: number
+  skipped: string[]
+  warnings: string[]
+  preview: MappingPreview[]
+}
+
+export interface DeviceListResponse {
+  devices: DeviceListItem[]
+}
+
 /* ---------- AI 咨询（图驱动问诊，改造后契约） ---------- */
 /** 问诊阶段枚举 */
 export type ConsultStage =
@@ -268,6 +359,11 @@ export interface FollowupPlanView {
 
 /** 处方结论 */
 export interface PrescriptionView {
+  /**
+   * 处方卡主键，用于「存入台账」（POST /ai/prescription/{card_id}/ledger）。
+   * 后端当前 ChatResponse 尚未下发该字段，前端按可选处理：缺失时不渲染存入台账按钮。
+   */
+  cardId?: string | null
   diagnosisSummary: string
   actions: PrescriptionActionView[]
   safetyIntervalDays?: number | null
@@ -341,3 +437,33 @@ export interface HistoryResult {
 export interface UploadResult {
   url: string
 }
+
+/* ---------- 农事台账 ---------- */
+/** 处方卡存入台账后的回执（后端 LedgerSaveResponse） */
+export interface LedgerSaveResponse {
+  entryId: string
+  entryDate: string
+  processId: string | null
+  title: string | null
+  actions: Record<string, any>[]
+  pesticides: Record<string, any>[]
+  safetyIntervalDays: number | null
+  followupNeeded: boolean
+  ledgerSaved: boolean
+}
+
+/* ---------- 订阅授权 ---------- */
+/** 推送额度视图：weakened 为真时前端只做弱提示（不弹强索要） */
+export interface QuotaView {
+  remaining: number
+  grantedTotal: number
+  consumedTotal: number
+  weakened: boolean
+}
+
+export interface GrantRequest {
+  granted: boolean
+  scene?: string | null
+}
+
+export type GrantResponse = QuotaView

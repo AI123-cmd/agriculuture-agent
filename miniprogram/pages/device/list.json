@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "我的设备",
+  "navigationStyle": "custom",
+  "navigationBarTextStyle": "white",
+  "navigationBarBackgroundColor": "#2e7d32",
+  "backgroundColor": "#f0f4ea"
+}

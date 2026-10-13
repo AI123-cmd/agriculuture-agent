@@ -6,7 +6,9 @@
     "pages/ai/chat",
     "pages/history/list",
     "pages/mine/mine",
-    "pages/env/env"
+    "pages/env/env",
+    "pages/device/list",
+    "pages/device/bind"
   ],
   "requiredPrivateInfos": ["getLocation", "chooseLocation"],
   "permission": {

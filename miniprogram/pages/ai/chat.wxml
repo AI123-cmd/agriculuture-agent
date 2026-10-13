@@ -114,6 +114,13 @@
         </view>
 
         <view class="rx-tech t-caption" wx:if="{{prescription.requiresTechStation}}">本情况建议同时咨询当地农技站。</view>
+
+        <!-- 存入台账：仅当后端下发了处方卡 id 时渲染（当前后端未下发，按钮自动隐藏） -->
+        <view
+          class="rx-ledger-btn {{ledgerSaved ? 'saved' : ''}}"
+          wx:if="{{prescription.cardId}}"
+          bindtap="onSaveLedger"
+        >{{ledgerSaved ? '已存入台账' : '存入农事台账'}}</view>
       </view>
 
       <!-- 转人工 -->

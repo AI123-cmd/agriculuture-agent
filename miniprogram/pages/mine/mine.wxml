@@ -80,6 +80,16 @@
       <view class="menu-text">环境数据</view>
       <view class="menu-arrow">›</view>
     </view>
+    <view class="menu-divider"></view>
+
+    <view class="menu-item" hover-class="menu-item-hover" bindtap="goDevice">
+      <view class="menu-icon mi-device">
+        <view class="mi-device-box"></view>
+        <view class="mi-device-dot"></view>
+      </view>
+      <view class="menu-text">我的设备</view>
+      <view class="menu-arrow">›</view>
+    </view>
   </view>
 
   <!-- 其他设置 -->

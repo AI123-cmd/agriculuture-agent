@@ -304,6 +304,27 @@ page {
   border-radius: 50% 0 50% 0;
 }
 
+/* 我的设备：传感器盒子图标 */
+.mi-device {
+  background: linear-gradient(135deg, #9575cd, #5e35b1);
+}
+
+.mi-device-box {
+  width: 32rpx;
+  height: 26rpx;
+  border: 4rpx solid #fff;
+  border-radius: 6rpx;
+  box-sizing: border-box;
+}
+
+.mi-device-dot {
+  width: 8rpx;
+  height: 8rpx;
+  margin-top: 4rpx;
+  border-radius: 50%;
+  background: #fff;
+}
+
 /* 关于我们：信息图标 */
 .mi-about {
   background: linear-gradient(135deg, #4fc3f7, #1e88e5);

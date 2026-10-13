@@ -374,6 +374,31 @@ page {
   color: #b07d2b;
 }
 
+/* —— 存入台账按钮 —— */
+.rx-ledger-btn {
+  margin-top: var(--space-block);
+  height: var(--btn-primary-height);
+  border-radius: 16rpx;
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: var(--text-inverse);
+  background: var(--grad-brand);
+  box-shadow: var(--shadow-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rx-ledger-btn:active {
+  opacity: 0.9;
+}
+
+.rx-ledger-btn.saved {
+  color: var(--text-brand);
+  background: #e8f5e9;
+  box-shadow: none;
+}
+
 /* —— 转人工卡：琥珀色左侧强调条，与处方卡区分 —— */
 .handoff-card {
   border-left: 8rpx solid #f0a53c;

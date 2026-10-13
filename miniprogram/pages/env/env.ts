@@ -1,9 +1,9 @@
 // pages/env/env.ts
-import { getDetail } from '../../api/environment'
+import { getBoard, getDetail } from '../../api/environment'
 import { autoLocate, manualInputLocation } from '../../utils/location'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
-import type { DeviceListItem } from '../../types/api'
+import type { BoardMetric, DeviceListItem, SourceBadge } from '../../types/api'
 
 /** 后端 lastReportAt 为 ISO 时间串，转为"刚刚 / N分钟前 / N小时前 / N天前" */
 function formatReportTime(iso: string | null): string {
@@ -37,6 +37,32 @@ function toDeviceView(item: DeviceListItem) {
   };
 }
 
+/** 后端 BoardMetric → 看板行视图：quality 非 ok 时弱化展示，status 映射为中文标签 */
+function toBoardRow(item: BoardMetric) {
+  const statusLabel = item.status === 'high' ? '偏高' : item.status === 'low' ? '偏低' : item.status === 'normal' ? '正常' : '';
+  const statusClass = item.status === 'high' ? 'st-high' : item.status === 'low' ? 'st-low' : item.status === 'normal' ? 'st-normal' : '';
+  // quality：ok 可信 / stale 过期 / suspect 超量程；非 ok 时数值仍给但弱化
+  const weak = item.quality !== 'ok';
+  return {
+    metric: item.metric,
+    label: item.label,
+    value: item.value == null ? '—' : String(item.value),
+    unit: item.unit || '',
+    statusLabel,
+    statusClass,
+    weak,
+  };
+}
+
+/** 来源标注 → 展示文案（freshnessNote 单独一行） */
+function toSourceView(badge: SourceBadge | null | undefined) {
+  if (!badge) return { label: '', note: '' };
+  return {
+    label: badge.label || '',
+    note: badge.freshnessNote || (badge.regionHitLevel ? `当前按 ${badge.regionHitLevel} 通用数据` : ''),
+  };
+}
+
 Page({
   data: {
     locationName: '点击设置地点',
@@ -50,6 +76,21 @@ Page({
       { id: 'soil', label: '土壤湿度', value: '23', unit: '%' },
       { id: 'light', label: '光照', value: '58k', unit: 'lux' },
     ],
+
+    // 来源标注（来自看板）
+    sourceLabel: '',
+    sourceNote: '',
+
+    // 看板指标行
+    boardMetrics: [] as Array<{
+      metric: string
+      label: string
+      value: string
+      unit: string
+      statusLabel: string
+      statusClass: string
+      weak: boolean
+    }>,
 
     // 空气环境
     airData: [
@@ -109,22 +150,41 @@ Page({
     }
   },
 
-  /** 加载环境详情（服务端为准，本地默认兜底） */
+  /** 加载环境数据：看板（指标+来源+设备）为主，详情补充各分组明细 */
   loadEnvironment() {
-    return getDetail()
-      .then((d) => {
-        this.setData({
-          metrics: d.metrics || this.data.metrics,
-          airData: d.airData || this.data.airData,
-          soilData: d.soilData || this.data.soilData,
-          weatherData: d.weatherData || this.data.weatherData,
-          devices: (d.devices || []).map(toDeviceView),
-          lastUpdateAt: d.lastUpdateAt || Date.now().toString(),
-        });
-      })
-      .catch(() => {
-        // 离线：保留默认/缓存展示
-      });
+    return Promise.all([
+      getBoard().catch(() => null),
+      getDetail().catch(() => null),
+    ]).then(([board, detail]) => {
+      const patch: any = {};
+
+      if (board) {
+        const src = toSourceView(board.sourceBadge);
+        patch.boardMetrics = (board.metrics || []).map(toBoardRow);
+        patch.sourceLabel = src.label;
+        patch.sourceNote = src.note;
+        patch.devices = (board.devices || []).map(toDeviceView);
+        if (board.lastUpdateAt) {
+          patch.lastUpdateAt = formatReportTime(board.lastUpdateAt);
+        }
+      }
+
+      if (detail) {
+        if (detail.metrics && detail.metrics.length > 0) patch.metrics = detail.metrics;
+        if (detail.airData) patch.airData = detail.airData;
+        if (detail.soilData) patch.soilData = detail.soilData;
+        if (detail.weatherData) patch.weatherData = detail.weatherData;
+        if (!board && detail.devices) patch.devices = (detail.devices || []).map(toDeviceView);
+        if (!board && detail.lastUpdateAt) patch.lastUpdateAt = detail.lastUpdateAt;
+        if (!board) {
+          const src = toSourceView(detail.sourceBadge);
+          patch.sourceLabel = src.label;
+          patch.sourceNote = src.note;
+        }
+      }
+
+      if (Object.keys(patch).length > 0) this.setData(patch);
+    });
   },
 
   refreshData() {

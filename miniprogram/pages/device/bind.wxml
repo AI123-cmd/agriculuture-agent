@@ -1,0 +1,137 @@
+<!--pages/device/bind.wxml-->
+<view class="page">
+  <!-- 顶部导航 -->
+  <view class="header">
+    <view class="header-deco deco-1"></view>
+    <view class="header-deco deco-2"></view>
+    <view class="back-btn" bindtap="goBack">‹</view>
+    <view class="header-title">添加设备</view>
+    <view class="back-placeholder"></view>
+  </view>
+
+  <!-- 步骤指示 -->
+  <view class="steps" wx:if="{{!done}}">
+    <view class="step-item {{step >= 1 ? 'active' : ''}}">
+      <view class="step-dot">1</view>
+      <text class="step-label">绑定</text>
+    </view>
+    <view class="step-line {{step >= 2 ? 'active' : ''}}"></view>
+    <view class="step-item {{step >= 2 ? 'active' : ''}}">
+      <view class="step-dot">2</view>
+      <text class="step-label">样例报文</text>
+    </view>
+    <view class="step-line {{step >= 3 ? 'active' : ''}}"></view>
+    <view class="step-item {{step >= 3 ? 'active' : ''}}">
+      <view class="step-dot">3</view>
+      <text class="step-label">字段映射</text>
+    </view>
+  </view>
+
+  <scroll-view scroll-y class="scroll-area">
+    <!-- ========== 步骤一：绑定 ========== -->
+    <block wx:if="{{step === 1 && !done}}">
+      <view class="card block">
+        <view class="card-title">设备编号</view>
+        <view class="hint t-caption">在设备机身或说明书上找到 SN，扫码或手动输入</view>
+        <input
+          class="sn-input t-body"
+          placeholder="请输入设备编号（SN）"
+          value="{{deviceSn}}"
+          bindinput="onSnInput"
+        />
+      </view>
+      <view class="btn-primary submit-btn {{binding ? 'disabled' : ''}}" bindtap="submitBind">
+        {{binding ? '绑定中…' : '下一步'}}
+      </view>
+    </block>
+
+    <!-- ========== 步骤二：样例报文 ========== -->
+    <block wx:if="{{step === 2 && !done}}">
+      <!-- 第一步下发的密钥与上报地址（仅首次绑定有密钥） -->
+      <view class="card block" wx:if="{{reportUrl || deviceSecret}}">
+        <view class="card-title">设备配置信息</view>
+        <view class="hint t-caption">请把下面两项抄进设备或网关配置，密钥只显示这一次</view>
+        <view class="kv-row" wx:if="{{reportUrl}}" bindtap="copyValue" data-value="{{reportUrl}}">
+          <text class="kv-label t-caption">上报地址</text>
+          <text class="kv-value t-body">{{reportUrl}}</text>
+          <text class="kv-copy">复制</text>
+        </view>
+        <view class="kv-row" wx:if="{{deviceSecret}}" bindtap="copyValue" data-value="{{deviceSecret}}">
+          <text class="kv-label t-caption">设备密钥</text>
+          <text class="kv-value t-body">{{deviceSecret}}</text>
+          <text class="kv-copy">复制</text>
+        </view>
+        <view class="hint t-caption warn" wx:if="{{!deviceSecret}}">该设备此前已绑定，密钥不重复下发</view>
+      </view>
+
+      <view class="card block">
+        <view class="card-title">粘贴样例报文</view>
+        <view class="hint t-caption">从设备说明书或抓包工具复制一条上报报文，系统会识别里面的字段</view>
+        <textarea
+          class="payload-input t-body"
+          placeholder='例如：{"t1":26.3,"h1":68,"soil":23}'
+          value="{{payload}}"
+          bindinput="onPayloadInput"
+          maxlength="-1"
+        />
+        <view class="error-text t-caption" wx:if="{{inferError}}">{{inferError}}</view>
+      </view>
+      <view class="btn-primary submit-btn {{parsing ? 'disabled' : ''}}" bindtap="submitParse">
+        {{parsing ? '识别中…' : '识别字段'}}
+      </view>
+    </block>
+
+    <!-- ========== 步骤三：字段映射 ========== -->
+    <block wx:if="{{step === 3 && !done}}">
+      <view class="card block">
+        <view class="card-title">确认字段含义</view>
+        <view class="hint t-caption">核对每个字段对应的环境指标，不需要的选“忽略此字段”</view>
+
+        <view class="field-row" wx:for="{{fields}}" wx:key="rawField">
+          <view class="field-head">
+            <text class="field-raw t-body">{{item.rawField}}</text>
+            <text class="field-sample t-caption">样例：{{item.sampleValue}}</text>
+          </view>
+          <picker
+            mode="selector"
+            range="{{metricOptions}}"
+            range-key="label"
+            value="{{item.metricIndex}}"
+            data-index="{{index}}"
+            bindchange="onMetricChange"
+          >
+            <view class="field-picker t-body">
+              <text class="{{item.metricValue ? '' : 'placeholder'}}">{{metricOptions[item.metricIndex].label}}</text>
+              <text class="picker-arrow">›</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+      <view class="btn-primary submit-btn {{saving ? 'disabled' : ''}}" bindtap="submitMapping">
+        {{saving ? '保存中…' : '保存映射'}}
+      </view>
+    </block>
+
+    <!-- ========== 完成 ========== -->
+    <block wx:if="{{done}}">
+      <view class="card block result-card">
+        <view class="result-icon">✓</view>
+        <view class="result-title t-title">接入完成</view>
+        <view class="result-desc t-caption">已保存 {{savedCount}} 个字段映射</view>
+
+        <view class="warn-list" wx:if="{{warnings.length > 0}}">
+          <view class="error-text t-caption" wx:for="{{warnings}}" wx:key="*this">{{item}}</view>
+        </view>
+
+        <view class="preview-title t-title" wx:if="{{preview.length > 0}}">换算预览</view>
+        <view class="preview-row" wx:for="{{preview}}" wx:key="rawField">
+          <text class="preview-raw t-caption">{{item.rawField}} →</text>
+          <text class="preview-value t-body">{{item.value}}{{item.unit}}</text>
+        </view>
+      </view>
+      <view class="btn-primary submit-btn" bindtap="goDeviceList">返回设备列表</view>
+    </block>
+
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+</view>

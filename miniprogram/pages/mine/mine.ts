@@ -46,6 +46,10 @@ Page({
     wx.navigateTo({ url: '/pages/env/env' });
   },
 
+  goDevice() {
+    wx.navigateTo({ url: '/pages/device/list' });
+  },
+
   showAbout() {
     wx.showModal({
       title: '关于话农点金',

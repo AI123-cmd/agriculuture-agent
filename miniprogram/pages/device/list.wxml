@@ -1,0 +1,59 @@
+<!--pages/device/list.wxml-->
+<view class="page">
+  <!-- 顶部导航 -->
+  <view class="header">
+    <view class="header-deco deco-1"></view>
+    <view class="header-deco deco-2"></view>
+    <view class="back-btn" bindtap="goBack">‹</view>
+    <view class="header-title">我的设备</view>
+    <view class="add-btn tap-88" bindtap="goBind">
+      <text class="add-icon">＋</text>
+    </view>
+  </view>
+
+  <scroll-view scroll-y class="scroll-area">
+    <!-- 空态 -->
+    <view class="empty-card card block" wx:if="{{devices.length === 0}}">
+      <view class="empty-icon"></view>
+      <view class="empty-title t-title">还没有绑定设备</view>
+      <view class="empty-desc t-caption">绑定传感器后，可自动采集环境数据并生成农事提醒</view>
+      <view class="btn-primary empty-btn" bindtap="goBind">添加设备</view>
+    </view>
+
+    <!-- 设备列表 -->
+    <block wx:else>
+      <view class="device-card card block" wx:for="{{devices}}" wx:key="id">
+        <view class="device-head">
+          <view class="device-name t-title">{{item.name}}</view>
+          <text class="device-state {{item.stateClass}}">{{item.stateLabel}}</text>
+        </view>
+        <view class="device-meta t-caption">编号：{{item.sn}}</view>
+        <view class="device-meta t-caption">最近上报：{{item.timeLabel}}</view>
+
+        <view class="device-tag {{item.ready ? 'tag-ready' : 'tag-pending'}}">
+          {{item.ready ? '已接入 ' + item.mappedFields + ' 个字段' : '接入未完成'}}
+        </view>
+
+        <view class="device-actions">
+          <view
+            class="act-btn act-continue"
+            wx:if="{{!item.ready}}"
+            bindtap="continueSetup"
+            data-id="{{item.id}}"
+            data-sn="{{item.sn}}"
+          >继续接入</view>
+          <view
+            class="act-btn act-unbind"
+            bindtap="confirmUnbind"
+            data-id="{{item.id}}"
+            data-name="{{item.name}}"
+          >解绑</view>
+        </view>
+      </view>
+
+      <view class="footer-tip t-caption">设备上报地址与密钥在“添加设备”时下发，请抄进设备配置</view>
+    </block>
+
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+</view>
