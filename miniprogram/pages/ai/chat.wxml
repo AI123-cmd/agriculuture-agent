@@ -77,6 +77,25 @@
               data-slot="{{item.slotKey}}"
             >说不清</view>
           </view>
+          <!-- 自由文本作答：选项不全或只有"说不清"时，农户可直接打字描述 -->
+          <view class="qa-input-row">
+            <view class="qa-input-box">
+              <input
+                class="qa-input"
+                placeholder="也可以直接打字说明..."
+                value="{{item.inputValue}}"
+                confirm-type="done"
+                bindinput="onQaInput"
+                bindconfirm="onQaTextConfirm"
+                data-slot="{{item.slotKey}}"
+              />
+            </view>
+            <view
+              class="qa-input-send tap-88 {{item.inputValue ? 'active' : ''}}"
+              bindtap="onQaTextConfirm"
+              data-slot="{{item.slotKey}}"
+            >确定</view>
+          </view>
         </view>
       </view>
 

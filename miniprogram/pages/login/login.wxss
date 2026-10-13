@@ -1,144 +1,200 @@
 @import '../../styles/tokens.wxss';
-/*login.wxss*/
+
 page {
+  background: linear-gradient(170deg, #dff0dc 0%, #eef5ec 40%, #f7faf6 100%);
   height: 100vh;
-  background: linear-gradient(180deg, #e8f5e9 0%, #eef5ec 45%, #ffffff 100%);
-  --page-padding: 48rpx;
-  --max-content: 680rpx;
 }
 
-.login-container {
+.login-page {
   position: relative;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  min-height: 100vh;
-  padding: 80rpx var(--page-padding) 0;
-  padding-bottom: calc(60rpx + env(safe-area-inset-bottom));
+  padding-top: calc(160rpx + env(safe-area-inset-top));
+  padding-bottom: calc(80rpx + env(safe-area-inset-bottom));
+  padding-left: 48rpx;
+  padding-right: 48rpx;
   box-sizing: border-box;
-  width: 100%;
   overflow: hidden;
 }
 
-/* 背景装饰圆：柔和绿意层次，尺寸均不低于 88rpx */
-.login-container::before {
-  content: '';
+/* ========== 背景装饰圆：田园氛围 ========== */
+.bg-deco {
   position: absolute;
-  top: -120rpx;
-  right: -140rpx;
-  width: 420rpx;
-  height: 420rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(67, 160, 71, 0.14), rgba(67, 160, 71, 0));
+  z-index: 0;
+  pointer-events: none;
 }
 
-.login-container::after {
-  content: '';
-  position: absolute;
-  bottom: 220rpx;
-  left: -160rpx;
-  width: 360rpx;
-  height: 360rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(67, 160, 71, 0.1), rgba(67, 160, 71, 0));
+.deco-1 {
+  width: 480rpx;
+  height: 480rpx;
+  top: -160rpx;
+  right: -180rpx;
+  background: radial-gradient(circle, rgba(67, 160, 71, 0.18), rgba(67, 160, 71, 0));
 }
 
-/* —— Logo 区域 —— */
-.logo-area {
+.deco-2 {
+  width: 400rpx;
+  height: 400rpx;
+  bottom: 300rpx;
+  left: -180rpx;
+  background: radial-gradient(circle, rgba(67, 160, 71, 0.12), rgba(67, 160, 71, 0));
+}
+
+.deco-3 {
+  width: 220rpx;
+  height: 220rpx;
+  bottom: 120rpx;
+  right: -80rpx;
+  background: radial-gradient(circle, rgba(255, 213, 79, 0.1), rgba(255, 213, 79, 0));
+}
+
+/* ========== 品牌区 ========== */
+.brand-area {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 140rpx;
   width: 100%;
-  max-width: var(--max-content);
 }
 
-.logo-card {
-  position: relative;
-  z-index: 1;
-  width: 300rpx;
-  height: 300rpx;
+/* 吉祥物卡片：白色大圆角容器，像一枚"种子徽章" */
+.mascot-card {
+  width: 320rpx;
+  height: 320rpx;
   background: #ffffff;
-  border-radius: 60rpx;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 20rpx 56rpx rgba(46, 125, 50, 0.18);
-  border: 2rpx solid rgba(255, 255, 255, 0.9);
-  overflow: hidden;
-  flex-shrink: 0;
+  box-shadow:
+    0 24rpx 64rpx rgba(46, 125, 50, 0.16),
+    inset 0 -8rpx 24rpx rgba(67, 160, 71, 0.06);
+  position: relative;
+  overflow: visible;
 }
 
+/* 外围光环 */
+.mascot-card::before {
+  content: '';
+  position: absolute;
+  inset: -20rpx;
+  border-radius: 50%;
+  border: 2rpx dashed rgba(67, 160, 71, 0.25);
+}
+
+/* 应用名 */
 .app-name {
   font-size: var(--font-display);
-  font-weight: bold;
+  font-weight: 700;
   color: #2e4632;
-  margin-top: 48rpx;
-  letter-spacing: 6rpx;
+  margin-top: 56rpx;
+  letter-spacing: 8rpx;
   line-height: var(--line-tight);
 }
 
+/* Slogan：两行排版，第二行用品牌绿加重 */
 .app-slogan {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.slogan-line {
   font-size: var(--font-body);
   color: #6b7a63;
-  margin-top: 16rpx;
-  letter-spacing: 2rpx;
+  letter-spacing: 4rpx;
   line-height: var(--line-body);
 }
 
-/* —— 登录区域 —— */
+.slogan-accent {
+  color: var(--text-brand);
+  font-weight: 600;
+}
+
+/* ========== 登录区 ========== */
 .login-section {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: var(--max-content);
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  margin-bottom: 0;
 }
 
+/* 微信登录按钮：胶囊形，左侧带微信图标识意 */
 .login-btn {
   width: 100%;
-  height: 104rpx;
+  height: 112rpx;
   background: var(--grad-brand);
   color: #ffffff;
   font-size: var(--font-body);
-  font-weight: 500;
-  border-radius: 52rpx;
+  font-weight: 600;
+  border-radius: 56rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
-  padding: 0;
-  box-shadow: var(--shadow-btn);
+  gap: 16rpx;
+  box-shadow: 0 12rpx 32rpx rgba(46, 125, 50, 0.28);
   letter-spacing: 2rpx;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .login-btn:active {
-  transform: scale(0.98);
-  opacity: 0.92;
+  transform: scale(0.97);
+  box-shadow: 0 6rpx 20rpx rgba(46, 125, 50, 0.2);
 }
 
 .login-btn.btn-loading {
   opacity: 0.7;
+  pointer-events: none;
 }
 
+.login-btn.btn-disabled {
+  background: linear-gradient(135deg, #a5c9a7, #8bb08d);
+  box-shadow: 0 8rpx 20rpx rgba(46, 125, 50, 0.15);
+}
+
+/* 微信图标：纯 CSS 绘制的对话气泡 */
+.wx-icon {
+  width: 36rpx;
+  height: 36rpx;
+  background: #ffffff;
+  border-radius: 50% 50% 50% 6rpx;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.wx-icon::after {
+  content: '';
+  position: absolute;
+  right: -4rpx;
+  bottom: -4rpx;
+  width: 14rpx;
+  height: 14rpx;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+/* 协议区 */
 .agreement-wrapper {
   display: flex;
   align-items: flex-start;
-  margin-top: 36rpx;
+  justify-content: center;
+  margin-top: 40rpx;
   width: 100%;
   box-sizing: border-box;
-  justify-content: center;
 }
 
 .checkbox {
-  width: 44rpx;
-  height: 44rpx;
+  width: 40rpx;
+  height: 40rpx;
   border: 2rpx solid #b0b8ad;
   border-radius: 50%;
   display: flex;
@@ -146,17 +202,17 @@ page {
   justify-content: center;
   background: #ffffff;
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
-/* 复选框外层热区：88rpx，靠 .tap-88 撑起（app.wxss） */
 .agreement-wrapper .tap-88 {
   align-self: flex-start;
+  margin-right: 4rpx;
 }
 
 .checkbox.checked {
   background: var(--grad-brand);
-  border-color: #2e7d32;
+  border-color: transparent;
   box-shadow: 0 2rpx 8rpx rgba(46, 125, 50, 0.3);
 }
 
@@ -170,8 +226,58 @@ page {
   font-size: var(--font-caption);
   color: #6b7a63;
   line-height: var(--line-body);
+  max-width: 560rpx;
 }
 
 .link {
-  color: #2e7d32;
+  color: var(--text-brand);
+  font-weight: 500;
+}
+
+/* 底部安全提示 */
+.safe-hint {
+  margin-top: 48rpx;
+  font-size: var(--font-caption);
+  color: #9aa89a;
+  text-align: center;
+  line-height: var(--line-body);
+  letter-spacing: 1rpx;
+}
+
+/* ========== 入场动画：元素依次浮现 ========== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-1 {
+  animation: fadeInUp 0.6s ease both, float 3s ease-in-out 0.6s infinite;
+}
+
+.anim-2 {
+  animation: fadeInUp 0.6s ease 0.15s both;
+}
+
+.anim-3 {
+  animation: fadeInUp 0.6s ease 0.3s both;
+}
+
+.login-section {
+  animation: fadeInUp 0.6s ease 0.45s both;
+}
+
+/* 吉祥物呼吸浮动 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12rpx);
+  }
 }

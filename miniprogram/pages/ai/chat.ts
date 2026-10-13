@@ -52,6 +52,13 @@ Page({
     if (!ensureAuth()) return;
     const tabBar = (this as any).getTabBar();
     if (tabBar) tabBar.setData({ selected: 1 });
+    // 首页/历史页点"新对话"会置位该标志；此处消费并清空上一轮，
+    // 只有"明确要开新对话"才重置，切 tab 回来仍保留进行中的会话。
+    const app = getApp<IAppOption>();
+    if (app.globalData.pendingNewChat) {
+      app.globalData.pendingNewChat = false;
+      this.initChat();
+    }
   },
 
   /** 从农户档案读取作物列表，无档案时用默认作物兜底 */
@@ -162,6 +169,28 @@ Page({
     this.pickAnswer(e.currentTarget.dataset.slot as string, '', 'unknown');
   },
 
+  /** 卡片内自由文本输入：仅更新该卡的暂存值，不触发提交 */
+  onQaInput(e: WechatMiniprogram.Input) {
+    const slotKey = e.currentTarget.dataset.slot as string;
+    const value = e.detail.value;
+    const updated = (this.data.questions as any[]).map((q) =>
+      q.slotKey === slotKey ? { ...q, inputValue: value } : q
+    );
+    this.setData({ questions: updated });
+  },
+
+  /** 卡片内自由文本作答：把输入的文字作为该槽位的答案提交 */
+  onQaTextConfirm(e: WechatMiniprogram.BaseEvent) {
+    const slotKey = e.currentTarget.dataset.slot as string;
+    const q = (this.data.questions as any[]).find((item) => item.slotKey === slotKey);
+    const text = ((q && q.inputValue) || '').trim();
+    if (!text) {
+      wx.showToast({ title: '请先输入内容，或选“说不清”', icon: 'none' });
+      return;
+    }
+    this.pickAnswer(slotKey, text, 'filled');
+  },
+
   /**
    * 记录单张卡片的作答，并在全部答完时统一提交。
    *
@@ -231,7 +260,7 @@ Page({
           sessionId: res.sessionId,
           stageLabel: res.stageLabel || '',
           progressText: res.progress ? `${res.progress.current}/${res.progress.total}` : '',
-          questions: res.questions || [],
+          questions: (res.questions || []).map((q: any) => ({ ...q, inputValue: '' })),
           qaAnswered: 0,
           submitting: false,
           prescription: res.prescription || null,

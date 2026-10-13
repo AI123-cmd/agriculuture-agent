@@ -211,6 +211,9 @@ Page({
 
   /** 核心动作一：我要提问 */
   onAsk() {
+    // 置位"开新对话"：chat 是 tabBar 页，switchTab 只触发 onShow 不触发 onLoad，
+    // 不置位的话进页面会保留上一轮的历史消息。
+    getApp<IAppOption>().globalData.pendingNewChat = true;
     wx.switchTab({ url: '/pages/ai/chat' });
   },
 

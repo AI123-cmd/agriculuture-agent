@@ -338,6 +338,51 @@ page {
   color: var(--text-inverse);
 }
 
+/* 卡片内自由文本作答：选项不全或只有"说不清"时，农户可直接打字 */
+.qa-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-inline);
+  margin-top: var(--space-inline);
+}
+
+.qa-input-box {
+  flex: 1;
+  background: #fff;
+  border: 2rpx solid #c8e6c9;
+  border-radius: 16rpx;
+  padding: 0 24rpx;
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+}
+
+.qa-input {
+  width: 100%;
+  color: var(--text-primary);
+  font-size: var(--font-body);
+}
+
+.qa-input-send {
+  flex-shrink: 0;
+  padding: 0 32rpx;
+  min-height: var(--tap-min);
+  border-radius: 16rpx;
+  background: #cfd6cb;
+  color: var(--text-inverse);
+  font-size: var(--font-body);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.qa-input-send.active {
+  background: var(--grad-brand);
+  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.3);
+}
+
 /* —— 处方卡：品牌绿左侧强调条 —— */
 .rx-card {
   border-left: 8rpx solid #43a047;

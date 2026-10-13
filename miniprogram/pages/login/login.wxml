@@ -1,16 +1,27 @@
 <!--login.wxml-->
-<view class="login-container">
-  <view class="logo-area">
-    <view class="logo-card">
-      <sprout-mascot size="{{200}}" />
+<view class="login-page">
+  <!-- 背景装饰 -->
+  <view class="bg-deco deco-1"></view>
+  <view class="bg-deco deco-2"></view>
+  <view class="bg-deco deco-3"></view>
+
+  <!-- 顶部品牌区 -->
+  <view class="brand-area">
+    <view class="mascot-card anim-1">
+      <sprout-mascot size="{{220}}" />
     </view>
-    <view class="app-name">话农点金</view>
-    <view class="app-slogan">小禾陪你，种好每一块田</view>
+    <view class="app-name anim-2">话农点金</view>
+    <view class="app-slogan anim-3">
+      <view class="slogan-line">小禾陪你</view>
+      <view class="slogan-line slogan-accent">种好每一块田</view>
+    </view>
   </view>
 
+  <!-- 底部登录区 -->
   <view class="login-section">
-    <view class="login-btn {{logging ? 'btn-loading' : ''}}" bindtap="onWxLogin">
-      {{logging ? '登录中...' : '微信用户一键登录'}}
+    <view class="login-btn {{logging ? 'btn-loading' : ''}} {{!agreed ? 'btn-disabled' : ''}}" bindtap="onWxLogin">
+      <view class="wx-icon"></view>
+      <text>{{logging ? '登录中…' : '微信一键登录'}}</text>
     </view>
 
     <view class="agreement-wrapper">
@@ -19,12 +30,14 @@
           <text wx:if="{{agreed}}" class="check-icon">✓</text>
         </view>
       </view>
-      <view class="agreement-text">
-        登录即代表同意
-        <text class="link" bindtap="openUserAgreement">《用户协议》</text>
+      <view class="agreement-text" bindtap="toggleAgree">
+        我已阅读并同意
+        <text class="link" catchtap="openUserAgreement">《用户协议》</text>
         和
-        <text class="link" bindtap="openPrivacyPolicy">《隐私政策》</text>
+        <text class="link" catchtap="openPrivacyPolicy">《隐私政策》</text>
       </view>
     </view>
+
+    <view class="safe-hint">登录即代表你同意话农点金的使用条款</view>
   </view>
 </view>

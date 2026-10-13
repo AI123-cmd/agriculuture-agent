@@ -32,6 +32,8 @@ Page({
   },
 
   startNewChat() {
+    // 同首页"我要提问"：置位后切到问答页，由问答页 onShow 消费并清空上一轮会话。
+    getApp<IAppOption>().globalData.pendingNewChat = true;
     wx.switchTab({ url: '/pages/ai/chat' });
   },
 
