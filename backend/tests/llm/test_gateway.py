@@ -454,8 +454,11 @@ async def test_mock_mode_makes_no_network_request(respx_mock: respx.Router) -> N
 
 
 def test_non_mock_without_adapters_raises(monkeypatch) -> None:
-    """`USE_MOCK_LLM=false` 且未装配真实适配器时显式报错，不静默回落到 Mock。"""
+    """`USE_MOCK_LLM=false` 且一个真实端点都没配时显式报错，不静默回落到 Mock。"""
     monkeypatch.setenv("USE_MOCK_LLM", "false")
+    monkeypatch.setenv("FARM_LLM_API_URL", "")
+    monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "")
+    monkeypatch.setenv("PRIVATE_MODEL_BASE_URL", "")
     get_settings.cache_clear()
     try:
         with pytest.raises(RuntimeError):

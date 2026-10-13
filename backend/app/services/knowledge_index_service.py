@@ -4,9 +4,9 @@
 定时任务与 CI 复用；索引逻辑本身在 `app/knowledge/indexer.py`。CI 与预发用
 `build(dry_run=True)` 在校验条目文件的同时不写库。
 
-向量化实现的选择与 `USE_MOCK_LLM` 绑定：mock 模式下用确定性伪向量，不发起任何真实
-请求（测试用 `respx` 断言零请求）。这样内容建设阶段不需要向量化服务也能跑通全链路，
-只是不验证真实语义相似度。
+向量化实现的选择只看 `EMBEDDING_API_URL` 是否配置，与 `USE_MOCK_LLM` 解耦：留空即用
+确定性伪向量，不发起任何真实请求（测试用 `respx` 断言零请求）。这样内容建设阶段不需要
+向量化服务也能跑通全链路，只是不验证真实语义相似度。
 
 条目目录用 `load_seed_dir()` 通配读取 `app/knowledge/seeds/` 下的全部 `*.jsonl`，因此
 一期五条流程（T2-52）与二期油菜/通用两线（T2-53）的数据文件都被自动纳入，新增内容
@@ -25,9 +25,15 @@ logger = logging.getLogger(__name__)
 
 
 def build_embedder() -> Embedder:
-    """按配置选择向量化实现。`USE_MOCK_LLM=true` 时用 mock，避免测试误连真实服务。"""
+    """按配置选择向量化实现。
+
+    判据是 `EMBEDDING_API_URL` 是否配置，与 `USE_MOCK_LLM` **解耦**：向量化服务与对话
+    模型是两套独立服务，一边可用不代表另一边可用。把两者绑在同一个开关上，会让"只想换
+    对话模型"被迫连带切换向量化实现。留空即用确定性伪向量（本地联调与测试的默认路径），
+    配置后走真实 HTTP 向量化服务。
+    """
     settings = get_settings()
-    if settings.USE_MOCK_LLM:
+    if not settings.EMBEDDING_API_URL:
         return MockEmbedder()
     return HttpEmbedder(url=settings.EMBEDDING_API_URL, api_key=settings.EMBEDDING_API_KEY)
 

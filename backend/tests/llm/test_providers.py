@@ -456,9 +456,32 @@ def test_mock_mode_does_not_build_real_adapters() -> None:
     assert not any(isinstance(p, (OpenAICompatProvider, PrivateModelProvider)) for p in providers.values())
 
 
-def test_non_mock_mode_does_not_silently_fall_back(monkeypatch) -> None:
-    """`USE_MOCK_LLM=false` 时显式报错，不静默回落到 Mock。"""
+def test_non_mock_mode_builds_real_adapters(monkeypatch) -> None:
+    """`USE_MOCK_LLM=false` 且配了端点时装配真实适配器，不含 Mock。
+
+    公司网关与 DeepSeek 官方均不支持 `response_format=json_schema`，故 `FARM_LLM_API_URL`
+    走提示词约束的 `PrivateModelProvider`，而不是发 json_schema 的 `OpenAICompatProvider`。
+    """
     monkeypatch.setenv("USE_MOCK_LLM", "false")
+    monkeypatch.setenv("FARM_LLM_API_URL", "https://llm.example.com/v1")
+    monkeypatch.setenv("FARM_API_KEY", "sk-test")
+    get_settings.cache_clear()
+    try:
+        gateway = build_gateway()
+
+        providers = gateway._providers  # noqa: SLF001 - 断言装配结果必须读内部字典
+        assert all(isinstance(p, PrivateModelProvider) for p in providers.values())
+        assert not any(isinstance(p, (MockProvider, OpenAICompatProvider)) for p in providers.values())
+    finally:
+        get_settings.cache_clear()
+
+
+def test_non_mock_mode_without_endpoint_does_not_silently_fall_back(monkeypatch) -> None:
+    """`USE_MOCK_LLM=false` 但一个真实端点都没配时显式报错，不静默回落到 Mock。"""
+    monkeypatch.setenv("USE_MOCK_LLM", "false")
+    monkeypatch.setenv("FARM_LLM_API_URL", "")
+    monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "")
+    monkeypatch.setenv("PRIVATE_MODEL_BASE_URL", "")
     get_settings.cache_clear()
     try:
         with pytest.raises(RuntimeError):
