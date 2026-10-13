@@ -3,6 +3,39 @@ import { getDetail } from '../../api/environment'
 import { autoLocate, manualInputLocation } from '../../utils/location'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
+import type { DeviceListItem } from '../../types/api'
+
+/** 后端 lastReportAt 为 ISO 时间串，转为"刚刚 / N分钟前 / N小时前 / N天前" */
+function formatReportTime(iso: string | null): string {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return '';
+  const diffMin = Math.floor((Date.now() - t) / 60000);
+  if (diffMin < 1) return '刚刚';
+  if (diffMin < 60) return `${diffMin}分钟前`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}小时前`;
+  return `${Math.floor(diffHour / 24)}天前`;
+}
+
+/** 后端 DeviceListItem → 页面展示视图（状态字符串枚举转中文与样式类） */
+function toDeviceView(item: DeviceListItem) {
+  const state = item.onlineState;
+  const stateLabel = state === 'online' ? '在线' : state === 'fault' ? '故障' : '离线';
+  const dotClass = state === 'online' ? 'online' : state === 'fault' ? 'fault' : 'offline';
+  const stateClass = state === 'online' ? 'state-online' : state === 'fault' ? 'state-fault' : 'state-offline';
+  const timeLabel = state === 'online'
+    ? (formatReportTime(item.lastReportAt) || '暂无上报')
+    : (item.silenceNote || formatReportTime(item.lastReportAt) || '暂无上报');
+  return {
+    id: item.id,
+    name: item.deviceName || item.deviceSn || '未命名设备',
+    dotClass,
+    stateClass,
+    stateLabel,
+    timeLabel,
+  };
+}
 
 Page({
   data: {
@@ -43,11 +76,14 @@ Page({
     ],
 
     // 设备列表
-    devices: [
-      { id: '1', name: '土壤传感器 #01', type: 'soil', status: 1, lastOnline: '刚刚' },
-      { id: '2', name: '气象站 #01', type: 'weather', status: 1, lastOnline: '2分钟前' },
-      { id: '3', name: '摄像头 #01', type: 'camera', status: 0, lastOnline: '3小时前' },
-    ],
+    devices: [] as Array<{
+      id: string
+      name: string
+      dotClass: string
+      stateClass: string
+      stateLabel: string
+      timeLabel: string
+    }>,
   },
 
   onLoad() {
@@ -82,7 +118,7 @@ Page({
           airData: d.airData || this.data.airData,
           soilData: d.soilData || this.data.soilData,
           weatherData: d.weatherData || this.data.weatherData,
-          devices: d.devices || this.data.devices,
+          devices: (d.devices || []).map(toDeviceView),
           lastUpdateAt: d.lastUpdateAt || Date.now().toString(),
         });
       })

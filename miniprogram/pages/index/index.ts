@@ -192,8 +192,10 @@ Page({
   loadEnvironment() {
     getSummary()
       .then((d) => {
+        const temp = d.temperature == null ? '—' : d.temperature;
+        const humidity = d.humidity == null ? '—' : d.humidity;
         this.setData({
-          envLine: `温度 ${d.temperature}°C · 湿度 ${d.humidity}% · 土壤 ${d.soilStatus}`,
+          envLine: `温度 ${temp}°C · 湿度 ${humidity}% · 土壤 ${d.soilStatus}`,
         });
       })
       .catch(() => {

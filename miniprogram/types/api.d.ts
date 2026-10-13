@@ -115,14 +115,29 @@ export interface ExecuteResult {
 }
 
 /* ---------- 环境监测 ---------- */
+/** 环境数据来源：本地传感器 / 本地陈旧 / 公共天气 / 暂无 */
+export type EnvSource = 'sensor' | 'sensor_stale' | 'weather' | 'none'
+
+/** 来源与新鲜度标注（后端 SourceBadge） */
+export interface SourceBadge {
+  source: EnvSource
+  label: string
+  /** 仅 sensor_stale 非空，如"数据为 3 小时前" */
+  freshnessNote: string | null
+  /** 仅天气来源时给出，标注命中的地区级 */
+  regionHitLevel: string | null
+}
+
 export interface EnvironmentSummary {
-  temperature: number
-  humidity: number
+  /** 无读数时为 null（后端返回 null，展示需占位） */
+  temperature: number | null
+  humidity: number | null
   soilStatus: string
   soilDetail: string
   lightStatus: string
   lightDetail: string
   lastUpdateAt: string
+  sourceBadge?: SourceBadge | null
 }
 
 export interface MetricItem {
@@ -137,12 +152,19 @@ export interface KVItem {
   value: string
 }
 
-export interface DeviceItem {
+/** 设备列表项（与环境看板、设备管理列表共用，后端 DeviceListItem） */
+export interface DeviceListItem {
   id: string
-  name: string
-  type: string
-  status: number
-  lastOnline: string
+  deviceSn: string
+  deviceName: string | null
+  farmEntryId: string | null
+  /** 在线状态：online / offline / fault */
+  onlineState: 'online' | 'offline' | 'fault'
+  lastReportAt: string | null
+  /** 仅在非在线时非空，如"已离线 3 小时" */
+  silenceNote: string | null
+  mappedFields: number
+  boundAt: string
 }
 
 export interface EnvironmentDetail {
@@ -150,8 +172,9 @@ export interface EnvironmentDetail {
   airData: KVItem[]
   soilData: KVItem[]
   weatherData: KVItem[]
-  devices: DeviceItem[]
+  devices: DeviceListItem[]
   lastUpdateAt: string
+  sourceBadge?: SourceBadge | null
 }
 
 /* ---------- AI 咨询（图驱动问诊，改造后契约） ---------- */
