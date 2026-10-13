@@ -1,4 +1,5 @@
 @import '../../styles/tokens.wxss';
+
 .page {
   min-height: 100vh;
   background: var(--bg-page);
@@ -6,13 +7,13 @@
   flex-direction: column;
 }
 
-/* 顶部标题区 */
+/* ========== 顶部标题区 ========== */
 .header {
   position: relative;
   background: var(--grad-header);
   color: #fff;
-  padding: calc(80rpx + env(safe-area-inset-top)) 48rpx 40rpx;
-  border-radius: 0 0 40rpx 40rpx;
+  padding: calc(80rpx + env(safe-area-inset-top)) 48rpx 44rpx;
+  border-radius: 0 0 48rpx 48rpx;
   box-shadow: 0 8rpx 24rpx rgba(46, 125, 50, 0.18);
   overflow: hidden;
 }
@@ -25,17 +26,17 @@
 }
 
 .deco-1 {
-  width: 220rpx;
-  height: 220rpx;
-  right: -60rpx;
-  top: -80rpx;
+  width: 260rpx;
+  height: 260rpx;
+  right: -70rpx;
+  top: -90rpx;
 }
 
 .deco-2 {
-  width: 120rpx;
-  height: 120rpx;
-  right: 130rpx;
-  bottom: -50rpx;
+  width: 140rpx;
+  height: 140rpx;
+  right: 150rpx;
+  bottom: -60rpx;
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -47,15 +48,27 @@
 }
 
 .back-btn {
-  color: #fff;
-  font-size: var(--font-display);
-  line-height: var(--line-tight);
-  margin-bottom: 16rpx;
   width: var(--tap-min);
   height: var(--tap-min);
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-left: -16rpx;
+  margin-bottom: 12rpx;
+}
+
+.back-btn:active {
+  opacity: 0.6;
+}
+
+/* 纯 CSS 返回箭头 */
+.back-arrow {
+  width: 22rpx;
+  height: 22rpx;
+  border-left: 4rpx solid #fff;
+  border-bottom: 4rpx solid #fff;
+  border-radius: 3rpx;
+  transform: rotate(45deg);
 }
 
 .header-title {
@@ -63,6 +76,7 @@
   font-weight: 700;
   line-height: var(--line-tight);
   margin-bottom: 12rpx;
+  letter-spacing: 2rpx;
 }
 
 .header-sub {
@@ -71,7 +85,7 @@
   line-height: var(--line-body);
 }
 
-/* 滚动内容区 */
+/* ========== 滚动内容区 ========== */
 .scroll-area {
   flex: 1;
   padding: 0 30rpx;
@@ -79,52 +93,237 @@
   box-sizing: border-box;
 }
 
-/* 模块间距与卡片由 app.wxss 公共类 .block / .card / .card-title 提供 */
-
-.card-hint {
-  font-size: var(--font-caption);
-  font-weight: 400;
-  color: #595959;
-  margin-left: 12rpx;
+/* 卡片依次浮现 */
+.scroll-area .card {
+  animation: card-in 0.5s ease both;
 }
 
-/* 添加作物按钮行 */
-.add-crop-row {
+.scroll-area .card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.scroll-area .card:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.scroll-area .card:nth-child(4) {
+  animation-delay: 0.24s;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(24rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========== 分组标题：图标 + 文字 ========== */
+.sec-head {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 24rpx;
-}
-
-.add-btn {
-  flex-shrink: 0;
-  min-height: var(--btn-primary-height);
-  padding: 0 36rpx;
-  border-radius: 16rpx;
-  background: var(--grad-brand);
-  color: #fff;
-  font-size: var(--font-body);
-  font-weight: 600;
-  line-height: var(--btn-primary-height);
-  text-align: center;
-  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.22);
-}
-
-.add-btn:active {
-  opacity: 0.88;
-}
-
-/* 快捷选择 */
-.quick-crops {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 16rpx;
   margin-bottom: 32rpx;
 }
 
+.sec-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 20rpx;
+  background: #eef5ec;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-title);
+  line-height: var(--line-tight);
+  flex-shrink: 0;
+}
+
+.sec-title {
+  font-size: var(--font-title);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: var(--line-tight);
+}
+
+.sec-desc {
+  font-size: var(--font-caption);
+  color: #8a9a8a;
+  line-height: var(--line-body);
+  margin-top: -20rpx;
+  margin-bottom: 32rpx;
+  padding-left: 80rpx;
+}
+
+/* ========== 表单项 ========== */
+.form-item {
+  margin-bottom: 32rpx;
+}
+
+.form-item:last-child {
+  margin-bottom: 8rpx;
+}
+
+.form-label {
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  line-height: var(--line-body);
+  margin-bottom: 16rpx;
+  font-weight: 500;
+}
+
+.required {
+  color: #e53935;
+  margin-right: 6rpx;
+}
+
+/* 选填角标 */
+.optional {
+  font-size: var(--font-caption);
+  color: #a5b5a5;
+  font-weight: 400;
+  margin-left: 12rpx;
+  padding: 2rpx 12rpx;
+  background: #f2f6f0;
+  border-radius: 8rpx;
+}
+
+/* 输入框：浅灰底无边框，聚焦感交给微信原生光标 */
+.form-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 96rpx;
+  background: #f6f8f4;
+  border-radius: 20rpx;
+  padding: 0 28rpx;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  line-height: var(--line-body);
+}
+
+.form-input::placeholder {
+  color: #b0b0b0;
+}
+
+.form-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 160rpx;
+  background: #f6f8f4;
+  border-radius: 20rpx;
+  padding: 24rpx 28rpx;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  line-height: var(--line-body);
+}
+
+.form-textarea::placeholder {
+  color: #b0b0b0;
+}
+
+.count-hint {
+  text-align: right;
+  font-size: var(--font-caption);
+  color: #8a9a8a;
+  line-height: var(--line-body);
+  margin-top: 8rpx;
+}
+
+/* 选择器：与输入框同款 */
+.form-picker {
+  width: 100%;
+  box-sizing: border-box;
+  height: 96rpx;
+  background: #f6f8f4;
+  border-radius: 20rpx;
+  padding: 0 28rpx;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-picker.placeholder {
+  color: #b0b0b0;
+}
+
+.picker-arrow {
+  color: #b0b0b0;
+  font-size: var(--font-title);
+  line-height: var(--line-tight);
+  transform: rotate(90deg);
+}
+
+/* ========== 单选按钮组 ========== */
+.radio-group {
+  display: flex;
+  gap: 20rpx;
+}
+
+.radio-group.three .radio-item {
+  flex: 1;
+}
+
+.radio-item {
+  flex: 1;
+  height: 96rpx;
+  border-radius: 20rpx;
+  background: #f6f8f4;
+  border: 2rpx solid transparent;
+  color: #595959;
+  font-size: var(--font-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.radio-item.active {
+  background: var(--grad-brand);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 6rpx 16rpx rgba(46, 125, 50, 0.28);
+}
+
+/* ========== 添加作物：虚线大按钮 ========== */
+.add-crop-btn {
+  height: 96rpx;
+  border-radius: 20rpx;
+  border: 2rpx dashed #7cb342;
+  background: #f4f9f0;
+  color: var(--text-brand);
+  font-size: var(--font-body);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-bottom: 28rpx;
+}
+
+.add-crop-btn:active {
+  background: #e8f2e2;
+}
+
+.add-plus {
+  font-weight: 400;
+}
+
+/* ========== 快捷选择 ========== */
+.quick-crops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16rpx;
+}
+
 .quick-crops-label {
   font-size: var(--font-caption);
-  color: #595959;
+  color: #8a9a8a;
   line-height: var(--line-body);
 }
 
@@ -132,7 +331,6 @@
   padding: 10rpx 28rpx;
   border-radius: 999rpx;
   background: #eef5ec;
-  border: 1rpx solid #dce8d8;
   color: var(--text-brand);
   font-size: var(--font-body);
   line-height: var(--line-body);
@@ -146,19 +344,20 @@
   background: #dff0dc;
 }
 
-/* 已添加作物列表 */
+/* ========== 已添加作物列表 ========== */
 .selected-crop-list {
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+  margin-top: 32rpx;
+  padding-top: 32rpx;
+  border-top: 1rpx solid #eef2ea;
 }
 
 .selected-crop-item {
   padding: 24rpx;
-  background: #f4f8f1;
-  border-radius: 16rpx;
-  border-left: 8rpx solid #43a047;
-  box-shadow: 0 2rpx 10rpx rgba(46, 125, 50, 0.05);
+  background: #f6f8f4;
+  border-radius: 20rpx;
 }
 
 .selected-crop-header {
@@ -168,19 +367,41 @@
   margin-bottom: 20rpx;
 }
 
+.crop-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.crop-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  flex-shrink: 0;
+}
+
 .selected-crop-name {
   font-size: var(--font-title);
   font-weight: 600;
-  color: #2e7d32;
+  color: var(--text-brand);
   line-height: var(--line-tight);
 }
 
 .selected-crop-remove {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: rgba(229, 57, 53, 0.08);
   color: #e53935;
-  min-height: var(--tap-min);
-  box-sizing: border-box;
   display: flex;
   align-items: center;
+  justify-content: center;
+  font-size: var(--font-body);
+}
+
+.selected-crop-remove:active {
+  background: rgba(229, 57, 53, 0.16);
 }
 
 .selected-crop-body {
@@ -205,190 +426,70 @@
   display: flex;
   flex-direction: column;
   gap: 8rpx;
+  min-width: 0;
 }
 
 .crop-field-label {
   font-size: var(--font-caption);
-  color: #595959;
+  color: #7a8a7a;
   line-height: var(--line-body);
 }
 
 .crop-field-input {
-  height: var(--tap-min);
+  height: 88rpx;
   background: #fff;
-  border-radius: 10rpx;
+  border-radius: 14rpx;
   padding: 0 20rpx;
   font-size: var(--font-body);
-  color: #2c2c2c;
-  line-height: var(--tap-min);
+  color: var(--text-primary);
+  line-height: var(--line-body);
 }
 
 .crop-field-picker {
-  height: var(--tap-min);
+  height: 88rpx;
   background: #fff;
-  border-radius: 10rpx;
+  border-radius: 14rpx;
   padding: 0 20rpx;
   font-size: var(--font-body);
-  color: #2c2c2c;
-  line-height: var(--tap-min);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
 }
 
 .crop-field-picker.placeholder {
   color: #b0b0b0;
 }
 
-/* 表单项 */
-.form-item {
-  margin-bottom: 32rpx;
-}
-
-.form-label {
-  font-size: var(--font-body);
-  color: #2c2c2c;
-  line-height: var(--line-body);
-  margin-bottom: 16rpx;
-  font-weight: 500;
-}
-
-.required {
-  color: #e53935;
-  margin-right: 6rpx;
-}
-
-.form-input {
-  width: 100%;
-  box-sizing: border-box;
-  height: var(--tap-min);
-  background: #ffffff;
-  border: 1rpx solid #e2eadd;
-  border-radius: 16rpx;
-  padding: 0 28rpx;
-  font-size: var(--font-body);
-  color: #2c2c2c;
-  line-height: var(--line-body);
-}
-
-.form-input::placeholder {
-  color: #b0b0b0;
-}
-
-.form-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 160rpx;
-  background: #ffffff;
-  border: 1rpx solid #e2eadd;
-  border-radius: 16rpx;
-  padding: 24rpx 28rpx;
-  font-size: var(--font-body);
-  color: #2c2c2c;
-  line-height: var(--line-body);
-}
-
-.form-textarea::placeholder {
-  color: #b0b0b0;
-}
-
-.count-hint {
-  text-align: right;
-  font-size: var(--font-caption);
-  color: #595959;
-  line-height: var(--line-body);
-  margin-top: 8rpx;
-}
-
-/* 选择器样式 */
-.form-picker {
-  width: 100%;
-  box-sizing: border-box;
-  height: 88rpx;
-  background: #ffffff;
-  border: 1rpx solid #e2eadd;
-  border-radius: 16rpx;
-  padding: 0 28rpx;
-  font-size: var(--font-body);
-  color: #2c2c2c;
-  line-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.form-picker.placeholder {
-  color: #b0b0b0;
-}
-
-.picker-arrow {
-  color: #b0b0b0;
-  font-size: var(--font-title);
-  line-height: var(--line-tight);
-  transform: rotate(90deg);
-}
-
-/* 单选按钮组 两列 */
-.radio-group {
-  display: flex;
-  gap: 20rpx;
-}
-
-.radio-group.three .radio-item {
-  flex: 1;
-}
-
-.radio-item {
-  flex: 1;
-  height: var(--tap-min);
-  border-radius: 16rpx;
-  background: #ffffff;
-  border: 2rpx solid #e2eadd;
-  color: #595959;
-  font-size: var(--font-body);
-  line-height: var(--tap-min);
-  text-align: center;
-  transition: all 0.2s;
-}
-
-.radio-item.active {
-  background: var(--grad-brand);
-  border-color: transparent;
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.25);
-}
-
-/* 底部提交按钮区 */
+/* ========== 底部提交按钮区 ========== */
 .tab-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.96);
   padding: 20rpx 30rpx calc(20rpx + env(safe-area-inset-bottom));
   box-shadow: 0 -6rpx 24rpx rgba(46, 125, 50, 0.08);
 }
 
 .submit-btn {
-  height: 100rpx;
-  border-radius: 50rpx;
+  height: 104rpx;
+  border-radius: 52rpx;
   background: var(--grad-brand);
   color: #fff;
-  font-size: var(--font-body);
+  font-size: var(--font-title);
   font-weight: 700;
-  line-height: 100rpx;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  letter-spacing: 2rpx;
+  letter-spacing: 4rpx;
   box-shadow: var(--shadow-btn);
+  transition: transform 0.15s ease;
 }
 
 .submit-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
   opacity: 0.95;
-}
-
-.submit-btn[disabled],
-.submit-btn.disabled {
-  background: #a5c4a7;
 }
 
 /* 底部占位 */

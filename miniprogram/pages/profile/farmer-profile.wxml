@@ -2,7 +2,9 @@
   <view class="header">
     <view class="header-deco deco-1"></view>
     <view class="header-deco deco-2"></view>
-    <view class="back-btn" bindtap="goBack">‹</view>
+    <view class="back-btn" bindtap="goBack">
+      <view class="back-arrow"></view>
+    </view>
     <view class="header-title">完善农户档案</view>
     <view class="header-sub">填写基础信息，获取精准农事建议</view>
   </view>
@@ -10,7 +12,10 @@
   <scroll-view scroll-y class="scroll-area" enable-flex>
     <!-- 基础信息 -->
     <view class="card block">
-      <view class="card-title">基础信息</view>
+      <view class="sec-head">
+        <view class="sec-icon">👤</view>
+        <view class="sec-title">基础信息</view>
+      </view>
 
       <view class="form-item">
         <view class="form-label"><text class="required">*</text>真实姓名</view>
@@ -31,10 +36,10 @@
       </view>
 
       <view class="form-item">
-        <view class="form-label">年龄</view>
+        <view class="form-label">年龄<text class="optional">选填</text></view>
         <input class="form-input"
                type="number"
-               placeholder="请输入年龄（选填）"
+               placeholder="请输入年龄"
                maxlength="3"
                value="{{form.age}}"
                bindinput="onInput"
@@ -65,7 +70,10 @@
 
     <!-- 地区信息 -->
     <view class="card block">
-      <view class="card-title">地区信息</view>
+      <view class="sec-head">
+        <view class="sec-icon">📍</view>
+        <view class="sec-title">地区信息</view>
+      </view>
 
       <view class="form-item">
         <view class="form-label"><text class="required">*</text>所在地区</view>
@@ -81,9 +89,9 @@
       </view>
 
       <view class="form-item">
-        <view class="form-label">详细地址</view>
+        <view class="form-label">详细地址<text class="optional">选填</text></view>
         <input class="form-input"
-               placeholder="村庄、组、门牌号（选填）"
+               placeholder="村庄、组、门牌号"
                maxlength="100"
                value="{{form.address}}"
                bindinput="onInput"
@@ -93,7 +101,10 @@
 
     <!-- 种植信息 -->
     <view class="card block">
-      <view class="card-title">种植信息</view>
+      <view class="sec-head">
+        <view class="sec-icon">🌾</view>
+        <view class="sec-title">种植信息</view>
+      </view>
 
       <view class="form-item">
         <view class="form-label"><text class="required">*</text>总种植面积（亩）</view>
@@ -116,19 +127,19 @@
       </view>
 
       <view class="form-item">
-        <view class="form-label">灌溉水源</view>
+        <view class="form-label">灌溉水源<text class="optional">选填</text></view>
         <picker range="{{waterOptions}}" bindchange="onWaterChange">
           <view class="form-picker {{form.waterSource ? '' : 'placeholder'}}">
-            {{form.waterSource || '请选择灌溉水源（选填）'}}
+            {{form.waterSource || '请选择灌溉水源'}}
             <text class="picker-arrow">›</text>
           </view>
         </picker>
       </view>
 
       <view class="form-item">
-        <view class="form-label">备注</view>
+        <view class="form-label">备注<text class="optional">选填</text></view>
         <textarea class="form-textarea"
-                  placeholder="特殊地形、习惯品种、排灌情况等（选填）"
+                  placeholder="特殊地形、习惯品种、排灌情况等"
                   maxlength="200"
                   value="{{form.remark}}"
                   bindinput="onInput"
@@ -140,7 +151,11 @@
 
     <!-- 种植作物品类 -->
     <view class="card block">
-      <view class="card-title">种植作物<text class="card-hint">添加您种植的品类，系统将匹配对应专家模型</text></view>
+      <view class="sec-head">
+        <view class="sec-icon">🌱</view>
+        <view class="sec-title">种植作物</view>
+      </view>
+      <view class="sec-desc">添加您种植的品类，系统将匹配对应专家模型</view>
 
       <!-- 选择流程类型 -->
       <view class="form-item">
@@ -164,13 +179,15 @@
                bindconfirm="addCrop" />
       </view>
 
-      <view class="add-crop-row">
-        <view class="add-btn" bindtap="addCrop">添加作物</view>
+      <!-- 添加按钮：虚线大按钮，更有点击欲 -->
+      <view class="add-crop-btn" bindtap="addCrop">
+        <text class="add-plus">＋</text>
+        <text>添加作物</text>
       </view>
 
       <!-- 快捷选择 -->
       <view class="quick-crops">
-        <text class="quick-crops-label">常用：</text>
+        <text class="quick-crops-label">常用</text>
         <view class="quick-crop-tag" wx:for="{{cropList}}" wx:key="*this" bindtap="quickAddCrop" data-name="{{item}}">{{item}}</view>
       </view>
 
@@ -178,8 +195,11 @@
       <view class="selected-crop-list" wx:if="{{selectedCrops.length > 0}}">
         <view class="selected-crop-item" wx:for="{{selectedCrops}}" wx:key="id" wx:for-item="crop" wx:for-index="idx">
           <view class="selected-crop-header">
-            <text class="selected-crop-name">{{crop.name || '待填写作物名'}}</text>
-            <text class="selected-crop-remove" bindtap="removeCrop" data-index="{{idx}}">删除</text>
+            <view class="crop-name-wrap">
+              <view class="crop-dot"></view>
+              <text class="selected-crop-name">{{crop.name || '待填写作物名'}}</text>
+            </view>
+            <view class="selected-crop-remove" bindtap="removeCrop" data-index="{{idx}}">✕</view>
           </view>
 
           <!-- “其他作物”允许改名 -->
