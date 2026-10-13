@@ -1,3 +1,6 @@
 # 评测报告产物（T6-01）：报告是本地跑出来的，不进仓库，但目录与 .gitkeep 要留。
 tests/eval/reports/*.json
 !tests/eval/reports/.gitkeep
+# 例外：交付基线不进这条忽略（T6-11）。门禁要与"主分支最近一次成功运行"比较，
+# 基线必须随仓库走，否则每次 CI 都退回"首次评测"而放行。
+!tests/eval/reports/baseline.json

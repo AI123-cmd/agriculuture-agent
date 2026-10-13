@@ -158,7 +158,9 @@ async def test_node_failure_empty_is_zero(session_factory) -> None:
 # ---- 3. token 消耗与成本 ----
 
 
-def _llm_call(*, agent: str, task_type: str, prompt: int, completion: int, cost_micros: int, ok: bool = True) -> LlmCall:
+def _llm_call(
+    *, agent: str, task_type: str, prompt: int, completion: int, cost_micros: int, ok: bool = True
+) -> LlmCall:
     return LlmCall(
         user_id=_USER,
         process_id="rice",
@@ -307,8 +309,6 @@ async def test_metrics_snapshot_row_is_persisted(session_factory) -> None:
         await MetricsRepository(db).insert_metrics_snapshot(_today(), {"handoff_rate": {"value": 0.1}})
         await db.commit()
 
-        row = (
-            await db.execute(select(EvalRun).where(EvalRun.kind == "metrics_snapshot"))
-        ).scalar_one()
+        row = (await db.execute(select(EvalRun).where(EvalRun.kind == "metrics_snapshot"))).scalar_one()
 
     assert row.payload["handoff_rate"]["value"] == pytest.approx(0.1)

@@ -188,8 +188,12 @@ arq app.worker.WorkerSettings
 
 ```bash
 cd backend
-bash scripts/ci.sh        # ruff format/check → mypy → check_layers → pytest
+bash scripts/ci.sh        # 1 ruff check → 2 format --check → 3 mypy → 4 分层依赖 → 5 迁移升降 → 6 gate → 7 graph → 9 其余测试
 ```
+
+`scripts/ci.sh` 的第 1 至 7 项与 `.github/workflows/ci.yml` 的八项检查逐条一致
+（用 `tests/test_ci_config.py` 做文本比对断言）；评测回归（第 8 项）默认不跑，需要时
+`CI_RUN_EVAL=1 bash scripts/ci.sh`，或看独立的 `.github/workflows/eval-regression.yml`。
 
 或单独运行测试：
 
@@ -199,9 +203,13 @@ python -m pytest -q
 ```
 
 - 测试使用 PostgreSQL 测试库（`TEST_DATABASE_URL`）与 mock LLM 隔离环境，不调用真实大模型。
-- `scripts/check_layers.py` 强制四条分层依赖规则，白名单条目有上限且需登记失效任务编号。
+- `scripts/check_layers.py` 强制四条分层依赖规则，白名单条目有上限且需登记失效任务编号；
+  `scripts/check_no_noqa.py` 拦"用 `# noqa` 掩盖分层违规"与"CI 里 `continue-on-error` 降级检查"
+  ——分层规则不允许行内豁免。
 - 前端适老化样式由根目录 `scripts/check_wxss_tokens.mjs` 门禁校验（字号/行距/热区只允许定义在 `tokens.wxss`）。
-- 离线评测集（`backend/tests/eval/`）对七条流程做加权一致率回归。
+- 离线评测集（`backend/tests/eval/`）对七条流程做加权一致率回归；一致率低于阈值或相对
+  基线下降超过 1 个百分点即阻断发布（`scripts/compare_eval_reports.py`）。
+- 发布前人工核对项与其自动化检查的映射见 [docs/release-checklist.md](docs/release-checklist.md)。
 
 ## 设计与任务文档
 

@@ -1,0 +1,123 @@
+name: eval-regression
+
+# 评测回归独立成作业（T6-11，技术方案 14.1 的 CI 门禁）：
+# 它与主检查作业的差别在于**要读历史基线**——主检查只判断"本次是否通过"，
+# 这里判断"本次相对基线有没有变差"，因此需要基线文件与跨运行的对比。
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: write  # 基线更新作业需要回写 baseline.json
+
+jobs:
+  eval-gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_PASSWORD: huanong
+          POSTGRES_USER: huanong
+          POSTGRES_DB: huanong
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U huanong"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong_test
+      DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong
+      CHECKPOINT_DB_URL: postgresql://huanong:huanong@localhost:5432/huanong
+      USE_MOCK_LLM: "true"
+      REDIS_URL: ""
+      JWT_SECRET: ci-only-secret-key-at-least-32-bytes-long
+      # 绝对门禁阈值：与 compare_eval_reports.py 的缺省一致，集中在此便于调整。
+      HARNESS_PASS_RATE_THRESHOLD: "0.90"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      # 评测用例收尾时会把报告写入 tests/eval/reports/{date}.json（T6-01 的既定行为），
+      # 因此这里不传 --report-file（那是文档骨架里的设想参数，pytest 并无此选项）。
+      - name: 跑离线评测集
+        run: cd backend && pytest -q -m eval tests/eval
+
+      - name: 一致率门禁
+        # 非主分支上降级为告警（PR 阶段先让人看见趋势），主分支上必须阻断。
+        # 这条表达式是本仓库唯一登记的 continue-on-error，见 scripts/check_no_noqa.py。
+        continue-on-error: ${{ !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+        run: |
+          cd backend
+          python scripts/compare_eval_reports.py \
+            --current "tests/eval/reports/$(date +%F).json" \
+            --baseline tests/eval/reports/baseline.json \
+            --threshold "${HARNESS_PASS_RATE_THRESHOLD}" \
+            --max-drop-pp 1.0
+
+  # 基线更新：只在主分支推送后执行，把本次报告固化为新的交付基线。
+  # 为什么必须是"最近的基线"而不是"上一次运行"：用上一次运行会让连续两次各降 0.9pp
+  # （单次都未超 1pp）逐次通过，累积成明显退化而无人察觉。
+  update-baseline:
+    needs: [eval-gate]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong_test
+      DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong
+      CHECKPOINT_DB_URL: postgresql://huanong:huanong@localhost:5432/huanong
+      USE_MOCK_LLM: "true"
+      REDIS_URL: ""
+      JWT_SECRET: ci-only-secret-key-at-least-32-bytes-long
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_PASSWORD: huanong
+          POSTGRES_USER: huanong
+          POSTGRES_DB: huanong
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U huanong"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      - name: 跑离线评测集
+        run: cd backend && pytest -q -m eval tests/eval
+
+      - name: 固化基线
+        run: |
+          cd backend
+          python scripts/compare_eval_reports.py \
+            --current "tests/eval/reports/$(date +%F).json" \
+            --baseline tests/eval/reports/baseline.json \
+            --update-baseline
+
+      - name: 提交基线（仅在变化时）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/tests/eval/reports/baseline.json
+          git diff --cached --quiet && echo "基线未变化，无需提交" && exit 0
+          git commit -m "chore(eval): 更新离线评测基线 [skip ci]"
+          git push

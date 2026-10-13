@@ -119,10 +119,16 @@ max_allowlist_entries = 5
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-# 评测回归用例打 `@pytest.mark.eval`（T6-01）：默认全跑，需要时可用 `-m "not eval"` 跳过。
-# 图路径用例打 `@pytest.mark.graph`（T6-04，`tests/graph/conftest.py` 自动施加）：
-# `pytest tests/graph -m graph` 可单独跑全部图测试。
+# 四个标记把测试分成可独立运行的门禁集（T6-11 的 CI 步骤 6/7/8 各取其一），
+# 未注册的标记会产生 `PytestUnknownMarkWarning`，在 `-W error` 环境下直接变失败。
+# 默认全跑（`-m` 只在需要分集时用）：
+#   - `eval`：离线评测集回归（`pytest -m eval tests/eval`）
+#   - `graph`：图路径与编排接线（`tests/graph/conftest.py` 自动施加）
+#   - `gate`：闸门规则单测（`pytest tests/gate`，目录级门禁）
+#   - `contracts`：智能体间契约（`pytest tests/contracts`，目录级门禁）
 markers = [
     "eval: 离线评测集回归用例",
     "graph: 图路径与编排接线用例",
+    "gate: 闸门规则单测",
+    "contracts: 智能体间契约用例",
 ]

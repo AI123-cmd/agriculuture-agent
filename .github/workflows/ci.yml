@@ -25,7 +25,7 @@ jobs:
       TEST_DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong_test
       DATABASE_URL: postgresql+asyncpg://huanong:huanong@localhost:5432/huanong
       CHECKPOINT_DB_URL: postgresql://huanong:huanong@localhost:5432/huanong
-      # 检查点是核心依赖，测试不依赖外部服务
+      # 图测试与评测在 mock 模型下跑，CI 不依赖外部模型服务
       USE_MOCK_LLM: "true"
       REDIS_URL: ""
       JWT_SECRET: ci-only-secret-key-at-least-32-bytes-long
@@ -44,19 +44,39 @@ jobs:
           PGPASSWORD=huanong psql -h localhost -U huanong -d huanong \
             -c 'CREATE DATABASE huanong_test OWNER huanong;'
 
-      # 顺序与 scripts/ci.sh 一致：ruff → mypy → check-layers → 迁移 → 测试。
-      # 分层依赖检查放在 mypy 之后：分层违规常同时导致类型错误，先报基础门禁。
-      - name: ruff
-        run: |
-          cd backend
-          ruff format --check app tests
-          ruff check app tests
+      # 八项的顺序不是随意的：静态检查在前（失败最快、反馈最便宜），
+      # 迁移与测试在后（需要数据库与更多耗时）。顺序与 scripts/ci.sh 第 1 至 7 项逐条一致。
+      - name: 1 ruff check
+        run: ruff check backend/app
 
-      - name: mypy
+      - name: 2 ruff format --check
+        run: ruff format --check backend/app
+
+      - name: 3 mypy
         run: cd backend && mypy app
 
-      - name: check-layers
-        run: python backend/scripts/check_layers.py
+      # 分层依赖的两条门禁：check_layers 判违规，check_no_noqa 判"有没有人试图绕过它"。
+      - name: 4 分层依赖检查（不允许 noqa 跳过）
+        run: |
+          python backend/scripts/check_layers.py
+          python backend/scripts/check_no_noqa.py
+
+      - name: 5 迁移可升降
+        run: cd backend && alembic upgrade head && alembic downgrade -1 && alembic upgrade head
+
+      - name: 6 闸门规则单测
+        run: cd backend && pytest -q tests/gate
+
+      - name: 7 图路径测试
+        run: cd backend && pytest -q tests/graph
+
+      - name: 8 离线评测集回归
+        run: cd backend && pytest -q -m eval tests/eval
+
+      # 第 9 项：其余用例（含契约测试与集成测试）。评测已在前一项跑过，这里不重复标注
+      # `-m eval`；`-p no:randomly` 保持执行顺序确定性，避免"本地过 CI 挂"。
+      - name: 9 其余测试（契约与集成）
+        run: cd backend && pytest -q -p no:randomly tests/contracts tests/
 
       # 前端适老化样式门禁（T4-01）：字号/行距/热区/间距字面量只允许在 tokens.wxss，
       # 例外集中登记在 scripts/wxss-token-whitelist.json。
@@ -66,13 +86,3 @@ jobs:
 
       - name: check-wxss-tokens
         run: node scripts/check_wxss_tokens.mjs
-
-      - name: migrations
-        run: |
-          cd backend
-          alembic upgrade head
-          alembic downgrade -1
-          alembic upgrade head
-
-      - name: tests
-        run: cd backend && pytest -q
