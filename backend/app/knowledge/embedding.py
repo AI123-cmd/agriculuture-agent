@@ -47,7 +47,10 @@ class HttpEmbedder:
         """批量向量化。空输入直接返回空列表，不发请求。"""
         if not texts:
             return []
-        payload = {"input": texts, "model": self._model, "dimensions": self.dimensions}
+        # 不发 `dimensions`：该参数是 OpenAI text-embedding-3-* 的截断特性，多数服务
+        # （如硅基流动的 BAAI/bge-m3）收到会直接 400。输出维度由模型自身决定，落库前的
+        # 维度校验在 `indexer._upsert_one` 完成，无需客户端指定。
+        payload = {"input": texts, "model": self._model}
         headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
         last_error: Exception | None = None
         for attempt in range(_MAX_ATTEMPTS):

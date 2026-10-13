@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 
 from app.agent.state import EvidenceKind, ProcessId
+from app.core.config import get_settings
 from app.knowledge.embedding import EMBEDDING_DIM, MockEmbedder
 from app.knowledge.indexer import BuildReport, IndexBuildError, KnowledgeIndexer
 from app.knowledge.schema import KnowledgeRegionSpec, KnowledgeSeedItem
@@ -255,15 +256,26 @@ async def test_wrong_dimension_collected_into_errors(session_factory) -> None:
     assert await _count(session_factory, KnowledgeItem) == 0
 
 
-async def test_mock_mode_issues_no_network_request(session_factory, respx_mock: respx.Router) -> None:
-    """`USE_MOCK_LLM=true` 下构建不发起任何真实向量化请求。"""
-    embedder = build_embedder()
-    assert isinstance(embedder, MockEmbedder)
+async def test_mock_mode_issues_no_network_request(
+    session_factory, respx_mock: respx.Router, monkeypatch
+) -> None:
+    """未配置向量化服务时构建不发起任何真实请求（用确定性伪向量）。
 
-    report = await _build(session_factory, [_item()], embedder=embedder)
+    `build_embedder` 的判据是 `EMBEDDING_API_URL` 是否配置，故此处显式清空它——
+    否则本用例会跟随开发者 `.env` 的当前值漂移（配了地址就变成断言真实实现）。
+    """
+    monkeypatch.setenv("EMBEDDING_API_URL", "")
+    get_settings.cache_clear()
+    try:
+        embedder = build_embedder()
+        assert isinstance(embedder, MockEmbedder)
 
-    assert report.upserted == 1
-    assert respx_mock.calls == []
+        report = await _build(session_factory, [_item()], embedder=embedder)
+
+        assert report.upserted == 1
+        assert respx_mock.calls == []
+    finally:
+        get_settings.cache_clear()
 
 
 def test_embedding_text_excludes_pesticide_fields() -> None:
