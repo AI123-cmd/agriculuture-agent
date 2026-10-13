@@ -15,10 +15,11 @@ from contextlib import asynccontextmanager
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.agent import get_agent
 from app.agent.checkpointer import close_checkpointer
@@ -117,6 +118,25 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 app.include_router(api_router, prefix="/api")
+
+
+@app.get("/health", tags=["ops"])
+async def health() -> dict:
+    """容器编排的探活端点（T6-10）：只报进程与数据库连通性。
+
+    **刻意不检查模型服务/知识库/Langfuse**：那些都是弱依赖，抖动时应降级而不是判不健康；
+    若把它们纳入探活，一次模型抖动会让编排把所有副本摘除，反而把局部降级放大成整体不可用
+    （技术方案 14.4 的降级口径）。数据库是硬依赖（连不上则所有请求都会失败），故纳入。
+
+    返回裸 JSON 而非 `ok()` 包装：探活是编排与反向代理读的，不是业务契约，用最简结构
+    便于 `docker healthcheck` 与 Caddy 用状态码判定。
+    """
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as exc:  # noqa: BLE001  任何连接异常都判为不健康，不外泄细节
+        raise HTTPException(status_code=503, detail="database unavailable") from exc
+    return {"status": "ok"}
 
 
 # 本地对象存储：挂载上传目录以提供头像等静态资源

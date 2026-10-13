@@ -1,0 +1,42 @@
+# 本地/无域名环境的覆盖示例（T6-10）。
+#
+# 用法：复制为 `docker-compose.override.yml`（该文件已被 .gitignore 忽略），
+# 然后正常 `docker compose up -d`——Compose 会自动叠加同目录的 override 文件。
+#
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#
+# 覆盖示例只做本地开发/无域名场景需要的事，生产不应用它。
+
+services:
+  api:
+    # 挂载源码并开热重载：本地改代码不必重建镜像。
+    # **只在 override 里做**：主文件用固定 4 workers、无 --reload（生产口径），
+    # 两者混在一起会让"生产也在跑重载"这种错误悄无声息地发生。
+    command:
+      [
+        "sh",
+        "-c",
+        "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+      ]
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+      - ./deploy/api/entrypoint.sh:/app/entrypoint.sh:ro
+      - uploads:/app/uploads
+
+  worker:
+    # 本地同样挂载源码，改代码后重启 worker 即生效（worker 无常驻重载，需手动 restart）。
+    volumes:
+      - ./backend/app:/app/app
+      - ./deploy/worker/arq_worker.py:/app/arq_worker.py:ro
+
+  caddy:
+    # 无域名时：不发布 80/443（避免与本机已有服务抢端口），改用自签证书只做本地验证。
+    # 调试时 `curl -k https://localhost/health`；或直接打 api 的 expose 端口（用 `docker compose port` 查）。
+    ports:
+      - "8080:80"
+    environment:
+      # `tls internal` 的自签证书只对本地有效，客户端需 `-k` 或导入根证书
+      API_DOMAIN: https://localhost
+      METRICS_DOMAIN: https://metrics.localhost
+      LAN_CIDR: 127.0.0.1/32 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16

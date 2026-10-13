@@ -1,0 +1,33 @@
+# Caddy 反向代理（T6-10，技术方案 15.1 的部署拓扑）。
+#
+# 选 Caddy 而非 Nginx：15.1 的部署拓扑写 `caddy`（自动 HTTPS），4.2 的完整技术栈行写
+# `Nginx`，两处不一致；本项按 15.1 实现，回报中说明该不一致。Caddy 的 ACME 自动申请
+# 省掉了证书续期脚本，单机阶段更少出错面。
+#
+# **入口收敛**：api 容器只 `expose: 8000` 不发布端口，外部唯一入口是这里。这样"限内网"
+# 这类访问控制才能真正生效——否则绕过 Caddy 直连 8000 就绕过了全部限制。
+
+# ---- 业务 API：公网可达，自动 HTTPS ----
+{$API_DOMAIN} {
+	reverse_proxy api:8000
+	encode gzip
+	header {
+		# HSTS：强制后续访问走 https。上线满一年后才考虑加 preload。
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# 去掉 Server 头：不对外暴露 Caddy 版本，缩小指纹面。
+		-Server
+	}
+}
+
+# ---- 指标接口：仅内网可达 ----
+# 指标暴露的是全平台经营口径（T6-09），不是单农户能看的数据。它虽已在应用层用
+# `require_review_operator` 做了鉴权，但网络层再收一道：鉴权是"防越权"，内网限制是
+# "防暴露面"，两者独立、不互相替代。
+{$METRICS_DOMAIN} {
+	@internal remote_ip {$LAN_CIDR}
+	handle @internal {
+		# 应用的指标前缀是 /api/metrics（不是文档里的 /api/v1），按代码现状反代。
+		reverse_proxy api:8000
+	}
+	respond 403
+}

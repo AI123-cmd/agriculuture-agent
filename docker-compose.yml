@@ -1,0 +1,173 @@
+# 单机 Docker Compose 编排（T6-10，技术方案 15.1 阶段一）。
+#
+# 目标：消除"开发机能跑、服务器缺组件"的环境差异，让开发与预发一致（4.2 技术栈）。
+# 本文件只做**验证期的单机编排**，不上 K8s——上 K8s 的触发条件写在 deploy/README.md，
+# 用可观察项表述（CPU/内存持续打满、需多机容灾、需不停服滚动发布、需按服务独立扩缩容）。
+#
+# ── 与任务文档 T6-10 的一处偏离（有据可查）─────────────────────────────────────
+# 文档的骨架把 `langfuse` 服务用 `extends` 并入本文件。**这里不这么做**，理由是它
+# 在真实代码库里会坏：
+#   1. T6-07 的 `deploy/langfuse/docker-compose.langfuse.yml` 是一个**自包含**的六服务栈
+#      （web/worker/postgres/clickhouse/redis/minio），web 的环境变量要连 `langfuse-postgres`
+#      等同一文件内的服务；只 `extends` web 一个服务，其余依赖在本项目里不存在，起不来。
+#   2. 并入会让命名卷从 `huanong-langfuse_langfuse-postgres-data` 变成
+#      `huanong_langfuse-postgres-data`，升级时旧数据卷被孤立（T6-07 README 第三节写死了卷名）。
+#   3. T6-07 的密钥无默认值、"缺失即报错"是**刻意的** fail-fast；并入后为保证
+#      `docker compose config` 无未解析变量告警就得给它们补默认值，等于把这条防线拆掉。
+# 因此 Langfuse 仍由它自己的文件起停（T6-07），业务服务加入它创建的网络 `huanong-langfuse`
+# （下方 `networks.langfuse`）。弱依赖语义不变：Langfuse 没起，业务照常起（网络不存在时
+# Compose 按 `name` 现建，不阻塞），只是没有观测数据。
+#
+# ── 六个组件的落位 ────────────────────────────────────────────────────────────
+#   postgres / redis / api / worker / caddy —— 本文件定义；
+#   langfuse                                 —— T6-07 的独立文件，经网络互联。
+#
+# 关键约束（逐条见 implement 说明）：
+#   * api 只 `expose` 不 `ports`：外部入口唯一是 caddy，避免绕过它直连 8000；
+#   * api / worker 不 `depends_on` langfuse：可观测是弱依赖，其故障不得阻断发布；
+#   * worker 无 `ports` 也无健康检查：后台消费进程没有 HTTP 接口；
+#   * GATE_MODE 默认 shadow（灰度期影子模式），ENV 默认 staging（默认值若是 production，
+#     本地起容器会因缺微信密钥被 T1-08 的启动自检直接打回）。
+
+name: huanong
+
+x-api-env: &api_env
+  ENV: ${ENV:-staging}
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-huanong}:${POSTGRES_PASSWORD:-huanong}@postgres:5432/${POSTGRES_DB:-huanong}
+  # 检查点走 psycopg 的裸 postgresql 前缀，与 DATABASE_URL 的 asyncpg 不同（刻意，见 .env.example）
+  CHECKPOINT_DB_URL: postgresql://${POSTGRES_USER:-huanong}:${POSTGRES_PASSWORD:-huanong}@postgres:5432/${POSTGRES_DB:-huanong}
+  CHECKPOINT_SCHEMA: checkpoint
+  REDIS_URL: redis://redis:6379/0
+  GATE_MODE: ${GATE_MODE:-shadow}
+  USE_MOCK_LLM: ${USE_MOCK_LLM:-true}
+  OTEL_ENABLED: ${OTEL_ENABLED:-false}
+  OTEL_EXPORTER: ${OTEL_EXPORTER:-none}
+  OTEL_ENDPOINT: ${OTEL_ENDPOINT:-}
+  # 同一 Compose 网络内用服务名解析；Langfuse 未起时该名字解析失败，上报端静默降级（弱依赖）
+  LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse-web:3000}
+  JWT_SECRET: ${JWT_SECRET:-}
+
+services:
+  postgres:
+    # 自带 timescaledb 与 pgvector 的镜像：官方 postgres 镜像两者都没有，迁移会直接失败
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-huanong}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-huanong}
+      POSTGRES_DB: ${POSTGRES_DB:-huanong}
+    volumes:
+      # timescaledb-ha 镜像的数据目录是 /home/postgres/pgdata/data（不是 /var/lib/postgresql/data）
+      - pgdata:/home/postgres/pgdata/data
+      # 首次初始化空数据目录时执行：建扩展与 schema（与迁移 0001_ext 同内容、幂等）
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-huanong} -d ${POSTGRES_DB:-huanong}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # noeviction：事件队列/额度计数不能被 LRU 淘汰，否则任务会静默丢失
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # 入口脚本挂载进来而不是 COPY 进镜像：镜像只含后端自身，部署脚本随仓库演进
+    command: ["bash", "/app/entrypoint.sh"]
+    # 业务密钥（微信 AppSecret、模型密钥、JWT_SECRET…）从 backend/.env 注入，不进镜像。
+    # 该文件由 `cp backend/.env.example backend/.env` 生成（已被 .gitignore 忽略）。
+    env_file: [./backend/.env]
+    environment: *api_env
+    volumes:
+      - ./deploy/api/entrypoint.sh:/app/entrypoint.sh:ro
+      # 本地对象存储的落地目录（STORAGE_TYPE=local 时使用），随卷持久化
+      - uploads:/app/uploads
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    # 只暴露给 Compose 网络，不发布到宿主：外部唯一入口是 caddy（入口收敛）
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - default
+      - langfuse
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # 与 `arq app.worker.WorkerSettings` 等价，另支持 `--list-jobs` 核对注册表
+    command: ["python", "/app/arq_worker.py"]
+    env_file: [./backend/.env]
+    environment: *api_env
+    volumes:
+      - ./deploy/worker/arq_worker.py:/app/arq_worker.py:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    # 后台消费进程：无 ports、无健康检查（健康由"进程存活 + 队列积压"两项观察覆盖）
+    restart: unless-stopped
+    networks:
+      - default
+      - langfuse
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-localhost}
+      METRICS_DOMAIN: ${METRICS_DOMAIN:-metrics.localhost}
+      # 指标子域仅内网可达：默认只放行回环与私网网段，部署时按实际网段覆盖
+      LAN_CIDR: ${LAN_CIDR:-127.0.0.1/32 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      # 等 api 健康再挂上：否则 Caddy 起来时后端未就绪，首次访问会 502
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  caddyconfig:
+  caddydata:
+  # 本地对象存储目录（api 写入）。用命名卷而非宿主目录：跨平台权限一致，避免 Windows 挂载的属主问题
+  uploads:
+
+networks:
+  # 默认网络：业务服务之间（api/caddy/worker 连 postgres/redis）
+  default:
+  # 与 T6-07 的 Langfuse 栈互联：显式命名，使两侧用同一张网络。
+  # 不用 `external: true`——那样 Langfuse 没起时业务也无法启动，破坏"弱依赖"；
+  # 这里让 Compose 按需创建同名网络，Langfuse 起时自动接入。
+  langfuse:
+    name: huanong-langfuse

@@ -1,0 +1,47 @@
+# 构建上下文排除项（T6-10）。构建上下文是 backend/，排除项越精确，镜像越小、
+# 越不可能把本机敏感文件带进去。
+#
+# **为什么 .env 必须排除**：镜像层是可被 `docker save` / `docker history` 检出的，
+# 一旦把含真实密钥的 .env 打进镜像，等同把密钥写进发布物。
+
+# 虚拟环境与依赖缓存（镜像内由 pip 重装，本机的不能跨平台复用）
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 敏感配置（真实密钥只从运行环境注入，绝不进镜像）
+.env
+.env.*
+!.env.example
+
+# 测试与报告：镜像不带测试，测试在 CI 跑
+tests/
+reports/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 静态检查缓存
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# 运行时产物与本地数据库（本机调试用，镜像里应由卷/服务提供）
+agent_checkpoints.db*
+_mig_test.db
+uploads/
+
+# 版本控制与编辑器
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# 日志
+*.log
+logs/

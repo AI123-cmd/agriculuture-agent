@@ -36,6 +36,8 @@ htmlcov/
 # Langfuse 部署模板（T6-07）：与 .env.example 同理，只提交无真实值的模板
 !deploy/langfuse/.env.langfuse.example
 *.local.env
+# Compose 本地覆盖（T6-10）：只提交 .example，运行时覆盖文件因环境而异
+docker-compose.override.yml
 backend/uploads/
 backend/_mig_test.db
 backend/agent_checkpoints.db
@@ -64,6 +66,8 @@ service-account*.json
 *.sql
 *.dump
 *.bak
+# 例外：PostgreSQL 容器首次初始化的建扩展脚本（T6-10）是源码而非备份，须纳入版本控制
+!deploy/postgres/init/*.sql
 
 # 日志
 *.log
