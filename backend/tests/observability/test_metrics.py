@@ -6,7 +6,9 @@
    `Settings.MAX_COLLECT_ROUNDS`；`DONE_STATUSES` 是 `ConsultStatus` 的镜像（逐一相等）。
 2. **聚合口径**（真实 PostgreSQL）：六项产品级指标各有一条断言。闸门拦截率的三条
    `gate_audit` 里有一条 `shadowed=true`，用来钉死"影子行必须被排除"。
-3. **接口鉴权**：`GET /api/v1/metrics/summary` 无令牌 401、农户令牌 403、运营令牌 200。
+3. **接口鉴权**：`GET /api/metrics/summary` 无令牌 401、农户令牌 403、运营令牌 200。
+   路径不带 `v1`：本服务的路由前缀是 `/api`（见 `app/main.py` 的 `include_router(prefix="/api")`），
+   技术方案正文写的 `/api/v1/...` 是整体规划口径，各阶段任务按实际前缀实现。
 
 用真实库而非桩：口径本身就是"SQL 怎么写的"，用桩会把待验证的聚合语句替换掉。
 """
