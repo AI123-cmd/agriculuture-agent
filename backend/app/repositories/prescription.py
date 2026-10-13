@@ -39,6 +39,24 @@ class PrescriptionRepository(OwnedRepository[PrescriptionCard]):
         """
         return await self.update_fields(db, user_id, card_id, ledger_saved=True)
 
+    async def get_latest_by_consultation(
+        self, db: AsyncSession, user_id: str, consultation_id: str
+    ) -> PrescriptionCard | None:
+        """按问诊取**最新**一张处方卡，供历史回看还原处方卡（归属不符返回 `None`）。
+
+        与 `consult_repo.get_card_by_consultation` 的差别在"最新"：农户可在同一会话里
+        续问并再次开方，`_persist_prescription` 每次开方都新建一张卡、不覆盖旧卡，故回看
+        要取 `created_at` 最新的一张，而不是"首行"（首行无排序保证）。
+        """
+        uid = self._require_user(user_id)
+        stmt = (
+            select(PrescriptionCard)
+            .where(PrescriptionCard.user_id == uid, PrescriptionCard.consultation_id == consultation_id)
+            .order_by(PrescriptionCard.created_at.desc(), PrescriptionCard.id.desc())
+            .limit(1)
+        )
+        return (await db.execute(stmt)).scalars().first()
+
     async def pick_for_quality_sample(
         self,
         db: AsyncSession,

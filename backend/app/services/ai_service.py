@@ -146,6 +146,79 @@ def render_ai_content(response: ChatResponse, state: dict[str, Any]) -> str:
     return ""
 
 
+def build_prescription_view(raw: dict[str, Any]) -> PrescriptionView:
+    """把处方契约（或处方卡字段）的 dict 投影成接口视图。
+
+    实时出方读 `state["prescription"]`，历史回看读 `prescription_card` 落库字段——两者
+    都是同一套 snake_case 键，抽成一处以免两条路径的字段映射各自漂移。
+    """
+    plan = raw.get("followup_plan") or {}
+    return PrescriptionView(
+        diagnosisSummary=raw.get("diagnosis_summary") or "",
+        actions=[
+            PrescriptionActionView(
+                order=action.get("order", 0),
+                action=action.get("action") or "",
+                timing=action.get("timing") or "",
+                method=action.get("method") or "",
+                cautions=action.get("cautions") or [],
+                stopConditions=action.get("stop_conditions") or [],
+            )
+            for action in (raw.get("actions") or [])
+        ],
+        safetyIntervalDays=raw.get("safety_interval_days"),
+        maxUsesPerSeason=raw.get("max_uses_per_season"),
+        pesticideItems=[
+            PesticideItemView(
+                name=item.get("name") or "",
+                dosageMin=item.get("dosage_min"),
+                dosageMax=item.get("dosage_max"),
+                dosageUnit=item.get("dosage_unit"),
+                safetyIntervalDays=item.get("safety_interval_days"),
+                maxUsesPerSeason=item.get("max_uses_per_season"),
+                registeredCrops=item.get("registered_crops") or [],
+                forbiddenCombinations=item.get("forbidden_combinations") or [],
+                sourceNote=item.get("source_note"),
+            )
+            for item in (raw.get("pesticide_items") or [])
+        ],
+        followupPlan=FollowupPlanView(
+            tasks=[
+                FollowupTaskView(
+                    dueOffsetDays=task.get("due_offset_days", 0),
+                    kind=task.get("kind") or "observe",
+                    ask=task.get("ask"),
+                )
+                for task in (plan.get("tasks") or [])
+            ],
+            note=plan.get("note"),
+        ),
+        requiresTechStation=raw.get("requires_tech_station", False),
+        detailTerms=raw.get("detail_terms") or {},
+    )
+
+
+def prescription_view_from_card(card: PrescriptionCard) -> PrescriptionView:
+    """历史回看：由落库的处方卡还原处方视图。
+
+    与实时出方的差别只有 `cardId` —— 从卡片主键回填，使历史界面里"存入农事台账"按钮
+    仍可用（`ledgerSaved` 另由卡片列给出）。
+    """
+    view = build_prescription_view(
+        {
+            "diagnosis_summary": card.diagnosis_summary,
+            "actions": card.actions or [],
+            "pesticide_items": card.pesticide_items or [],
+            "safety_interval_days": card.safety_interval_days,
+            "max_uses_per_season": card.max_uses_per_season,
+            "followup_plan": card.followup_plan or {},
+            "requires_tech_station": card.requires_tech_station,
+        }
+    )
+    view.cardId = card.id
+    return view
+
+
 
 @lru_cache(maxsize=1)
 def _alias_configs() -> dict[ProcessId, ProcessConfig]:
@@ -321,50 +394,7 @@ class AIService:
         raw = state.get("prescription")
         if not raw:
             return None
-        plan = raw.get("followup_plan") or {}
-        return PrescriptionView(
-            diagnosisSummary=raw.get("diagnosis_summary") or "",
-            actions=[
-                PrescriptionActionView(
-                    order=action.get("order", 0),
-                    action=action.get("action") or "",
-                    timing=action.get("timing") or "",
-                    method=action.get("method") or "",
-                    cautions=action.get("cautions") or [],
-                    stopConditions=action.get("stop_conditions") or [],
-                )
-                for action in (raw.get("actions") or [])
-            ],
-            safetyIntervalDays=raw.get("safety_interval_days"),
-            maxUsesPerSeason=raw.get("max_uses_per_season"),
-            pesticideItems=[
-                PesticideItemView(
-                    name=item.get("name") or "",
-                    dosageMin=item.get("dosage_min"),
-                    dosageMax=item.get("dosage_max"),
-                    dosageUnit=item.get("dosage_unit"),
-                    safetyIntervalDays=item.get("safety_interval_days"),
-                    maxUsesPerSeason=item.get("max_uses_per_season"),
-                    registeredCrops=item.get("registered_crops") or [],
-                    forbiddenCombinations=item.get("forbidden_combinations") or [],
-                    sourceNote=item.get("source_note"),
-                )
-                for item in (raw.get("pesticide_items") or [])
-            ],
-            followupPlan=FollowupPlanView(
-                tasks=[
-                    FollowupTaskView(
-                        dueOffsetDays=task.get("due_offset_days", 0),
-                        kind=task.get("kind") or "observe",
-                        ask=task.get("ask"),
-                    )
-                    for task in (plan.get("tasks") or [])
-                ],
-                note=plan.get("note"),
-            ),
-            requiresTechStation=raw.get("requires_tech_station", False),
-            detailTerms=raw.get("detail_terms") or {},
-        )
+        return build_prescription_view(raw)
 
     def _handoff(self, state: dict[str, Any]) -> HandoffView | None:
         """转人工信息。非空时处方必为 `None`（由 `_prescription` 保证）。"""
@@ -648,15 +678,25 @@ class AIService:
             await conversation_repo.delete_with_messages(db, user_id, session_id)
 
     async def conversation_detail(self, db: AsyncSession, user_id: str, session_id: str) -> dict:
-        """回看单个会话：归属不符抛 403（与删除同口径，不区分"不存在"与"不属于你"）。"""
+        """回看单个会话：归属不符抛 403（与删除同口径，不区分"不存在"与"不属于你"）。
+
+        除消息文本外还带出**最新一张处方卡**：历史界面要与实时界面一致地展示处方结论，
+        而消息表只存文本（`ai_message.content`），处方结构落在 `prescription_card`。
+        转人工会话没有卡片，`prescription` 为 `None`，前端回看时也不渲染处方卡。
+        """
         conv = await conversation_repo.get_or_raise(db, user_id, session_id)
         rows = await message_repo.list_by_conversation(db, user_id, session_id)
+        card = await prescription_repo.get_latest_by_consultation(db, user_id, session_id)
         return {
             "sessionId": conv.id,
             "title": conv.title or "新对话",
             "messages": [
                 {"role": msg.role, "content": msg.content, "imageUrl": msg.image_url} for msg in rows
             ],
+            "prescription": (
+                prescription_view_from_card(card).model_dump(mode="json") if card is not None else None
+            ),
+            "ledgerSaved": bool(card.ledger_saved) if card is not None else False,
         }
 
 

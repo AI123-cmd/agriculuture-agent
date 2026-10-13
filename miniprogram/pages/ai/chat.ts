@@ -69,7 +69,7 @@ Page({
     }
   },
 
-  /** 加载某条历史会话的消息，并把 sessionId 接上，可继续追问 */
+  /** 加载某条历史会话的消息与处方卡，并把 sessionId 接上，可继续追问 */
   loadConversation(sessionId: string) {
     wx.showLoading({ title: '加载中...' });
     conversationDetail(sessionId)
@@ -88,8 +88,10 @@ Page({
             questions: [],
             qaAnswered: 0,
             submitting: false,
-            prescription: null,
+            // 还原该会话的处方卡与台账状态，使历史界面与实时界面一致
+            prescription: res.prescription || null,
             handoff: null,
+            ledgerSaved: !!res.ledgerSaved,
             stageLabel: '',
             progressText: '',
             scrollWithAnimation: false,

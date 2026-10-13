@@ -89,3 +89,43 @@ def test_answers_persist_readable_content(client, auth_headers):
     messages = resp.json()["data"]["messages"]
     # 每条消息都应有非空内容，不能再出现空串
     assert all((m["content"] or "").strip() for m in messages), messages
+
+
+def _drive_until_result(client, auth_headers, session_id: str) -> dict:
+    """把一次问诊推进到出方或转人工，返回最后一次 chat 响应。"""
+    resp = client.post(
+        "/api/ai/chat",
+        json={"message": "水稻叶片有虫", "sessionId": session_id, "processHint": "水稻"},
+        headers=auth_headers,
+    )
+    data = resp.json()["data"]
+    for _ in range(6):
+        questions = data.get("questions") or []
+        if not questions:
+            break
+        answers = [
+            {"slotKey": q["slotKey"], "value": (q.get("options") or ["正常"])[0], "status": "filled"}
+            for q in questions
+        ]
+        data = client.post(
+            "/api/ai/chat",
+            json={"sessionId": session_id, "answers": answers},
+            headers=auth_headers,
+        ).json()["data"]
+    return data
+
+
+def test_consult_detail_returns_prescription_card(client, auth_headers):
+    """历史回看要还原处方卡：详情接口按最新卡片带出处方视图与台账状态。"""
+    final = _drive_until_result(client, auth_headers, "sess-rx")
+    if not final.get("prescription"):
+        return  # 本用例只在产出处方时校验；转人工分支由其它用例覆盖
+
+    resp = client.get("/api/ai/consult/sess-rx", headers=auth_headers)
+    assert resp.status_code == 200
+    detail = resp.json()["data"]
+    assert detail["prescription"] is not None
+    # 历史回看下发的处方卡必须带 cardId，否则"存入台账"按钮渲染不出来
+    assert detail["prescription"]["cardId"]
+    assert detail["prescription"]["diagnosisSummary"] == final["prescription"]["diagnosisSummary"]
+    assert detail["ledgerSaved"] is False

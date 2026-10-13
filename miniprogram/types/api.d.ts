@@ -445,6 +445,10 @@ export interface ConversationDetail {
   sessionId: string
   title: string
   messages: ConversationMessage[]
+  /** 该会话最新一张处方卡；转人工会话为 null */
+  prescription?: PrescriptionView | null
+  /** 处方卡是否已存入台账 */
+  ledgerSaved?: boolean
 }
 
 /* ---------- 用户 ---------- */

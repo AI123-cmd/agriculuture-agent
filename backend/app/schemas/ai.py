@@ -38,9 +38,15 @@ class MessageItem(BaseModel):
 
 
 class ConversationDetail(BaseModel):
-    """单个会话的完整消息。历史列表不返回消息，回看走本模型。"""
+    """单个会话的完整消息。历史列表不返回消息，回看走本模型。
+
+    `prescription` / `ledgerSaved` 让历史界面与实时界面一致地展示处方结论：消息表只存
+    文本，处方结构落在 `prescription_card`，故详情接口一并按最新卡片带出。
+    """
 
     sessionId: str
     title: str
     messages: builtins.list[MessageItem] = Field(default_factory=list)
+    prescription: dict | None = None
+    ledgerSaved: bool = False
 
