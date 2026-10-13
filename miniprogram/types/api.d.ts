@@ -433,6 +433,20 @@ export interface HistoryResult {
   total: number
 }
 
+/** 会话详情里的一条消息 */
+export interface ConversationMessage {
+  role: 'user' | 'ai'
+  content: string
+  imageUrl?: string | null
+}
+
+/** 单个会话的完整消息（回看历史对话用） */
+export interface ConversationDetail {
+  sessionId: string
+  title: string
+  messages: ConversationMessage[]
+}
+
 /* ---------- 用户 ---------- */
 export interface UploadResult {
   url: string

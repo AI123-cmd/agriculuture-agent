@@ -1,5 +1,5 @@
 // pages/ai/chat.ts
-import { chat } from '../../api/ai'
+import { chat, conversationDetail } from '../../api/ai'
 import { savePrescriptionToLedger } from '../../api/ledger'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
@@ -52,13 +52,56 @@ Page({
     if (!ensureAuth()) return;
     const tabBar = (this as any).getTabBar();
     if (tabBar) tabBar.setData({ selected: 1 });
+    const app = getApp<IAppOption>();
+    // 历史页点某条会话：置位会话 id，此处加载其历史消息。
+    if (app.globalData.pendingOpenSession) {
+      const sessionId = app.globalData.pendingOpenSession;
+      app.globalData.pendingOpenSession = undefined;
+      app.globalData.pendingNewChat = false;
+      this.loadConversation(sessionId);
+      return;
+    }
     // 首页/历史页点"新对话"会置位该标志；此处消费并清空上一轮，
     // 只有"明确要开新对话"才重置，切 tab 回来仍保留进行中的会话。
-    const app = getApp<IAppOption>();
     if (app.globalData.pendingNewChat) {
       app.globalData.pendingNewChat = false;
       this.initChat();
     }
+  },
+
+  /** 加载某条历史会话的消息，并把 sessionId 接上，可继续追问 */
+  loadConversation(sessionId: string) {
+    wx.showLoading({ title: '加载中...' });
+    conversationDetail(sessionId)
+      .then((res) => {
+        wx.hideLoading();
+        const messages = (res.messages || []).map((m, i) => ({
+          id: Date.now() + i,
+          role: m.role,
+          content: m.content,
+          showVoice: m.role === 'ai',
+        })) as Message[];
+        this.setData(
+          {
+            messages,
+            sessionId: res.sessionId,
+            questions: [],
+            qaAnswered: 0,
+            submitting: false,
+            prescription: null,
+            handoff: null,
+            stageLabel: '',
+            progressText: '',
+            scrollWithAnimation: false,
+          },
+          () => wx.nextTick(() => this.scrollToBottom(false))
+        );
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        wx.showToast({ title: (err && err.message) || '加载失败', icon: 'none' });
+        this.initChat();
+      });
   },
 
   /** 从农户档案读取作物列表，无档案时用默认作物兜底 */

@@ -27,3 +27,20 @@ class HistoryResponse(BaseModel):
     # 字段名 `list` 是接口契约，必须保留；用 builtins.list 避免与字段名相互遮蔽
     list: builtins.list[HistoryItem] = Field(default_factory=list)
     total: int = 0
+
+
+class MessageItem(BaseModel):
+    """会话详情里的一条消息。`role` 固定 user / ai，与落库口径一致。"""
+
+    role: str
+    content: str
+    imageUrl: str | None = None
+
+
+class ConversationDetail(BaseModel):
+    """单个会话的完整消息。历史列表不返回消息，回看走本模型。"""
+
+    sessionId: str
+    title: str
+    messages: builtins.list[MessageItem] = Field(default_factory=list)
+

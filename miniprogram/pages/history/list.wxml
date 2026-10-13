@@ -19,7 +19,7 @@
   <scroll-view class="history-scroll" scroll-y>
     <view class="history-list">
       <block wx:for="{{conversations}}" wx:key="id">
-        <view class="conversation-item">
+        <view class="conversation-item tap-88" bindtap="openConv" data-id="{{item.id}}">
           <view class="conv-icon">
             <sprout-mascot size="{{72}}" />
           </view>

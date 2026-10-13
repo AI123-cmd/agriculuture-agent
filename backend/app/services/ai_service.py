@@ -599,5 +599,17 @@ class AIService:
         async with unit_of_work(db, name="ai.delete_history"):
             await conversation_repo.delete_with_messages(db, user_id, session_id)
 
+    async def conversation_detail(self, db: AsyncSession, user_id: str, session_id: str) -> dict:
+        """回看单个会话：归属不符抛 403（与删除同口径，不区分"不存在"与"不属于你"）。"""
+        conv = await conversation_repo.get_or_raise(db, user_id, session_id)
+        rows = await message_repo.list_by_conversation(db, user_id, session_id)
+        return {
+            "sessionId": conv.id,
+            "title": conv.title or "新对话",
+            "messages": [
+                {"role": msg.role, "content": msg.content, "imageUrl": msg.image_url} for msg in rows
+            ],
+        }
+
 
 __all__ = ["AIService", "build_environment_note", "stage_label"]

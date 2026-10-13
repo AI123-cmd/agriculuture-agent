@@ -34,6 +34,17 @@ Page({
   startNewChat() {
     // 同首页"我要提问"：置位后切到问答页，由问答页 onShow 消费并清空上一轮会话。
     getApp<IAppOption>().globalData.pendingNewChat = true;
+    getApp<IAppOption>().globalData.pendingOpenSession = undefined;
+    wx.switchTab({ url: '/pages/ai/chat' });
+  },
+
+  /** 点某条历史会话：置位会话 id，切到问答页后由 onShow 加载其历史记录 */
+  openConv(e: WechatMiniprogram.BaseEvent) {
+    const id = e.currentTarget.dataset.id as string;
+    if (!id) return;
+    const app = getApp<IAppOption>();
+    app.globalData.pendingOpenSession = id;
+    app.globalData.pendingNewChat = false;
     wx.switchTab({ url: '/pages/ai/chat' });
   },
 

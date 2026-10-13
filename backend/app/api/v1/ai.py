@@ -1,4 +1,5 @@
-"""AI 对话路由：POST /api/ai/chat、GET /api/ai/history、DELETE /api/ai/history/{id}。
+"""AI 对话路由：POST /api/ai/chat、GET /api/ai/history、GET /api/ai/consult/{id}、
+DELETE /api/ai/history/{id}。
 
 `/ai/chat` 是 T2-33 的图驱动接口：入参为 `ChatRequest`，出参为 `ChatResponse`。
 转人工是正常业务结果（用 200 + `handoff` 字段表达），因此本路由不设 4xx/5xx 分支。
@@ -34,6 +35,16 @@ async def history(
     user_id: str = Depends(get_current_user),
 ) -> dict:
     return ok(await get_ai_service().history(db, user_id, page, size))
+
+
+@router.get("/consult/{session_id}")
+async def consult_detail(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """回看单个会话的完整消息（历史列表不返回消息）。"""
+    return ok(await get_ai_service().conversation_detail(db, user_id, session_id))
 
 
 @router.delete("/history/{session_id}")
