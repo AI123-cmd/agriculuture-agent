@@ -27,7 +27,11 @@ Page({
     cropList: [] as string[],     // 档案中的作物列表
     currentCropName: '',          // 当前选中的作物名称
     // 结构化结果：questions / prescription / handoff 三者最多一个非空
-    questions: [] as QuestionView[],
+    questions: [] as any[],
+    /** 已作答的卡片数：多卡片需全部答完才提交 */
+    qaAnswered: 0,
+    /** 提交中标志，防止重复提交 */
+    submitting: false,
     prescription: null as PrescriptionView | null,
     handoff: null as HandoffView | null,
     /** 处方卡是否已存入台账（驱动按钮文案与抑制重复点击） */
@@ -35,6 +39,9 @@ Page({
     // 录音态：驱动按钮视觉反馈
     recording: false,
   },
+
+  /** 本轮卡片的作答暂存（slotKey -> 答案），不入 data，避免无谓渲染 */
+  qaAnswers: {} as Record<string, { slotKey: string; value: string; status: 'filled' | 'unknown' }>,
 
   onLoad() {
     this.loadCropTags();
@@ -97,6 +104,8 @@ Page({
         messages: [welcome],
         sessionId: '',
         questions: [],
+        qaAnswered: 0,
+        submitting: false,
         prescription: null,
         handoff: null,
         stageLabel: '',
@@ -124,10 +133,14 @@ Page({
     };
 
     const newMessages = [...this.data.messages, userMsg];
+    // 手动输入等同放弃当前卡片作答：清掉卡片与暂存，避免旧答案混入下一轮
+    this.qaAnswers = {};
     this.setData(
       {
         messages: newMessages,
         inputValue: '',
+        questions: [],
+        qaAnswered: 0,
         scrollWithAnimation: true,
       },
       () => {
@@ -138,32 +151,59 @@ Page({
     this.requestAIResponse({ message: text });
   },
 
-  /** 作答追问：选项点选或填空 */
+  /** 作答追问：先本地累积，全部卡片答完后一次性提交 */
   onAnswerOption(e: WechatMiniprogram.BaseEvent) {
     const ds = e.currentTarget.dataset;
-    const slotKey = ds.slot as string;
-    const value = ds.value as string;
-    const userMsg: Message = {
-      id: Date.now(),
-      role: 'user',
-      content: value,
-    };
-    this.setData(
-      {
-        messages: [...this.data.messages, userMsg],
-        questions: [],
-        scrollWithAnimation: true,
-      },
-      () => wx.nextTick(() => this.scrollToBottom(true))
-    );
-    this.requestAIResponse({ answers: [{ slotKey, value, status: 'filled' }] });
+    this.pickAnswer(ds.slot as string, ds.value as string, 'filled');
   },
 
   /** 对“答不出”的处理：unknown 是合法答案 */
   onAnswerUnknown(e: WechatMiniprogram.BaseEvent) {
-    const slotKey = e.currentTarget.dataset.slot as string;
-    this.setData({ questions: [] });
-    this.requestAIResponse({ answers: [{ slotKey, value: '', status: 'unknown' }] });
+    this.pickAnswer(e.currentTarget.dataset.slot as string, '', 'unknown');
+  },
+
+  /**
+   * 记录单张卡片的作答，并在全部答完时统一提交。
+   *
+   * 多张卡片同时出现时，若点一张就立即提交，后端只收到这一条答案，其余槽位被丢弃。
+   * 后端 `apply_answers` 本就支持一次接收多条，故此处改为本地累积：每次点选只更新
+   * 该卡片的选中态与进度，待全部答完一并提交，保证同轮问题一次问清。
+   */
+  pickAnswer(slotKey: string, value: string, status: 'filled' | 'unknown') {
+    if (this.data.submitting) return;
+    const questions = this.data.questions as any[];
+    const picked = { ...this.qaAnswers, [slotKey]: { slotKey, value, status } };
+
+    const updated = questions.map((q) =>
+      q.slotKey === slotKey
+        ? { ...q, picked: true, pickedOption: status === 'filled' ? value : '', pickedStatus: status }
+        : q
+    );
+    const answered = updated.filter((q) => q.picked).length;
+    this.qaAnswers = picked;
+    this.setData({ questions: updated, qaAnswered: answered });
+
+    if (answered >= updated.length) this.submitAnswers();
+  },
+
+  /** 全部卡片答完后统一提交：一次带上本轮所有答案 */
+  submitAnswers() {
+    if (this.data.submitting) return;
+    const questions = this.data.questions as any[];
+    const answers = questions.map((q) => this.qaAnswers[q.slotKey]).filter((a) => !!a);
+    if (!answers.length) return;
+
+    // 用一条汇总气泡回显本轮作答，避免逐张卡片各产一条消息打断阅读
+    const summary = answers.map((a) => a.value || '说不清').join('、');
+    this.setData({
+      submitting: true,
+      questions: [],
+      qaAnswered: 0,
+      messages: [...this.data.messages, { id: Date.now(), role: 'user', content: summary }],
+      scrollWithAnimation: true,
+    }, () => wx.nextTick(() => this.scrollToBottom(true)));
+    this.qaAnswers = {};
+    this.requestAIResponse({ answers });
   },
 
   /** 调用后端图驱动问诊接口 */
@@ -192,6 +232,8 @@ Page({
           stageLabel: res.stageLabel || '',
           progressText: res.progress ? `${res.progress.current}/${res.progress.total}` : '',
           questions: res.questions || [],
+          qaAnswered: 0,
+          submitting: false,
           prescription: res.prescription || null,
           handoff: res.handoff || null,
           ledgerSaved: false,
@@ -202,7 +244,9 @@ Page({
       })
       .catch((err) => {
         wx.hideLoading();
-        // 网络异常：保留用户已发送消息，提示离线，不伪造 AI 回复
+        // 网络异常：保留用户已发送消息，提示离线，不伪造 AI 回复。解除提交锁，
+        // 让农户可直接重试，否则 submitting 会一直为真、卡片再也点不动。
+        this.setData({ submitting: false });
         wx.showToast({ title: (err && err.message) || '网络异常，请稍后重试', icon: 'none' });
       });
   },

@@ -281,15 +281,26 @@ page {
   height: 24rpx;
 }
 
-/* —— 追问（一次一步） —— */
+/* —— 追问（多卡片全部答完才提交） —— */
 .qa-block {
   display: flex;
   flex-direction: column;
   gap: var(--space-block);
 }
 
+.qa-progress {
+  color: var(--text-brand);
+  font-weight: 600;
+}
+
 .qa-item {
   margin-top: 0;
+}
+
+/* 已作答的卡片：整卡弱化并给品牌色描边，明确“这题已完成，等其余题” */
+.qa-item.picked {
+  border: 2rpx solid #43a047;
+  background: #f6fbf5;
 }
 
 .qa-text {
@@ -324,10 +335,23 @@ page {
   transform: scale(0.98);
 }
 
+/* 选中的选项：实心品牌色，与未选项拉开对比 */
+.qa-option.selected {
+  background: var(--grad-brand);
+  border-color: #2e7d32;
+  color: var(--text-inverse);
+}
+
 .qa-unknown {
   border-color: #e0e0e0;
   background: #fafafa;
   color: var(--text-muted);
+}
+
+.qa-unknown.selected {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+  color: var(--text-inverse);
 }
 
 /* —— 处方卡：品牌绿左侧强调条 —— */

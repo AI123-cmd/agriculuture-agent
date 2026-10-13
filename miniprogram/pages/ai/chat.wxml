@@ -57,14 +57,15 @@
         </view>
       </block>
 
-      <!-- 追问：选项点选或“说不清”，一次一步 -->
+      <!-- 追问：多张卡片需全部答完才自动提交（一次一步的历史行为已取消） -->
       <view class="qa-block" wx:if="{{questions.length > 0}}">
-        <view class="qa-item card" wx:for="{{questions}}" wx:key="slotKey">
+        <view class="qa-progress t-caption" wx:if="{{questions.length > 1}}">请依次作答（{{qaAnswered}}/{{questions.length}}），全部答完后自动提交</view>
+        <view class="qa-item card {{item.picked ? 'picked' : ''}}" wx:for="{{questions}}" wx:key="slotKey">
           <view class="qa-text t-body">{{item.text}}</view>
           <view class="qa-why t-caption" wx:if="{{item.why}}">{{item.why}}</view>
           <view class="qa-options">
             <view
-              class="qa-option tap-88"
+              class="qa-option tap-88 {{item.picked && item.pickedOption === opt ? 'selected' : ''}}"
               wx:for="{{item.options}}"
               wx:for-item="opt"
               wx:key="*this"
@@ -73,7 +74,7 @@
               data-value="{{opt}}"
             >{{opt}}</view>
             <view
-              class="qa-option qa-unknown tap-88"
+              class="qa-option qa-unknown tap-88 {{item.picked && item.pickedStatus === 'unknown' ? 'selected' : ''}}"
               wx:if="{{item.allowUnknown}}"
               bindtap="onAnswerUnknown"
               data-slot="{{item.slotKey}}"
