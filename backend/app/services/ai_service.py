@@ -21,17 +21,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.blackboard import progress_of
 from app.agent.contracts import resolve_process_hint
-from app.agent.state import ConsultationState, ConsultStage, ProcessId
+from app.agent.state import ConsultationState, ConsultStage, ProcessId, SlotValue
 from app.core.config import get_settings
+from app.db.base import new_id
 from app.db.uow import unit_of_work
 from app.events import EVENT_PRESCRIPTION_CREATED, emit
-from app.models import AIConversation, AIMessage
+from app.models import AIConversation, AIMessage, Consultation, ConsultStatus, PrescriptionCard
 from app.observability import bound_context, consultation_span
 from app.process_config.loader import get_process_config, load_all_configs
 from app.process_config.models import ProcessConfig
 from app.process_config.redlines import RedlineValidator
 from app.process_config.version import build_ref
-from app.repositories import conversation_repo, crop_repo, message_repo, profile_repo, tag_repo
+from app.repositories import (
+    consult_repo,
+    conversation_repo,
+    crop_repo,
+    message_repo,
+    prescription_repo,
+    profile_repo,
+    tag_repo,
+)
 from app.schemas.consult import (
     ChatRequest,
     ChatResponse,
@@ -133,7 +142,7 @@ class AIService:
         # 图执行刻意放在事务之外：把它包进事务会长时间持锁，且检查点写入由
         # AsyncPostgresSaver 自己的连接池管理，与业务事务并非同一连接。
         async with unit_of_work(db, name="ai.chat"):
-            await self._persist(db, user_id, session_id, req, response.reply, state=state)
+            await self._persist(db, user_id, session_id, req, response, state=state)
 
         return response
 
@@ -355,7 +364,7 @@ class AIService:
         user_id: str,
         session_id: str,
         req: ChatRequest,
-        reply: str,
+        response: ChatResponse,
         *,
         state: dict,
     ) -> None:
@@ -363,6 +372,10 @@ class AIService:
 
         `flush` 不能省：会话工厂是 `autoflush=False`，新建的会话行若未下推，
         `message_repo.add_many` 的归属校验会查不到父会话而误报越权。
+
+        产出处方时额外落库 `consultation` 与 `prescription_card`，并把卡片主键回填进
+        `response.prescription.cardId`——响应在进入本事务前已构建，回填须在提交前完成，
+        否则前端拿不到 `cardId`、入台账按钮无从调用（§3.4）。
         """
         message = req.message or ""
         conv = await conversation_repo.get(db, user_id, session_id)
@@ -377,26 +390,137 @@ class AIService:
             session_id,
             [
                 AIMessage(role="user", content=message, image_url=req.imageUrl),
-                AIMessage(role="ai", content=reply),
+                AIMessage(role="ai", content=response.reply),
             ],
         )
 
-        await MemoryService().remember(db, user_id, session_id, message, reply)
+        await MemoryService().remember(db, user_id, session_id, message, response.reply)
 
-        if state.get("stage") == ConsultStage.PRESCRIBE and not state.get("prescription_suppressed"):
-            await self._emit_prescription_created(db, user_id, session_id, messages[-1])
+        # 判据用 `response.prescription`（构建响应时的最终产物）而非 `state["stage"]`：
+        # 图成功路径的终点 stage 已被 `followup` 节点改写为 FOLLOWUP，用 stage==PRESCRIBE
+        # 判定会恒假，导致卡片不落库、事件不发出（§3.4 的根因）。
+        if response.prescription is not None:
+            card = await self._persist_prescription(
+                db, user_id, session_id, request_message=message, response=response, state=state
+            )
+            await self._emit_prescription_created(db, user_id, session_id, messages[-1], card_id=card.id)
+
+    async def _persist_prescription(
+        self,
+        db: AsyncSession,
+        user_id: str,
+        session_id: str,
+        *,
+        request_message: str,
+        response: ChatResponse,
+        state: dict,
+    ) -> PrescriptionCard:
+        """落库问诊会话与处方卡，回填 `cardId` 后返回卡片。
+
+        `prescription_card.consultation_id` 是 NOT NULL 外键指向 `consultation.id`，且本链路
+        此前从不建 `consultation` 行，故首次产出处方时必须先建会话行（主键复用 session_id，
+        与 `AIConversation` 同键）。会话已存在（续问后再次开方）则只滚动 stage / status /
+        rounds / slots_snapshot 这几项随轮次推进的字段，不重建。
+        """
+        assert response.prescription is not None  # 调用方已保证
+        stage = state.get("stage") or ConsultStage.INTAKE
+        process_value = self._process_value(state)
+        triage = state.get("triage") or {}
+        object_label = state.get("object_label") or triage.get("object_label") or ""
+        budget = state.get("budget") or {}
+        rounds = int(budget.get("interview_rounds", 0) or 0)
+        slots_snapshot = self._slots_snapshot(state)
+
+        consult = await consult_repo.get(db, user_id, session_id)
+        if consult is None:
+            consult = Consultation(
+                id=session_id,
+                farm_entry_id=state.get("farm_plot_id"),
+                process_id=process_value,
+                process_locked=bool(state.get("process_locked", False)),
+                title=request_message[:15] or "新对话",
+                # NOT NULL 且列宽有限，超长即截断：展示名与摘要都是给人看的短文本。
+                object_label=(object_label or "未确认对象")[:60],
+                topic_summary=(request_message or response.reply)[:120],
+                stage=stage.value,
+                rounds=rounds,
+                # 产出处方即"有结论但未闭环"，置为观察期，供 T3-04 的首页跟进提示取数
+                # （`list_observing` 会再排除已登记回访任务的会话，两处合起来才不重复）。
+                status=ConsultStatus.OBSERVING.value,
+                triage_snapshot=triage,
+                slots_snapshot=slots_snapshot,
+            )
+            await consult_repo.add(db, user_id, consult)
+            await db.flush()
+        else:
+            await consult_repo.update_fields(
+                db,
+                user_id,
+                session_id,
+                stage=stage.value,
+                status=ConsultStatus.OBSERVING.value,
+                rounds=rounds,
+                slots_snapshot=slots_snapshot,
+            )
+
+        raw = state.get("prescription") or {}
+        card = PrescriptionCard(
+            id=new_id("card"),
+            consultation_id=session_id,
+            diagnosis=state.get("diagnosis") or {},
+            actions=raw.get("actions") or [],
+            pesticide_items=raw.get("pesticide_items") or [],
+            safety_interval_days=raw.get("safety_interval_days"),
+            max_uses_per_season=raw.get("max_uses_per_season"),
+            followup_plan=raw.get("followup_plan"),
+            facts_provenance=raw.get("facts_provenance") or {},
+            gate_result=state.get("gate_result") or {},
+            gate_config_version=int(state.get("config_version") or 0),
+            requires_tech_station=bool(raw.get("requires_tech_station", False)),
+            process_id=process_value,
+            diagnosis_summary=raw.get("diagnosis_summary"),
+        )
+        await prescription_repo.add(db, user_id, card)
+        await db.flush()  # 卡片须先落库，回访消费者才能按 consultation_id 反查到
+
+        response.prescription.cardId = card.id
+        return card
+
+    @staticmethod
+    def _process_value(state: dict) -> str:
+        """归一流程标识为落库字符串：`state["process_id"]` 优先，回落到 `process_hint`。
+
+        `process_id` 由分诊或入口注入为 `ProcessId`，但中断恢复后的检查点可能给出同值字符串；
+        两者都吃下，都没有时用 `general` 兜底（`process_id` 列 NOT NULL）。
+        """
+        raw = state.get("process_id") or state.get("process_hint")
+        if isinstance(raw, ProcessId):
+            return raw.value
+        return str(raw) if raw else ProcessId.GENERAL.value
+
+    @staticmethod
+    def _slots_snapshot(state: dict) -> dict:
+        """把 `state["slots"]` 序列化成可 JSON 存储的 dict。
+
+        `slots` 里是 `SlotValue` 对象（`extra="forbid"`），不能直接进 JSONB 列；检查点
+        反序列化后可能已是同形 dict，故两种形态都要能过。
+        """
+        slots = state.get("slots") or {}
+        return {
+            key: slot.model_dump(mode="json") if isinstance(slot, SlotValue) else slot
+            for key, slot in slots.items()
+        }
 
     async def _emit_prescription_created(
-        self, db: AsyncSession, user_id: str, session_id: str, reply_message: AIMessage
+        self, db: AsyncSession, user_id: str, session_id: str, reply_message: AIMessage, *, card_id: str
     ) -> None:
         """把"处方已生成"写进发件箱（T1-13）。必须在 `unit_of_work` 内调用。
 
-        事件与业务写在同一事务里，因此不存在"业务提交了但事件没落库"。聚合根取本条
-        AI 回复消息：处方目前还没有独立表，而"一次对话产生的这份处方"正是回复消息本身，
-        用它做 `aggregate_id`/幂等键天然按轮次唯一，且消费者可直接按 id 回查回复原文。
+        事件与业务写在同一事务里，因此不存在"业务提交了但事件没落库"。聚合根取处方卡主键：
+        卡片已在本事务内落库，按轮次天然唯一（一次开方一张卡），且消费者可按 id 直接回查。
 
-        载荷带 `user_id`：T3-09 的回访消费者要按 `session_id` 反查处方卡，而反查是归属
-        强制的（`consult_repo.get_card_by_consultation`）。投递端只把 `payload` 交给 ARQ
+        载荷带 `user_id` 与 `session_id`：T3-09 的回访消费者按 `session_id` 反查处方卡，而反查
+        是归属强制的（`consult_repo.get_card_by_consultation`）。投递端只把 `payload` 交给 ARQ
         任务、不带事件行的 `user_id` 列，故这里显式写进载荷，消费者无需回查发件箱。
         """
         await db.flush()
@@ -404,10 +528,11 @@ class AIService:
             db,
             event_type=EVENT_PRESCRIPTION_CREATED,
             aggregate_type="prescription",
-            aggregate_id=str(reply_message.id),
+            aggregate_id=card_id,
             user_id=user_id,
             payload={
                 "session_id": session_id,
+                "card_id": card_id,
                 "message_id": reply_message.id,
                 "user_id": user_id,
                 "summary": (reply_message.content or "")[:200],

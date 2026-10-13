@@ -87,6 +87,11 @@ class FollowupPlanView(BaseModel):
 
 
 class PrescriptionView(BaseModel):
+    # 处方卡主键。问诊落库产出 `PrescriptionCard` 后回填，前端据此调用
+    # `POST /api/ai/prescription/{cardId}/ledger` 把处方存入农事台账（T3-15）。
+    # 卡片未落库（如落库前构建响应）时为 None——按钮以 `wx:if="{{prescription.cardId}}"` 控制显隐，
+    # 缺省不渲染，因此加在嵌套视图而非 `ChatResponse` 顶层。
+    cardId: str | None = None
     diagnosisSummary: str
     actions: list[PrescriptionActionView]
     safetyIntervalDays: int | None = None
