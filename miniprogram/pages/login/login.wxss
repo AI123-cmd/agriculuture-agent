@@ -11,9 +11,9 @@ page {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding-top: calc(160rpx + env(safe-area-inset-top));
-  padding-bottom: calc(80rpx + env(safe-area-inset-bottom));
+  justify-content: flex-start;
+  padding-top: calc(260rpx + env(safe-area-inset-top));
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
   padding-left: 48rpx;
   padding-right: 48rpx;
   box-sizing: border-box;
@@ -126,6 +126,8 @@ page {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  /* 钉在屏幕最底部：flex 布局下 auto 上外边距自动吸收剩余空间 */
+  margin-top: auto;
 }
 
 /* 微信登录按钮：胶囊形，左侧带微信图标识意 */
@@ -232,16 +234,6 @@ page {
 .link {
   color: var(--text-brand);
   font-weight: 500;
-}
-
-/* 底部安全提示 */
-.safe-hint {
-  margin-top: 48rpx;
-  font-size: var(--font-caption);
-  color: #9aa89a;
-  text-align: center;
-  line-height: var(--line-body);
-  letter-spacing: 1rpx;
 }
 
 /* ========== 入场动画：元素依次浮现 ========== */

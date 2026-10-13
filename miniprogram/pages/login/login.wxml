@@ -37,7 +37,5 @@
         <text class="link" catchtap="openPrivacyPolicy">《隐私政策》</text>
       </view>
     </view>
-
-    <view class="safe-hint">登录即代表你同意话农点金的使用条款</view>
   </view>
 </view>
