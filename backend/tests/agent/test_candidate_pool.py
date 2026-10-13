@@ -101,6 +101,23 @@ def test_profile_backed_slot_excluded_only_when_value_present(tea_config: Proces
     assert with_value.excluded["tea_last_pesticide"] == "档案或环境已有"
 
 
+def test_snapshot_growth_stage_excludes_rice_stage_slot() -> None:
+    """P0-B 端到端：`build_profile_snapshot` 给的阶段值使水稻生育期槽位不再进候选池。
+
+    这是"档案 → 问诊图"接通后的真实效果：`slot_values` 的键与流程 `required_slots` 一致，
+    筛选器据此剔除，农户不会再被追问已经登记过的生育期。
+    """
+    rice = get_process_config(ProcessId.RICE)
+    state = _state(profile={"slot_values": {"rice_growth_stage": "分蘖期"}})
+
+    pool = select_candidate_slots(rice, state, top_k=20)
+
+    assert "rice_growth_stage" not in pool.keys
+    assert pool.excluded["rice_growth_stage"] == "档案或环境已有"
+    # 同流程另一个档案来源槽位（最近用药）没值，仍要问
+    assert "rice_last_pesticide" in pool.keys
+
+
 def _sensor_slot_config(tea_config: ProcessConfig) -> ProcessConfig:
     """把 `soil_moisture` 作为一个传感器来源槽位加进配置。
 

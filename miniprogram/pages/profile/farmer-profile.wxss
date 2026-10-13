@@ -88,15 +88,11 @@
   margin-left: 12rpx;
 }
 
-/* 作物输入行 */
-.crop-input-row {
+/* 添加作物按钮行 */
+.add-crop-row {
   display: flex;
-  gap: 20rpx;
-  align-items: center;
-}
-
-.crop-input {
-  flex: 1;
+  justify-content: flex-end;
+  margin-bottom: 24rpx;
 }
 
 .add-btn {
@@ -190,6 +186,18 @@
 .selected-crop-body {
   display: flex;
   gap: 20rpx;
+}
+
+/* 第二条字段行与“其他作物”名称行、阶段行之间留出间距 */
+.selected-crop-body + .selected-crop-body,
+.selected-crop-body + .crop-field,
+.crop-field + .selected-crop-body,
+.selected-crop-item .crop-field + .crop-field {
+  margin-top: 20rpx;
+}
+
+.selected-crop-item .crop-field {
+  margin-bottom: 0;
 }
 
 .crop-field {

@@ -1,6 +1,61 @@
 import { getProfile, saveProfile } from '../../api/farmer'
 import { KEY } from '../../utils/constants'
 
+/** 流程类型选项（七选一，取后端 ProcessId 值）；'other' 表示自由输入作物名。 */
+const PROCESS_OPTIONS = [
+  { value: 'rice', label: '水稻' },
+  { value: 'tea', label: '茶树' },
+  { value: 'rapeseed', label: '油菜' },
+  { value: 'chili', label: '辣椒' },
+  { value: 'weed', label: '杂草防治' },
+  { value: 'pig', label: '养猪' },
+  { value: 'other', label: '其他作物' },
+]
+
+/** 流程类型 → 展示名（与后端各流程 YAML 的 display_name 对齐）。 */
+const PROCESS_LABELS: Record<string, string> = {
+  rice: '水稻',
+  tea: '茶树',
+  rapeseed: '油菜',
+  chili: '辣椒',
+  weed: '杂草防治',
+  pig: '养猪',
+  other: '其他作物',
+}
+
+/** 各流程的生长阶段词表（对齐各自 YAML 的 options）；缺省的流程不展示阶段选择。 */
+const STAGE_BY_PROCESS: Record<string, string[]> = {
+  rice: ['分蘖期', '孕穗期', '抽穗期', '灌浆期'],
+  rapeseed: ['苗期', '蕾薹期', '初花期', '角果期'],
+  chili: ['苗期', '开花坐果期', '膨果期', '采收期'],
+  tea: ['春茶', '夏茶', '秋茶'],
+  pig: ['哺乳仔猪', '保育猪', '育肥猪', '母猪'],
+}
+
+/** 作物名 → 流程类型的关键词表，用于回填与快捷添加时推断。顺序即匹配优先级。 */
+const PROCESS_KEYWORDS: { pt: string; words: string[] }[] = [
+  { pt: 'rice', words: ['水稻', '稻子', '稻谷', '早稻', '中稻', '晚稻', '粳稻', '籼稻'] },
+  { pt: 'weed', words: ['杂草', '除草'] },
+  { pt: 'tea', words: ['茶'] },
+  { pt: 'rapeseed', words: ['油菜', '菜籽'] },
+  { pt: 'chili', words: ['辣椒', '朝天椒', '线椒', '菜椒', '青椒'] },
+  { pt: 'pig', words: ['养猪', '生猪', '猪'] },
+]
+
+/** 由作物名推断流程类型；都不命中则归入 'other'（自由输入）。 */
+function inferProcess(name: string): string {
+  const text = (name || '').trim()
+  if (!text) return 'other'
+  for (const group of PROCESS_KEYWORDS) {
+    if (group.words.some((w) => text.includes(w))) return group.pt
+  }
+  return 'other'
+}
+
+function genId(): string {
+  return `c${Date.now()}${Math.floor(Math.random() * 1000)}`
+}
+
 Page({
   data: {
     loading: false,
@@ -35,16 +90,20 @@ Page({
     waterOptions: ['自来水', '井水', '河水', '水库', '其他'],
 
     // 常用作物品类（快捷选择用）
-    cropList: ['水稻', '小麦', '玉米', '辣椒', '烟草', '番茄', '黄瓜', '茄子', '大豆', '棉花', '油菜', '茶叶', '葡萄', '西瓜'],
+    cropList: ['水稻', '小麦', '玉米', '辣椒', '烟草', '番茄', '黄瓜', '茄子', '大豆', '棉花', '油菜', '茶树', '葡萄', '西瓜'],
 
-    // 手动输入的作物名称
-    cropInput: '',
+    // 流程类型选项与阶段词表
+    processOptions: PROCESS_OPTIONS,
+    processLabels: PROCESS_LABELS,
+    stageByProcess: STAGE_BY_PROCESS,
+
+    // 添加作物的暂存态
+    pendingProcessType: '',
+    pendingProcessLabel: '',
+    pendingCropName: '',
 
     // 已添加作物（含详细信息）
     selectedCrops: [] as any[],
-
-    // 生长阶段选项
-    growthStages: ['育苗期', '移栽期', '苗期', '分蘖期', '拔节期', '抽穗期', '开花期', '灌浆期', '成熟期', '结果期', '膨大期', '采收期'],
 
     // 备注字数
     remarkLength: 0,
@@ -82,6 +141,21 @@ Page({
       });
   },
 
+  /** 把一条作物记录转成页面用的结构（含流程类型与阶段词表） */
+  buildCropItem(c: any): any {
+    const pt = c.processType || inferProcess(c.cropName || c.name || '');
+    return {
+      id: genId(),
+      processType: pt,
+      name: c.cropName || c.name || '',
+      cropVariety: c.cropVariety || '',
+      plantMu: c.plantMu != null && c.plantMu !== '' ? String(c.plantMu) : '',
+      sowingDate: c.sowingDate || '',
+      growthStage: c.growthStage || '',
+      stageOptions: STAGE_BY_PROCESS[pt] || [],
+    };
+  },
+
   /** 将档案数据回填到表单 */
   fillForm(p: any) {
     const expOpt = this.data.experienceOptions.find((o: any) => o.value === (p.experienceYear || 0));
@@ -102,11 +176,7 @@ Page({
         waterSource: p.waterSource || '',
         remark: p.remark || '',
       },
-      selectedCrops: (p.crops || []).map((c: any) => ({
-        name: c.cropName,
-        plantMu: c.plantMu != null ? String(c.plantMu) : '',
-        growthStage: c.growthStage || '',
-      })),
+      selectedCrops: (p.crops || []).map((c: any) => this.buildCropItem(c)),
       remarkLength: (p.remark || '').length,
     });
   },
@@ -158,31 +228,52 @@ Page({
     this.setData({ 'form.waterSource': this.data.waterOptions[idx] });
   },
 
-  /* ------------- 作物品类 ------------- */
-  onCropInputText(e: any) {
-    this.setData({ cropInput: e.detail.value });
+  /* ------------- 添加作物：先选流程类型 ------------- */
+  onPendingProcessChange(e: any) {
+    const opt = this.data.processOptions[Number(e.detail.value)];
+    const patch: any = {
+      pendingProcessType: opt.value,
+      pendingProcessLabel: opt.label,
+    };
+    if (opt.value !== 'other') {
+      patch.pendingCropName = '';
+    }
+    this.setData(patch);
+  },
+
+  onPendingCropNameInput(e: any) {
+    this.setData({ pendingCropName: e.detail.value });
   },
 
   addCrop() {
-    const name = (this.data.cropInput || '').trim();
-    if (!name) {
-      wx.showToast({ title: '请输入作物名称', icon: 'none' });
+    const pt = this.data.pendingProcessType;
+    if (!pt) {
+      wx.showToast({ title: '请选择作物类型', icon: 'none' });
       return;
     }
-    // 去重
+    let name = this.data.processLabels[pt];
+    if (pt === 'other') {
+      name = (this.data.pendingCropName || '').trim();
+      if (!name) {
+        wx.showToast({ title: '请输入作物名称', icon: 'none' });
+        return;
+      }
+    }
     if (this.data.selectedCrops.some((c: any) => c.name === name)) {
       wx.showToast({ title: '该作物已添加', icon: 'none' });
       return;
     }
     const newCrop = {
+      id: genId(),
+      processType: pt,
       name,
+      cropVariety: '',
       plantMu: '',
+      sowingDate: '',
       growthStage: '',
+      stageOptions: STAGE_BY_PROCESS[pt] || [],
     };
-    this.setData({
-      selectedCrops: [...this.data.selectedCrops, newCrop],
-      cropInput: '',
-    });
+    this.setData({ selectedCrops: [...this.data.selectedCrops, newCrop], pendingCropName: '' });
   },
 
   quickAddCrop(e: any) {
@@ -191,7 +282,17 @@ Page({
       wx.showToast({ title: '该作物已添加', icon: 'none' });
       return;
     }
-    const newCrop = { name, plantMu: '', growthStage: '' };
+    const pt = inferProcess(name);
+    const newCrop = {
+      id: genId(),
+      processType: pt,
+      name,
+      cropVariety: '',
+      plantMu: '',
+      sowingDate: '',
+      growthStage: '',
+      stageOptions: STAGE_BY_PROCESS[pt] || [],
+    };
     this.setData({ selectedCrops: [...this.data.selectedCrops, newCrop] });
   },
 
@@ -202,15 +303,42 @@ Page({
     this.setData({ selectedCrops: list });
   },
 
+  /** 切换某条作物的流程类型：同步展示名与阶段词表 */
+  onProcessChange(e: any) {
+    const idx = Number(e.currentTarget.dataset.index);
+    const opt = this.data.processOptions[Number(e.detail.value)];
+    const crop = this.data.selectedCrops[idx];
+    const stageOptions = STAGE_BY_PROCESS[opt.value] || [];
+    const keepStage = stageOptions.includes(crop.growthStage) ? crop.growthStage : '';
+    this.setData({
+      [`selectedCrops[${idx}].processType`]: opt.value,
+      // 非“其他”时展示名由流程类型决定；切到“其他”时清空等农户填写
+      [`selectedCrops[${idx}].name`]: opt.value === 'other' ? '' : opt.label,
+      [`selectedCrops[${idx}].stageOptions`]: stageOptions,
+      [`selectedCrops[${idx}].growthStage`]: keepStage,
+    });
+  },
+
   onCropDetailInput(e: any) {
     const { index, key } = e.currentTarget.dataset;
     this.setData({ [`selectedCrops[${index}].${key}`]: e.detail.value });
   },
 
+  onCropNameInput(e: any) {
+    const idx = Number(e.currentTarget.dataset.index);
+    this.setData({ [`selectedCrops[${idx}].name`]: e.detail.value });
+  },
+
+  onSowingDateChange(e: any) {
+    const idx = Number(e.currentTarget.dataset.index);
+    this.setData({ [`selectedCrops[${idx}].sowingDate`]: e.detail.value });
+  },
+
   onStageChange(e: any) {
     const idx = Number(e.currentTarget.dataset.index);
     const stageIdx = Number(e.detail.value);
-    this.setData({ [`selectedCrops[${idx}].growthStage`]: this.data.growthStages[stageIdx] });
+    const crop = this.data.selectedCrops[idx];
+    this.setData({ [`selectedCrops[${idx}].growthStage`]: (crop.stageOptions || [])[stageIdx] });
   },
 
   /* ------------- 校验 ------------- */
@@ -224,6 +352,8 @@ Page({
     if (!f.totalMu || Number(f.totalMu) <= 0) return '请输入总种植面积（亩）';
     if (![1, 2, 3].includes(f.cultivationType)) return '请选择种植类型';
     if (this.data.selectedCrops.length === 0) return '请至少选择一种种植作物';
+    const badCrop = this.data.selectedCrops.find((c: any) => !c.processType || !c.name);
+    if (badCrop) return '请完善种植作物的类型与名称';
     return null;
   },
 
@@ -259,7 +389,10 @@ Page({
       remark: f.remark.trim(),
       crops: this.data.selectedCrops.map((c: any) => ({
         cropName: c.name,
+        processType: c.processType || '',
+        cropVariety: c.cropVariety || null,
         plantMu: c.plantMu ? Number(c.plantMu) : null,
+        sowingDate: c.sowingDate || null,
         growthStage: c.growthStage || '',
       })),
     };

@@ -142,18 +142,30 @@
     <view class="card block">
       <view class="card-title">种植作物<text class="card-hint">添加您种植的品类，系统将匹配对应专家模型</text></view>
 
-      <!-- 手动输入作物名称 -->
+      <!-- 选择流程类型 -->
       <view class="form-item">
+        <view class="form-label"><text class="required">*</text>作物类型</view>
+        <picker range="{{processOptions}}" range-key="label" bindchange="onPendingProcessChange">
+          <view class="form-picker {{pendingProcessLabel ? '' : 'placeholder'}}">
+            {{pendingProcessLabel || '请选择作物类型'}}
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <!-- “其他作物”需自行输入名称 -->
+      <view class="form-item" wx:if="{{pendingProcessType === 'other'}}">
         <view class="form-label"><text class="required">*</text>作物名称</view>
-        <view class="crop-input-row">
-          <input class="form-input crop-input"
-                 placeholder="输入作物名称，如水稻、辣椒、烟草..."
-                 maxlength="20"
-                 value="{{cropInput}}"
-                 bindinput="onCropInputText"
-                 bindconfirm="addCrop" />
-          <view class="add-btn" bindtap="addCrop">添加</view>
-        </view>
+        <input class="form-input"
+               placeholder="输入作物名称，如小麦、玉米、番茄..."
+               maxlength="20"
+               value="{{pendingCropName}}"
+               bindinput="onPendingCropNameInput"
+               bindconfirm="addCrop" />
+      </view>
+
+      <view class="add-crop-row">
+        <view class="add-btn" bindtap="addCrop">添加作物</view>
       </view>
 
       <!-- 快捷选择 -->
@@ -164,12 +176,32 @@
 
       <!-- 已添加作物列表 -->
       <view class="selected-crop-list" wx:if="{{selectedCrops.length > 0}}">
-        <view class="selected-crop-item" wx:for="{{selectedCrops}}" wx:key="name" wx:for-item="crop" wx:for-index="idx">
+        <view class="selected-crop-item" wx:for="{{selectedCrops}}" wx:key="id" wx:for-item="crop" wx:for-index="idx">
           <view class="selected-crop-header">
-            <text class="selected-crop-name">{{crop.name}}</text>
+            <text class="selected-crop-name">{{crop.name || '待填写作物名'}}</text>
             <text class="selected-crop-remove" bindtap="removeCrop" data-index="{{idx}}">删除</text>
           </view>
+
+          <!-- “其他作物”允许改名 -->
+          <view class="crop-field" wx:if="{{crop.processType === 'other'}}">
+            <text class="crop-field-label">作物名称</text>
+            <input class="crop-field-input"
+                   placeholder="请输入作物名称"
+                   maxlength="20"
+                   value="{{crop.name}}"
+                   bindinput="onCropNameInput"
+                   data-index="{{idx}}" />
+          </view>
+
           <view class="selected-crop-body">
+            <view class="crop-field">
+              <text class="crop-field-label">作物类型</text>
+              <picker range="{{processOptions}}" range-key="label" bindchange="onProcessChange" data-index="{{idx}}">
+                <view class="crop-field-picker {{crop.processType ? '' : 'placeholder'}}">
+                  {{processLabels[crop.processType] || '请选择'}}
+                </view>
+              </picker>
+            </view>
             <view class="crop-field">
               <text class="crop-field-label">面积（亩）</text>
               <input class="crop-field-input"
@@ -181,14 +213,36 @@
                      data-index="{{idx}}"
                      data-key="plantMu" />
             </view>
+          </view>
+
+          <view class="selected-crop-body">
             <view class="crop-field">
-              <text class="crop-field-label">生长阶段</text>
-              <picker range="{{growthStages}}" bindchange="onStageChange" data-index="{{idx}}">
-                <view class="crop-field-picker {{crop.growthStage ? '' : 'placeholder'}}">
-                  {{crop.growthStage || '请选择'}}
+              <text class="crop-field-label">品种（选填）</text>
+              <input class="crop-field-input"
+                     placeholder="如 甬优 1540"
+                     maxlength="20"
+                     value="{{crop.cropVariety}}"
+                     bindinput="onCropDetailInput"
+                     data-index="{{idx}}"
+                     data-key="cropVariety" />
+            </view>
+            <view class="crop-field">
+              <text class="crop-field-label">播种 / 起始时间</text>
+              <picker mode="date" bindchange="onSowingDateChange" data-index="{{idx}}">
+                <view class="crop-field-picker {{crop.sowingDate ? '' : 'placeholder'}}">
+                  {{crop.sowingDate || '请选择'}}
                 </view>
               </picker>
             </view>
+          </view>
+
+          <view class="crop-field" wx:if="{{crop.stageOptions.length > 0}}">
+            <text class="crop-field-label">生长阶段</text>
+            <picker range="{{crop.stageOptions}}" bindchange="onStageChange" data-index="{{idx}}">
+              <view class="crop-field-picker {{crop.growthStage ? '' : 'placeholder'}}">
+                {{crop.growthStage || '请选择'}}
+              </view>
+            </picker>
           </view>
         </view>
       </view>
