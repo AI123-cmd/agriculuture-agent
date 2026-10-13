@@ -104,6 +104,49 @@ def build_environment_note(state: ConsultationState) -> str | None:
     return "暂无环境数据，以下判断基于你的描述的情况。"
 
 
+def render_user_content(state: dict[str, Any], answers: list[Any] | None) -> str:
+    """卡片作答没有自由文本，落库与标题需要一句可读摘要：把答案按问题文案拼起来。
+
+    前端提交快捷选项时只发 `answers`、不带 `message`，若直接落库 `req.message` 就会存空串，
+    导致历史回看时用户消息一片空白。此处在服务端补上，问题文案取自本轮 `pending_questions`
+    （槽位键 → 问法），答不出时记为"不清楚"。
+    """
+    rows = state.get("pending_questions") or []
+    labels = {
+        (row.get("slot_key") or row.get("slotKey")): (row.get("text") or "")
+        for row in rows
+        if (row.get("slot_key") or row.get("slotKey"))
+    }
+    parts: list[str] = []
+    for answer in answers or []:
+        key = getattr(answer, "slotKey", "") or ""
+        label = labels.get(key) or key
+        if not label:
+            continue
+        value = getattr(answer, "value", "") or ""
+        status = getattr(answer, "status", "filled")
+        parts.append(f"{label}：{value if status != 'unknown' and value else '不清楚'}")
+    return "；".join(parts)
+
+
+def render_ai_content(response: ChatResponse, state: dict[str, Any]) -> str:
+    """追问 / 出方 / 转人工环节的节点不写 `reply`，历史回看需要可读文本，故从结构化结果回填。
+
+    与 `ChatResponse.reply` 刻意分开：实时渲染由前端按 `questions` / `prescription` /
+    `handoff` 卡片呈现，这里只保证落库那一条消息不空——历史列表点开后才有内容可看。
+    """
+    if response.questions:
+        texts = [q.text for q in response.questions if q.text]
+        if texts:
+            return "我需要先了解：" + "；".join(texts)
+    if response.prescription and response.prescription.diagnosisSummary:
+        return response.prescription.diagnosisSummary
+    if response.handoff and response.handoff.summary:
+        return response.handoff.summary
+    return ""
+
+
+
 @lru_cache(maxsize=1)
 def _alias_configs() -> dict[ProcessId, ProcessConfig]:
     """入口提示归一使用的流程配置集合（含 `object_aliases`）。
@@ -378,9 +421,14 @@ class AIService:
         否则前端拿不到 `cardId`、入台账按钮无从调用（§3.4）。
         """
         message = req.message or ""
+        # 卡片作答路径前端只发 `answers`、不带 `message`；追问/出方/转人工环节图节点也不写
+        # `reply`。两类内容都需在落库前补齐可读文本，否则历史回看时消息为空白。
+        stored_user = message or render_user_content(state, req.answers)
+        stored_ai = response.reply or render_ai_content(response, state)
+
         conv = await conversation_repo.get(db, user_id, session_id)
         if conv is None:
-            conv = AIConversation(id=session_id, title=message[:15] or "新对话")
+            conv = AIConversation(id=session_id, title=stored_user[:15] or "新对话")
             await conversation_repo.add(db, user_id, conv)
             await db.flush()
 
@@ -389,19 +437,19 @@ class AIService:
             user_id,
             session_id,
             [
-                AIMessage(role="user", content=message, image_url=req.imageUrl),
-                AIMessage(role="ai", content=response.reply),
+                AIMessage(role="user", content=stored_user, image_url=req.imageUrl),
+                AIMessage(role="ai", content=stored_ai),
             ],
         )
 
-        await MemoryService().remember(db, user_id, session_id, message, response.reply)
+        await MemoryService().remember(db, user_id, session_id, stored_user, stored_ai)
 
         # 判据用 `response.prescription`（构建响应时的最终产物）而非 `state["stage"]`：
         # 图成功路径的终点 stage 已被 `followup` 节点改写为 FOLLOWUP，用 stage==PRESCRIBE
         # 判定会恒假，导致卡片不落库、事件不发出（§3.4 的根因）。
         if response.prescription is not None:
             card = await self._persist_prescription(
-                db, user_id, session_id, request_message=message, response=response, state=state
+                db, user_id, session_id, request_message=stored_user, response=response, state=state
             )
             await self._emit_prescription_created(db, user_id, session_id, messages[-1], card_id=card.id)
 

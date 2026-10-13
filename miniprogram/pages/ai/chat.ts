@@ -265,8 +265,17 @@ Page({
     const answers = questions.map((q) => this.qaAnswers[q.slotKey]).filter((a) => !!a);
     if (!answers.length) return;
 
-    // 用一条汇总气泡回显本轮作答，避免逐张卡片各产一条消息打断阅读
-    const summary = answers.map((a) => a.value || '说不清').join('、');
+    // 用一条汇总气泡回显本轮作答，避免逐张卡片各产一条消息打断阅读。
+    // 文案带问题原文（而非槽位键），既便于农户回看，也作为落库的用户消息内容。
+    const summary = questions
+      .map((q) => {
+        const a = this.qaAnswers[q.slotKey];
+        if (!a) return '';
+        const val = a.status === 'unknown' || !a.value ? '说不清' : a.value;
+        return `${q.text}：${val}`;
+      })
+      .filter((s) => !!s)
+      .join('；');
     this.setData({
       submitting: true,
       questions: [],
@@ -275,7 +284,7 @@ Page({
       scrollWithAnimation: true,
     }, () => wx.nextTick(() => this.scrollToBottom(true)));
     this.qaAnswers = {};
-    this.requestAIResponse({ answers });
+    this.requestAIResponse({ message: summary, answers });
   },
 
   /** 调用后端图驱动问诊接口 */

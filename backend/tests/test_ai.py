@@ -58,3 +58,34 @@ def test_consult_detail_returns_messages(client, auth_headers):
 def test_consult_detail_unknown_session_returns_403(client, auth_headers):
     resp = client.get("/api/ai/consult/sess-not-exist", headers=auth_headers)
     assert resp.status_code == 403
+
+
+def test_answers_persist_readable_content(client, auth_headers):
+    """卡片作答路径只发 answers、不带 message，落库仍须有可读文本（历史回看不空白）。"""
+    first = client.post(
+        "/api/ai/chat",
+        json={"message": "我的叶片发黄", "sessionId": "sess-ans", "processHint": "水稻"},
+        headers=auth_headers,
+    )
+    data = first.json()["data"]
+    assert data["sessionId"] == "sess-ans"
+    questions = data.get("questions") or []
+    # 追问轮才需要作答；若首轮直接出方/转人工，则跳过该用例的作答分支
+    if not questions:
+        return
+
+    answers = [
+        {"slotKey": q["slotKey"], "value": (q.get("options") or ["正常"])[0], "status": "filled"}
+        for q in questions
+    ]
+    client.post(
+        "/api/ai/chat",
+        json={"sessionId": "sess-ans", "answers": answers},
+        headers=auth_headers,
+    )
+
+    resp = client.get("/api/ai/consult/sess-ans", headers=auth_headers)
+    assert resp.status_code == 200
+    messages = resp.json()["data"]["messages"]
+    # 每条消息都应有非空内容，不能再出现空串
+    assert all((m["content"] or "").strip() for m in messages), messages
