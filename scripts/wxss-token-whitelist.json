@@ -70,5 +70,29 @@
     "match": "footer-placeholder",
     "reason": "底部滚动占位高度，非交互元素",
     "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/device/list.wxss",
+    "match": "empty-icon",
+    "reason": "设备空态图标为纯装饰图形，不可点击",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/device/list.wxss",
+    "match": "bottom-placeholder",
+    "reason": "底部滚动占位高度，非交互元素",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/device/bind.wxss",
+    "match": "step-dot|step-line",
+    "reason": "步骤指示圆点与连接线为纯装饰图形，不可点击",
+    "category": "decoration"
+  },
+  {
+    "file": "miniprogram/pages/device/bind.wxss",
+    "match": "bottom-placeholder",
+    "reason": "底部滚动占位高度，非交互元素",
+    "category": "decoration"
   }
 ]
