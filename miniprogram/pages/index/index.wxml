@@ -1,43 +1,62 @@
 <!--index.wxml-->
 <view class="page">
-  <!-- 固定顶部用户栏 -->
-  <view class="header">
-    <view class="header-deco deco-1"></view>
-    <view class="header-deco deco-2"></view>
-    <view class="header-main">
-      <view class="user-info">
-        <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
-        <view class="user-detail">
-          <view class="crop-name">当前作物：{{currentCrop}}</view>
-          <view class="farmer-name">农户：{{farmerName}}</view>
+  <!-- 沉浸式顶部区域：只放用户卡片，成为视觉焦点 -->
+  <view class="hero-section">
+    <view class="hero-bg"></view>
+    <view class="hero-deco deco-1"></view>
+    <view class="hero-deco deco-2"></view>
+
+    <view class="hero-content">
+      <view class="user-card">
+        <view class="user-left">
+          <image class="avatar" src="{{userAvatar}}" mode="aspectFill"></image>
+          <view class="user-detail">
+            <view class="user-crop">{{currentCrop}}</view>
+            <view class="user-name">{{farmerName}}</view>
+          </view>
         </view>
-      </view>
-      <view class="mascot-wrap">
-        <sprout-mascot size="{{96}}" />
+        <view class="mascot-wrap">
+          <sprout-mascot size="{{88}}" />
+        </view>
       </view>
     </view>
   </view>
 
-  <!-- 滚动内容区域，统一左右 padding，预留顶部头部和底部导航高度 -->
-  <view class="page-content">
-    <!-- 地点信息 -->
-    <view class="location-row block" bindtap="chooseLocation">
-      <view class="location-left">
-        <view class="location-pin"></view>
-        <text class="location-name">{{locationName}}</text>
+  <!-- 主内容区 -->
+  <view class="main-content">
+    <!-- 状态卡：位置（可点击）+ 环境（只读），半浮在 hero 下沿衔接两个区域 -->
+    <view class="status-card">
+      <view class="status-row location-row" bindtap="chooseLocation">
+        <view class="status-icon location-icon">
+          <view class="pin"></view>
+        </view>
+        <view class="status-content">
+          <view class="status-label">当前位置</view>
+          <view class="status-value">{{locationName}}</view>
+        </view>
+        <view class="status-arrow">›</view>
       </view>
-      <text class="location-set">设置 ›</text>
+
+      <view class="status-divider"></view>
+
+      <view class="status-row env-row">
+        <view class="status-icon env-icon">
+          <view class="env-dot"></view>
+        </view>
+        <view class="status-content">
+          <view class="status-label">环境状态</view>
+          <view class="status-value env-value">{{envLine}}</view>
+        </view>
+      </view>
     </view>
 
-    <!-- 环境一行状态：只读展示，不可点击 -->
-    <view class="env-line block">
-      <text class="env-line-text">{{envLine}}</text>
-    </view>
-
-    <!-- 今日提示 -->
-    <view class="card block">
+    <!-- 今日提示卡片 -->
+    <view class="card tips-card block">
       <view class="card-header">
-        <view class="card-title">今日提示</view>
+        <view class="card-title-wrap">
+          <view class="card-title-icon">📋</view>
+          <view class="card-title">今日提示</view>
+        </view>
         <view class="card-badge" wx:if="{{generatedLabel}}">{{generatedLabel}}</view>
       </view>
 
@@ -50,11 +69,9 @@
             <view class="tip-action">{{item.action}}</view>
           </view>
           <view class="tip-actions">
-            <!-- 朗读触发位：朗读放在勾选左侧，避免误触把“听”点成“完成” -->
             <view class="tip-read-btn tap-88" bindtap="onReadTip" data-id="{{item.itemId}}">
               <text class="tip-read-icon">读</text>
             </view>
-            <!-- 执行勾选：仅当日快照可操作 -->
             <view
               class="tap-88"
               wx:if="{{isToday}}"
@@ -69,15 +86,26 @@
         </view>
       </view>
 
-      <view class="tip-empty" wx:else>今天暂时没有需要特别注意的农事，保持日常管理即可。</view>
+      <view class="tip-empty" wx:else>
+        <view class="empty-icon">🌱</view>
+        <view class="empty-text">今天暂时没有需要特别注意的农事</view>
+        <view class="empty-sub">保持日常管理即可</view>
+      </view>
 
       <view class="card-footer">
-        <view class="btn-primary update-btn" bindtap="onUpdateTips">{{updating ? '更新中…' : '更新提示'}}</view>
+        <view class="btn-primary update-btn" bindtap="onUpdateTips">
+          <text wx:if="{{updating}}">更新中…</text>
+          <text wx:else>更新提示</text>
+        </view>
       </view>
     </view>
 
-    <!-- 核心动作：我要提问 -->
-    <view class="btn-primary ask-btn" bindtap="onAsk">我要提问</view>
+    <!-- 快捷提问入口 -->
+    <view class="ask-section">
+      <view class="btn-primary ask-btn" bindtap="onAsk">
+        <text class="ask-icon">💬</text>
+        <text>我要提问</text>
+      </view>
+    </view>
   </view>
-
 </view>
