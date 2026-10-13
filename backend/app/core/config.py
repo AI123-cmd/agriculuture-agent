@@ -34,9 +34,12 @@ class Settings(BaseSettings):
     CHECKPOINT_POOL_MAX: int = 10
     # 知识条目向量维度，必须与 embedding 模型输出维度一致（T2-56 决定）
     EMBEDDING_DIM: int = 1024
-    # 向量化服务（T2-48）。`USE_MOCK_LLM=true` 时不发起真实请求，改用确定性伪向量。
+    # 向量化服务（T2-48）。留空 `EMBEDDING_API_URL` 时用确定性伪向量，不发起真实请求。
     EMBEDDING_API_URL: str = ""
     EMBEDDING_API_KEY: str = ""
+    # 请求的向量模型名。必填（无合理默认值）：各向量服务的模型名互不通用，
+    # 猜一个名字会让请求被上游拒绝。
+    EMBEDDING_MODEL: str = ""
     EMBEDDING_TIMEOUT: int = 30
 
     # 重排序（T2-51）。默认关闭意味着走规则实现（零远程调用）：重排序在高频路径上

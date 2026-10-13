@@ -31,11 +31,20 @@ def build_embedder() -> Embedder:
     模型是两套独立服务，一边可用不代表另一边可用。把两者绑在同一个开关上，会让"只想换
     对话模型"被迫连带切换向量化实现。留空即用确定性伪向量（本地联调与测试的默认路径），
     配置后走真实 HTTP 向量化服务。
+
+    配了服务地址却没配模型名时显式报错：各向量服务的模型名互不通用，猜一个名字只会让
+    请求被上游拒绝，不如在装配处暴露配置缺失。
     """
     settings = get_settings()
     if not settings.EMBEDDING_API_URL:
         return MockEmbedder()
-    return HttpEmbedder(url=settings.EMBEDDING_API_URL, api_key=settings.EMBEDDING_API_KEY)
+    if not settings.EMBEDDING_MODEL:
+        raise RuntimeError("EMBEDDING_API_URL 已配置但缺少 EMBEDDING_MODEL，无法发起向量化请求")
+    return HttpEmbedder(
+        url=settings.EMBEDDING_API_URL,
+        api_key=settings.EMBEDDING_API_KEY,
+        model=settings.EMBEDDING_MODEL,
+    )
 
 
 async def build_knowledge_index(session: AsyncSession, *, dry_run: bool = False) -> BuildReport:

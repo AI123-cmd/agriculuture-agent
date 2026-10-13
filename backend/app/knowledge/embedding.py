@@ -37,16 +37,17 @@ class HttpEmbedder:
 
     dimensions = EMBEDDING_DIM
 
-    def __init__(self, url: str, api_key: str, timeout: float = 30.0) -> None:
+    def __init__(self, url: str, api_key: str, model: str, timeout: float = 30.0) -> None:
         self._url = url
         self._api_key = api_key
+        self._model = model
         self._timeout = timeout
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         """批量向量化。空输入直接返回空列表，不发请求。"""
         if not texts:
             return []
-        payload = {"input": texts, "model": "embedding", "dimensions": self.dimensions}
+        payload = {"input": texts, "model": self._model, "dimensions": self.dimensions}
         headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
         last_error: Exception | None = None
         for attempt in range(_MAX_ATTEMPTS):
