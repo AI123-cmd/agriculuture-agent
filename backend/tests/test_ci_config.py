@@ -53,9 +53,7 @@ EXPECTED_STEPS = [
 _SETUP_STEPS = {"安装依赖", "建测试库", "9 其余测试（契约与集成）", "check-wxss-tokens"}
 
 # 唯一登记的 continue-on-error 表达式（评测回归、非主分支告警）。
-_ALLOWED_CONTINUE_ON_ERROR_EXPR = (
-    "${{ !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}"
-)
+_ALLOWED_CONTINUE_ON_ERROR_EXPR = "${{ !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}"
 
 
 def _load(path: Path) -> dict:
@@ -152,6 +150,112 @@ def test_guard_flags_continue_on_error_true(tmp_path: Path, monkeypatch) -> None
 
     assert violations, "守卫未拦下 continue-on-error: true"
     assert "continue-on-error" in violations[0]
+
+
+def test_compare_script_blocks_on_absolute_threshold(tmp_path: Path) -> None:
+    """绝对门禁独立生效：整体一致率低于阈值即阻断，即使相对基线还有上升。
+
+    T6-11 验收原文："把总一致率人为降到 `HARNESS_PASS_RATE_THRESHOLD` 以下（但相对基线未
+    下降），`eval-gate` 仍失败，证明绝对门禁与相对门禁同时生效。"
+    """
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(
+        json.dumps(
+            {
+                "overall": {"total": 100, "passed": 80, "consistency": 0.80},
+                "processes": {"rice": {"total": 100, "passed": 80, "consistency": 0.80}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    current = tmp_path / "current.json"
+    # 相对基线整体上升（0.80 → 0.85），但仍在阈值 0.90 之下
+    current.write_text(
+        json.dumps(
+            {
+                "overall": {"total": 100, "passed": 85, "consistency": 0.85},
+                "processes": {"rice": {"total": 100, "passed": 85, "consistency": 0.85}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(COMPARE),
+            "--current",
+            str(current),
+            "--baseline",
+            str(baseline),
+            "--threshold",
+            "0.90",
+            "--max-drop-pp",
+            "1.0",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=BACKEND_ROOT,
+    )
+
+    assert result.returncode == 1, f"整体一致率低于阈值应阻断：{result.stdout}"
+    assert "低于阈值" in result.stdout
+
+
+def test_compare_script_accumulates_from_baseline_not_last_run(tmp_path: Path) -> None:
+    """相对门禁以**基线**为准而非"上一次运行"：连续两次各降 0.9pp，第二次被阻断。
+
+    若拿上一次运行做比较，两次各降 0.9 个百分点都会通过，累积成明显退化而无人察觉。
+    这里用同一份基线跑两次，第二次的累计降幅（1.8pp）超过阈值即被拦下。
+    """
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(
+        json.dumps(
+            {
+                "overall": {"total": 1000, "passed": 1000, "consistency": 1.0},
+                "processes": {"rice": {"total": 1000, "passed": 1000, "consistency": 1.0}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def run(passed: int) -> tuple[int, str]:
+        current = tmp_path / f"current_{passed}.json"
+        consistency = passed / 1000
+        current.write_text(
+            json.dumps(
+                {
+                    "overall": {"total": 1000, "passed": passed, "consistency": consistency},
+                    "processes": {"rice": {"total": 1000, "passed": passed, "consistency": consistency}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(COMPARE),
+                "--current",
+                str(current),
+                "--baseline",
+                str(baseline),
+                "--threshold",
+                "0.90",
+                "--max-drop-pp",
+                "1.0",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_ROOT,
+        )
+        return result.returncode, result.stdout
+
+    first, first_out = run(991)  # 降 0.9pp：未超阈值
+    second, second_out = run(982)  # 累计降 1.8pp：超阈值
+
+    assert first == 0, f"单次下降 0.9pp 不应阻断：{first_out}"
+    assert second == 1, f"累计下降 1.8pp 应阻断：{second_out}"
+    assert "rice" in second_out, "阻断信息应指出受影响的流程名"
 
 
 def test_guard_flags_noqa_on_layering_violation(tmp_path: Path, monkeypatch) -> None:
