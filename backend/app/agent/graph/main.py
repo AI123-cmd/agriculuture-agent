@@ -21,6 +21,7 @@ from langgraph.graph.state import CompiledStateGraph, StateNode
 from app.agent.agents.handoff import build_handoff_node
 from app.agent.agents.report_guard import build_report_guard_node
 from app.agent.agents.triage import run_triage
+from app.agent.blackboard import profile_slots
 from app.agent.budget import ConsultBudget
 from app.agent.checkpointer import get_checkpointer
 from app.agent.graph.routes import (
@@ -64,12 +65,21 @@ async def intake(state: ConsultationState) -> dict:
 
     受理即分流的落点：本节点之后的第一条边就是流程路由，不再有"先问症状"。
     `process_hint` 非空（小程序按钮直达）即锁定流程，跳过 triage 提问。
+
+    档案水合：把 `profile["slot_values"]`（`ai_service.build_profile_snapshot` 从档案
+    生育期等字段算出）摊进黑板 `slots`，来源标记为 `profile`。收敛判据 `slots_ready`
+    与问诊降级模板池都**只读 `state["slots"]`**，不做这一步，档案供给的必问槽位会被判为
+    缺失——农户在档案里填过生育期，却仍被追问且问诊无法收敛。已存在的槽位不覆盖：农户
+    亲口回答（`user_answer`）优先级低于档案，但那是恢复中断的场景，本轮起点不该被档案冲掉。
     """
     process_hint = state.get("process_hint")
     locked = process_hint is not None
     # 预算只在为空时初始化：恢复中断时 `intake` 可能重跑，若每次都重置为 initial，
     # 轮次上限会被"退出再进来"绕过，农户可无限追问（T2-32 必须堵住的漏洞）。
     budget = state.get("budget") or ConsultBudget.initial().to_state()
+    slots = dict(state.get("slots") or {})
+    for key, value in profile_slots(state.get("profile")).items():
+        slots.setdefault(key, value)
     return {
         "session_id": state.get("session_id"),
         "stage": ConsultStage.INTAKE,
@@ -77,6 +87,7 @@ async def intake(state: ConsultationState) -> dict:
         "process_locked": locked,
         "process_id": ProcessId(process_hint) if locked else None,
         "redlines_loaded": state.get("redlines_loaded", False),  # 由 config 注入
+        "slots": slots,
     }
 
 

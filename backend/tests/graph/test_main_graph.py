@@ -30,7 +30,7 @@ from app.agent.graph import gate_graph
 from app.agent.graph import main as main_graph
 from app.agent.graph.subgraphs import pig as pig_subgraph
 from app.agent.graph.subgraphs import rice as rice_subgraph
-from app.agent.state import ConsultStage, ConsultationState, ProcessId
+from app.agent.state import ConsultStage, ConsultationState, ProcessId, SlotValue
 
 # 旧线性链的节点名（T2-25 要求整体删除）：出现即说明旧链路被复用。
 _LEGACY_NODE_NAMES = ("collect_symptoms", "collect_management", "fetch_environment")
@@ -186,6 +186,41 @@ async def test_handoff_when_redlines_missing(monkeypatch) -> None:
     assert trace[0] == "intake"
     assert trace[1] == "handoff"
     assert not any(name.startswith("subgraph_") for name in trace)
+
+
+# ---- 档案水合（档案 → 收敛判据的连接点） ----
+
+
+async def test_intake_hydrates_profile_slot_values_into_slots() -> None:
+    """受理节点把档案 `slot_values` 摊进 `state["slots"]`，来源标记为 `profile`。
+
+    收敛判据 `slots_ready` 只读 `state["slots"]`：不水合，档案里填过的生育期会被判为
+    缺失，问诊反复追问且无法收敛。
+    """
+    out = await main_graph.intake(
+        _state(profile={"slot_values": {"rice_growth_stage": "分蘖期"}})
+    )
+
+    slot = out["slots"]["rice_growth_stage"]
+    assert slot.status == "filled"
+    assert slot.value == "分蘖期"
+    assert slot.source == "profile"
+
+
+async def test_intake_does_not_overwrite_existing_slots() -> None:
+    """已有槽位不被档案覆盖：恢复中断时农户本轮已答的值必须保留。"""
+    existing = {"rice_growth_stage": SlotValue(key="rice_growth_stage", value="抽穗期", status="filled", source="user_answer")}
+    out = await main_graph.intake(
+        _state(slots=existing, profile={"slot_values": {"rice_growth_stage": "分蘖期"}})
+    )
+
+    assert out["slots"]["rice_growth_stage"].value == "抽穗期"
+
+
+async def test_intake_without_profile_keeps_slots_empty() -> None:
+    """无档案时不凭空造槽位（对照）：`slots` 保持原样。"""
+    out = await main_graph.intake(_state(slots={}))
+    assert out["slots"] == {}
 
 
 # ---- 报告信号早退 ----

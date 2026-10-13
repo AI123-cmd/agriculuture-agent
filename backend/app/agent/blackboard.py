@@ -77,6 +77,27 @@ def write_slot(
     state.setdefault("slots", {})[key] = SlotValue(key=key, **slot.model_dump(exclude={"key"}))
 
 
+def profile_slots(profile: Mapping[str, Any] | None) -> dict[str, SlotValue]:
+    """把档案快照的 `slot_values` 摊成黑板槽位（`source=profile`、`status=filled`）。
+
+    档案是自动事实里优先级最高的来源（`SOURCE_PRIORITY[profile] == 1`）。水合是把
+    "档案已有的事实"从只读快照 `state["profile"]` 搬进参与收敛判定的黑板 `state["slots"]`：
+    `slots_ready` 与问诊降级模板池都只读 `state["slots"]`，不搬这一步，档案供给的必问槽位
+    会被判为缺失——问诊永远收敛不了，农户体感就是"我档案里填了生育期，它却反复追问，
+    最后还转人工"。候选池筛选器另有一路读 `profile["slot_values"]`，水合后二者口径归一。
+
+    空值不写入：`SlotValue` 的一致性校验要求 `status=filled` 必须带值。
+    """
+    values = (profile or {}).get("slot_values") or {}
+    if not isinstance(values, Mapping):
+        return {}
+    return {
+        key: SlotValue(key=key, value=str(value), status="filled", source="profile")
+        for key, value in values.items()
+        if isinstance(key, str) and key and value
+    }
+
+
 def read_slot(state: ConsultationState, key: str, *, plot_prefix: str | None = None) -> SlotValue | None:
     """读槽位。未写入过的槽位返回 `None`，调用方据此判断"还没问过"。"""
     full_key = f"{plot_prefix}.{key}" if plot_prefix else key
@@ -185,6 +206,7 @@ __all__ = [
     "BlackboardError",
     "append_evidence",
     "apply_answers",
+    "profile_slots",
     "progress_of",
     "read_slot",
     "set_stage",

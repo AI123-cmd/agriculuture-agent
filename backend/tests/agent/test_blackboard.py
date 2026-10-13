@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.agent.blackboard import (
     BlackboardError,
     append_evidence,
+    profile_slots,
     read_slot,
     set_stage,
     slot_summary,
@@ -195,3 +196,28 @@ def test_slot_value_rejects_unknown_source() -> None:
 def test_slot_value_rejects_extra_field() -> None:
     with pytest.raises(ValidationError):
         SlotValue(key="a", value="x", status="filled", source="profile", extra="nope")
+
+
+def test_profile_slots_hydrates_into_filled_profile_slots() -> None:
+    """档案快照的 `slot_values` 摊成 `source=profile` / `status=filled` 的黑板槽位。
+
+    这是"档案 → 收敛判据"的连接点：`slots_ready` 只读 `state["slots"]`，档案值不搬进来
+    就会被永远判为缺失，问诊无法收敛。
+    """
+    out = profile_slots({"slot_values": {"rice_growth_stage": "分蘖期"}})
+    assert set(out) == {"rice_growth_stage"}
+    assert out["rice_growth_stage"].value == "分蘖期"
+    assert out["rice_growth_stage"].status == "filled"
+    assert out["rice_growth_stage"].source == "profile"
+
+
+def test_profile_slots_skips_empty_values_and_empty_profile() -> None:
+    """空值不写入（`filled` 必须带值），空档案不产生任何槽位。"""
+    assert profile_slots(None) == {}
+    assert profile_slots({}) == {}
+    assert profile_slots({"slot_values": {"a": ""}}) == {}
+
+
+def test_profile_slots_ignores_non_mapping_slot_values() -> None:
+    """脏数据（`slot_values` 不是映射）不抛异常，返回空——入口不因一条坏字段断链。"""
+    assert profile_slots({"slot_values": ["not", "a", "mapping"]}) == {}
