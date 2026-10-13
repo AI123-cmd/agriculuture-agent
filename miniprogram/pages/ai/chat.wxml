@@ -29,9 +29,6 @@
       <block wx:for="{{messages}}" wx:key="id">
         <!-- AI 消息（左侧） -->
         <view wx:if="{{item.role === 'ai'}}" class="msg-row ai-row">
-          <view class="msg-avatar ai-avatar">
-            <sprout-mascot size="{{72}}" />
-          </view>
           <view class="msg-content ai-content">
             <view class="msg-bubble ai-bubble t-body">{{item.content}}</view>
             <!-- 转人工消息用独立朗读按钮，文案更明确 -->

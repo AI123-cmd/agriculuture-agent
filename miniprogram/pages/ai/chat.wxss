@@ -153,22 +153,6 @@ page {
   flex-direction: row-reverse;
 }
 
-.msg-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.ai-avatar {
-  background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-  border: 2rpx solid rgba(67, 160, 71, 0.15);
-  overflow: hidden;
-}
-
 .msg-content {
   display: flex;
   align-items: flex-end;
