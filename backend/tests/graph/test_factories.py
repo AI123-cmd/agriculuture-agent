@@ -22,9 +22,10 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from app.agent.agents.candidate_pool import select_candidate_slots
-from app.agent.contracts import InterviewBatch, InterviewQuestion
+from app.agent.agents.exceptions import AgentDegraded
+from app.agent.contracts import DiagnosisResult, InterviewBatch, InterviewQuestion
 from app.agent.graph import factories
-from app.agent.state import ConsultationState, ProcessId
+from app.agent.state import ConsultationState, ConsultStage, ProcessId
 from app.process_config.errors import ConfigLoadError
 
 # 两条结构不同的流程：水稻不启用会诊、茶启用；其必问槽位键集也不同。
@@ -188,3 +189,100 @@ async def test_interview_nodes_of_two_processes_differ(monkeypatch) -> None:
     assert set(rice_asked) <= rice_keys
     assert set(tea_asked) <= tea_keys
     assert set(rice_asked) != set(tea_asked)  # 配置不同 → 候选不同
+
+
+# ---- 降级出口与预算计数：两处 500/死循环的回归 ----
+#
+# 问诊降级（`AgentDegraded`）本意是"无题可问，应由主图推进到下一环节"。若节点不接住它，
+# 它会一路冒泡成 HTTP 500；判定回环若不计 `judge_loops`，`route_after_judge` 的上限形同
+# 虚设、置信一直不足时会无限回环。两处都是「异常路径绕开正常控制流」的同一类缺陷。
+
+
+class _DegradingInterviewer:
+    """替身问诊智能体：直接抛 `AgentDegraded`，模拟候选池与模板池都为空。"""
+
+    async def run(self, state: ConsultationState, ctx: Any) -> InterviewBatch:
+        raise AgentDegraded("无可用模板问题，应由主图推进到下一环节")
+
+
+async def test_interview_node_absorbs_agent_degraded(monkeypatch) -> None:
+    """问诊降级不得冒泡成 500：节点接住后推进（无待答问题），并照常记一轮问诊。
+
+    本项的直接现象是农户收到"服务器内部错误"——`AgentDegraded` 逃出节点、穿过图、
+    落到 HTTP 层。修复口径是"降级即推进"：返回空 `pending_questions` 让
+    `route_after_interview` 按槽位齐备情况继续，而不是把异常抛给调用方。
+    """
+    monkeypatch.setattr(factories, "InterviewerAgent", lambda *a, **k: _DegradingInterviewer())
+
+    node = factories.make_interview_node(factories.get_config(_RICE))
+    state = {"session_id": "sess-degraded", "slots": {}, "budget": {"interview_rounds": 0}}
+
+    out = await node(state)
+
+    assert out["pending_questions"] == []
+    assert out["stage"] is ConsultStage.INTERVIEW
+    # 异常路径不绕开预算：仍需记一轮问诊，供 `route_after_interview` 的上限收敛。
+    assert out["budget"]["interview_rounds"] == 1
+
+
+class _UncertainDiagnoser:
+    """替身判定智能体：返回"不确定 + 待补信息 + 未超边界"，即即将回环的情形。"""
+
+    def __init__(self, result: DiagnosisResult) -> None:
+        self._result = result
+        self.state: dict[str, Any] = {}
+
+    async def run(self, state: ConsultationState, ctx: Any) -> DiagnosisResult:
+        return self._result
+
+    def post_validate(self, state: ConsultationState, result: DiagnosisResult) -> None:
+        # 真实智能体会把内部置信度原地写进 state；此处简化为不写分数字段。
+        return None
+
+
+def _uncertain_diagnosis() -> DiagnosisResult:
+    return DiagnosisResult(
+        conclusion="尚不能确定",
+        confidence_level="uncertain",
+        basis=["症状描述不足以区分"],
+        uncertainty_source=["缺少现场照片"],
+        excluded=[],
+        terminology_profile="rice",
+        needs_more_info=["补拍叶片正面照片"],
+        out_of_scope=False,
+    )
+
+
+async def test_judge_node_increments_judge_loops(monkeypatch) -> None:
+    """判定要补问时必须记一次回环：否则 `judge_loops` 恒为 0，上限失效、可无限回环。"""
+    diagnoser = _UncertainDiagnoser(_uncertain_diagnosis())
+    monkeypatch.setattr(factories, "DiagnoserAgent", lambda *a, **k: diagnoser)
+
+    node = factories.make_judge_node(factories.get_config(_RICE))
+    state = {"session_id": "sess-loops", "slots": {}, "budget": {"judge_loops": 0, "max_judge_loops": 2}}
+
+    out = await node(state)
+
+    assert out["budget"]["judge_loops"] == 1
+
+
+async def test_judge_node_skips_loop_count_when_confident(monkeypatch) -> None:
+    """正常开方路径不递增回环计数：避免无谓占用预算、提前触发转人工。"""
+    result = DiagnosisResult(
+        conclusion="很可能是稻瘟病",
+        confidence_level="likely",
+        basis=["典型病斑形态"],
+        uncertainty_source=[],
+        excluded=[],
+        terminology_profile="rice",
+        needs_more_info=[],
+        out_of_scope=False,
+    )
+    monkeypatch.setattr(factories, "DiagnoserAgent", lambda *a, **k: _UncertainDiagnoser(result))
+
+    node = factories.make_judge_node(factories.get_config(_RICE))
+    state = {"session_id": "sess-confident", "slots": {}, "budget": {"judge_loops": 0}}
+
+    out = await node(state)
+
+    assert "budget" not in out or out["budget"]["judge_loops"] == 0

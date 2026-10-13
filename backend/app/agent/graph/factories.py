@@ -38,6 +38,7 @@ from langgraph.types import interrupt
 
 from app.agent.agents.base import AgentContext
 from app.agent.agents.diagnoser import DiagnoserAgent
+from app.agent.agents.exceptions import AgentDegraded
 from app.agent.agents.field_observer import (
     EnvReader,
     FieldObserverAgent,
@@ -175,7 +176,22 @@ def make_interview_node(config: ProcessConfig) -> NodeFn:
     interviewer = InterviewerAgent(get_gateway(), ConsultBudget())
 
     async def interview(state: ConsultationState) -> dict:
-        batch = await interviewer.run(state, _context_for(state, config, TaskType.INTERVIEW))
+        try:
+            batch = await interviewer.run(state, _context_for(state, config, TaskType.INTERVIEW))
+        except AgentDegraded:
+            # 无题可问：必问槽位已全部解决（或只剩自动来源可覆盖的项），问诊已无事可做。
+            # 降级出口抛 `AgentDegraded` 的本意就是"应由主图推进到下一环节"，若任由它冒泡，
+            # 农户收到的是 500 而不是一条正常回复。此处不中断、直接推进；同时记一轮问诊，
+            # 使 `route_after_interview` 的轮次上限继续生效，异常路径不绕开预算。
+            budget = ConsultBudget(**state.get("budget", {}))
+            budget.note_interview_round()
+            return {
+                "slots": state.get("slots") or {},
+                "budget": budget.to_state(),
+                "pending_questions": [],
+                "stage": ConsultStage.INTERVIEW,
+                "panel_needed": config.panel_enabled,
+            }
         payload = {
             "questions": [q.model_dump(mode="json") for q in batch.questions],
             "stage_hint": batch.stage_hint,
@@ -228,6 +244,14 @@ def make_judge_node(config: ProcessConfig) -> NodeFn:
         score = cast(dict[str, Any], state).get("confidence_score")
         if isinstance(score, (int, float)):
             out["confidence_score"] = float(score)
+        # 记一次判定回环：`route_after_judge` 用 `budget["judge_loops"]` 决定"再补问一次"还是
+        # "转人工"，而这个计数此前无人递增（`ConsultBudget.note_judge_loop` 仅测试调用过），
+        # 导致上限形同虚设、置信一直不足时会无限回环。判据与路由保持一致：只有在**即将回环**
+        # 时（不确定、待补信息、且未超边界）才递增，避免正常的开方路径白耗预算。
+        if result.confidence_level == "uncertain" and result.needs_more_info and not result.out_of_scope:
+            budget = ConsultBudget(**state.get("budget", {}))
+            budget.note_judge_loop()
+            out["budget"] = budget.to_state()
         return out
 
     judge.__name__ = f"judge_{config.process_id.value}"
