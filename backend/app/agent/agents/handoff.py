@@ -412,9 +412,18 @@ class HandoffBuilder:
         return text
 
     def _problem_summary(self, state: ConsultationState) -> str:
-        """问题描述取农户本次输入的原话，缺失时回落到会话首条消息。"""
+        """问题描述取农户本次输入的原话，缺失时回落到会话首条消息。
+
+        `messages` 经 `add_messages` 归约后是 LangChain 的 `HumanMessage` 对象，
+        不再是初始 state 里的 dict，取内容必须同时兼容两种形态——否则农户只发图片、
+        不带文字（`user_message` 为空）又走到转人工时，这里会因 `.get` 不存在而崩溃。
+        """
         first = (state.get("messages") or [{}])[0]
-        return (state.get("user_message") or first.get("content") or "")[:_SUMMARY_LIMIT]
+        if isinstance(first, dict):
+            fallback = first.get("content") or ""
+        else:
+            fallback = getattr(first, "content", "") or ""
+        return (state.get("user_message") or fallback or "")[:_SUMMARY_LIMIT]
 
     def _excluded_of(self, state: ConsultationState) -> list[str]:
         """判定环节给出的已排除项。它是上下文包四项内容之一，对农技人员很有价值。"""
