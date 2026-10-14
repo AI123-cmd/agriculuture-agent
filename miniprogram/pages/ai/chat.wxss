@@ -480,40 +480,39 @@ page {
   margin-top: var(--space-inline);
 }
 
-/* 输入栏 */
+/* 输入栏：悬浮胶囊。语音为唯一常驻实心品牌色（主入口），拍照浅绿底（次入口），发送键随输入点亮 */
 .input-bar {
   position: fixed;
-  left: 0;
-  bottom: calc(110rpx + env(safe-area-inset-bottom));
-  width: 100%;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(132rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 16rpx 24rpx;
+  gap: 8rpx;
+  padding: 8rpx 16rpx;
   background: #fff;
-  border-top: 1rpx solid #e4ebdd;
-  box-shadow: 0 -6rpx 24rpx rgba(46, 125, 50, 0.06);
+  border-radius: 48rpx;
+  box-shadow: 0 10rpx 36rpx rgba(46, 125, 50, 0.16);
   box-sizing: border-box;
   z-index: 99;
 }
 
-.voice-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rpx;
-}
-
-.voice-btn .voice-icon {
-  width: var(--tap-min);
-  height: var(--tap-min);
+/* 三个圆形按钮：视觉 72rpx，热区由外层 .tap-88 撑满 88rpx（尺寸登记白名单） */
+.voice-btn .voice-icon,
+.photo-btn .photo-icon,
+.send-btn .send-icon {
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 50%;
-  background: var(--grad-brand);
-  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.25);
-  font-size: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, background 0.2s, box-shadow 0.2s;
+}
+
+.voice-btn .voice-icon {
+  background: var(--grad-brand);
+  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.25);
 }
 
 .voice-btn .voice-icon.recording {
@@ -527,46 +526,91 @@ page {
   50% { transform: scale(1.08); opacity: 0.85; }
 }
 
-.voice-btn .voice-icon::before {
-  content: "讲";
-  font-size: var(--font-caption);
-  color: #fff;
-  font-weight: 500;
-}
-
-.voice-label {
-  color: #595959;
-}
-
-/* 拍照按钮：与语音按钮并排，样式同源 */
-.photo-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rpx;
-}
-
 .photo-btn .photo-icon {
-  width: var(--tap-min);
-  height: var(--tap-min);
+  background: #e8f4e9;
+}
+
+.voice-btn:active .voice-icon,
+.photo-btn:active .photo-icon,
+.send-btn:active .send-icon {
+  transform: scale(0.92);
+}
+
+/* 麦克风图形：纯装饰，尺寸登记在 scripts/wxss-token-whitelist.json */
+.voice-glyph {
+  position: relative;
+  width: 42rpx;
+  height: 58rpx;
+}
+
+.voice-glyph::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 22rpx;
+  height: 34rpx;
+  border-radius: 11rpx;
+  background: #fff;
+}
+
+.voice-glyph-arc {
+  position: absolute;
+  left: 50%;
+  top: 18rpx;
+  transform: translateX(-50%);
+  width: 34rpx;
+  height: 26rpx;
+  border: 5rpx solid #fff;
+  border-top: none;
+  border-radius: 0 0 34rpx 34rpx;
+  box-sizing: border-box;
+}
+
+.voice-glyph::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 44rpx;
+  transform: translateX(-50%);
+  width: 5rpx;
+  height: 12rpx;
+  border-radius: 2rpx;
+  background: #fff;
+}
+
+/* 相机图形：纯装饰，尺寸登记在 scripts/wxss-token-whitelist.json */
+.photo-glyph {
+  position: relative;
+  margin-top: 4rpx;
+  width: 40rpx;
+  height: 32rpx;
+  border-radius: 8rpx;
+  background: var(--text-brand);
+}
+
+.photo-glyph::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14rpx;
+  height: 14rpx;
   border-radius: 50%;
-  background: var(--grad-brand);
-  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.25);
-  font-size: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #e8f4e9;
 }
 
-.photo-btn .photo-icon::before {
-  content: "拍";
-  font-size: var(--font-caption);
-  color: #fff;
-  font-weight: 500;
-}
-
-.photo-label {
-  color: #595959;
+.photo-glyph::after {
+  content: '';
+  position: absolute;
+  left: 5rpx;
+  top: -7rpx;
+  width: 16rpx;
+  height: 8rpx;
+  border-radius: 4rpx 4rpx 0 0;
+  background: var(--text-brand);
 }
 
 .input-wrap {
@@ -585,25 +629,155 @@ page {
   color: #333;
 }
 
-.send-btn {
-  width: var(--tap-min);
-  height: var(--tap-min);
-  border-radius: 50%;
-  background: #cfd6cb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, box-shadow 0.2s;
-  flex-shrink: 0;
+.msg-input-ph {
+  color: #93a98d;
 }
 
-.send-btn.active {
+.send-btn .send-icon {
+  background: #c7d4c1;
+}
+
+.send-btn .send-icon.active {
   background: var(--grad-brand);
   box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.3);
 }
 
-.send-icon {
-  color: #fff;
-  font-size: var(--font-title);
-  transform: rotate(-30deg);
+/* 发送箭头图形：纯装饰，尺寸登记在 scripts/wxss-token-whitelist.json */
+.send-glyph {
+  position: relative;
+  margin-top: 8rpx;
+  width: 7rpx;
+  height: 26rpx;
+  border-radius: 3rpx;
+  background: #fff;
+}
+
+.send-glyph::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -3rpx;
+  transform: translateX(-50%) rotate(45deg);
+  width: 18rpx;
+  height: 18rpx;
+  border-left: 7rpx solid #fff;
+  border-top: 7rpx solid #fff;
+  border-radius: 5rpx 0 0 0;
+}
+
+/* —— 等待浮层：替代原生 wx.showLoading 灰盒 —— */
+.thinking-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background: rgba(23, 43, 24, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: thinking-fade-in 0.25s ease-out;
+}
+
+.thinking-card {
+  width: 460rpx;
+  background: var(--bg-card);
+  border-radius: 36rpx;
+  padding: 56rpx 48rpx 48rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 20rpx 60rpx rgba(20, 45, 22, 0.22);
+  animation: thinking-pop 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* 小禾 + 双层呼吸光环 */
+.thinking-stage {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thinking-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 168rpx;
+  height: 168rpx;
+  margin-left: -84rpx;
+  margin-top: -84rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(67, 160, 71, 0.55);
+  animation: thinking-ripple 2.2s ease-out infinite;
+}
+
+.thinking-ring.delay {
+  animation-delay: 1.1s;
+}
+
+.thinking-mascot {
+  animation: thinking-bob 1.8s ease-in-out infinite;
+}
+
+.thinking-hint {
+  margin-top: 32rpx;
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+  color: var(--text-body);
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  text-align: center;
+}
+
+/* 三点节拍灯 */
+.thinking-dots {
+  margin-top: 24rpx;
+  display: flex;
+  gap: 16rpx;
+}
+
+.tdot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  animation: thinking-dot 1.2s ease-in-out infinite;
+}
+
+.tdot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.tdot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes thinking-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes thinking-pop {
+  from { opacity: 0; transform: scale(0.86) translateY(16rpx); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes thinking-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14rpx); }
+}
+
+@keyframes thinking-ripple {
+  0% { transform: scale(0.72); opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes thinking-dot {
+  0%, 100% { transform: translateY(0); opacity: 0.45; }
+  50% { transform: translateY(-10rpx); opacity: 1; }
 }

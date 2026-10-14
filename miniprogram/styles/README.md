@@ -102,6 +102,8 @@
 | `miniprogram/custom-tab-bar/index.wxss` | `tab-icon\|home-icon\|history-icon\|mine-icon\|clock-hand` | decoration | Tab 图标为装饰图形，热区由 `.tab-item` 保证 |
 | `miniprogram/pages/ai/chat.wxss` | `msg-avatar` | decoration | 对话头像为展示性装饰，不可点击 |
 | `miniprogram/pages/ai/chat.wxss` | `vp-` | decoration | 语音喇叭为装饰，热区由 `.voice-play-btn`（`--tap-min`）保证 |
+| `miniprogram/pages/ai/chat.wxss` | `voice-glyph\|photo-glyph\|send-glyph\|voice-icon\|photo-icon\|send-icon` | decoration | 输入栏麦克风/相机/发送箭头为纯装饰图形；三个视觉圆圈 72rpx，热区由外层 `.tap-88` 撑满 |
+| `miniprogram/pages/ai/chat.wxss` | `tdot` | decoration | 等待浮层三点节拍灯为纯装饰图形，不可点击 |
 | `miniprogram/pages/env/env.wxss` | `refresh-icon\|location-pin\|metric-icon\|device-dot\|footer-placeholder\|data-label` | decoration | 刷新/定位/指标/状态点图标、数据标签圆点与底部占位均为装饰 |
 | `miniprogram/pages/index/index.wxss` | `location-pin\|tip-callout` | decoration | 地点定位图标与提示要点前置圆点为装饰，不可点击 |
 | `miniprogram/pages/login/login.wxss` | `\.checkbox` | decoration | 协议复选框视觉 44rpx，热区由外层 `.tap-88` 撑满 |

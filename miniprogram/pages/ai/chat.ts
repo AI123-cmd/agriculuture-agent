@@ -47,6 +47,9 @@ Page({
     ledgerSaved: false,
     // 录音态：驱动按钮视觉反馈
     recording: false,
+    /** 自定义等待浮层：替代原生 wx.showLoading 灰盒，可承载品牌视觉 */
+    thinking: false,
+    thinkingHint: '',
   },
 
   /** 本轮卡片的作答暂存（slotKey -> 答案），不入 data，避免无谓渲染 */
@@ -406,26 +409,29 @@ Page({
       });
   },
 
-  /** 按等待时长递进 loading 文案，并在解除时清理所有定时器 */
+  /** 按等待时长递进浮层文案，并在解除时清理所有定时器 */
   startLoadingHints() {
     this.stopLoadingHints();
-    wx.showLoading({ title: '思考中...', mask: true });
+    this.setData({ thinking: true, thinkingHint: '思考中...' });
     const steps: { delay: number; title: string }[] = [
       { delay: 8000, title: '正在分析，请稍候' },
       { delay: 25000, title: '正在综合判断，请稍候' },
       { delay: 50000, title: '仍在分析，请勿退出' },
     ];
     this.hintTimers = steps.map((step) =>
-      setTimeout(() => wx.showLoading({ title: step.title, mask: true }), step.delay)
+      setTimeout(() => this.setData({ thinkingHint: step.title }), step.delay)
     );
   },
 
-  /** 清理 loading 定时器并关闭 loading */
+  /** 清理 loading 定时器并关闭等待浮层 */
   stopLoadingHints() {
     this.hintTimers.forEach((t) => clearTimeout(t));
     this.hintTimers = [];
-    wx.hideLoading();
+    if (this.data.thinking) this.setData({ thinking: false, thinkingHint: '' });
   },
+
+  /** 等待浮层拦截滑动穿透 */
+  noop() {},
 
   /**
    * 强制滚动到消息底部

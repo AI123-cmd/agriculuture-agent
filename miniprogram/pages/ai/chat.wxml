@@ -163,28 +163,54 @@
 
   <!-- 输入区域：语音为主入口，打字为备选 -->
   <view class="input-bar">
-    <view class="voice-btn tap-88 {{recording ? 'recording' : ''}}"
+    <view class="voice-btn tap-88"
           bindtouchstart="onVoiceStart"
           bindtouchend="onVoiceEnd"
           bindtouchcancel="onVoiceEnd">
-      <view class="voice-icon {{recording ? 'recording' : ''}}"></view>
-      <text class="voice-label t-caption">{{recording ? '松开' : '语音'}}</text>
+      <view class="voice-icon {{recording ? 'recording' : ''}}">
+        <view class="voice-glyph">
+          <view class="voice-glyph-arc"></view>
+        </view>
+      </view>
     </view>
     <view class="photo-btn tap-88" bindtap="onChoosePhoto">
-      <view class="photo-icon"></view>
-      <text class="photo-label t-caption">拍照</text>
+      <view class="photo-icon">
+        <view class="photo-glyph"></view>
+      </view>
     </view>
     <view class="input-wrap">
       <input class="msg-input t-body"
              placeholder="输入您的问题..."
+             placeholder-class="msg-input-ph"
              value="{{inputValue}}"
              confirm-type="send"
              adjust-position="{{false}}"
              bindconfirm="sendMessage"
              bindinput="onInput" />
     </view>
-    <view class="send-btn tap-88 {{inputValue ? 'active' : ''}}" bindtap="sendMessage">
-      <text class="send-icon">➤</text>
+    <view class="send-btn tap-88" bindtap="sendMessage">
+      <view class="send-icon {{inputValue ? 'active' : ''}}">
+        <view class="send-glyph"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 等待浮层：替代原生 wx.showLoading 灰盒，小禾陪伴式等待 -->
+  <view class="thinking-mask" wx:if="{{thinking}}" catchtouchmove="noop">
+    <view class="thinking-card">
+      <view class="thinking-stage">
+        <view class="thinking-ring"></view>
+        <view class="thinking-ring delay"></view>
+        <view class="thinking-mascot">
+          <sprout-mascot size="{{132}}" />
+        </view>
+      </view>
+      <view class="thinking-hint">{{thinkingHint}}</view>
+      <view class="thinking-dots">
+        <view class="tdot"></view>
+        <view class="tdot"></view>
+        <view class="tdot"></view>
+      </view>
     </view>
   </view>
 </view>
