@@ -154,7 +154,10 @@ def test_handoff_still_produces_result(client, auth_headers) -> None:
 
 
 def test_handoff_result_persists_and_reads_back(client, auth_headers, engine, run_async) -> None:
-    """转人工会话落 `consultation`（status=escalated），历史回看的 `result` 与实时一致。"""
+    """转人工会话落 `consultation`，历史回看的 `result` 与实时一致。
+
+    法定报告（`kind=report`）按 `_CONSULT_STATUS_BY_KIND` 落 `status=blocked`。
+    """
     resp = client.post(
         "/api/ai/chat",
         json={"processHint": "pig", "message": "昨天还好好的，今天突然死了一头"},
@@ -174,7 +177,7 @@ def test_handoff_result_persists_and_reads_back(client, auth_headers, engine, ru
     assert payload["result"]["conclusion"] == live_result["conclusion"]
     assert payload["result"]["nextStep"] == live_result["nextStep"]
 
-    # 库内 `consultation` 行：status=escalated、result_snapshot 非空。
+    # 库内 `consultation` 行：result_snapshot 非空，status 与结果类别一致。
     async def _row() -> tuple[str, dict]:
         factory = async_sessionmaker(bind=engine, expire_on_commit=False)
         async with factory() as db:
@@ -188,7 +191,7 @@ def test_handoff_result_persists_and_reads_back(client, auth_headers, engine, ru
             return row[0], row[1]
 
     status, snapshot = run_async(_row())
-    assert status == "escalated"
+    assert status == "blocked"
     assert snapshot, "转人工会话必须写 result_snapshot"
     assert snapshot["kind"] == live_result["kind"]
 
