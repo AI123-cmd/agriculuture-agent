@@ -139,6 +139,9 @@ class Settings(BaseSettings):
 
     # AI 多轮诊断编排（LangGraph）
     LLM_DEFAULT_MODEL: str = "deepseek-v4-flash"
+    # 视觉档位独立模型名（T2-57 的"档位到模型细分"第一步）：留空时回落 LLM_DEFAULT_MODEL，
+    # 保证"没配视觉模型"不会让现场采集直接失败。
+    LLM_VISION_MODEL: str = ""
     CONFIDENCE_HIGH_THRESHOLD: int = 3
     CONFIDENCE_MEDIUM_THRESHOLD: int = 2
     MCP_ENABLED: bool = True

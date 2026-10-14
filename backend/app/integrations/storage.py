@@ -18,6 +18,14 @@ class Storage(ABC):
     def save_image(self, data: bytes, mime: str) -> str:
         """保存图片并返回可访问 URL。`mime` 必须是校验通过的真实类型。"""
 
+    @abstractmethod
+    def read_image(self, key: str) -> bytes | None:
+        """按存储键读回图片字节；键不存在或非法时返回 `None`（不抛异常）。
+
+        `key` 是 `save_image` 返回值去掉 `/static/` 前缀后的相对路径（如 `ab/ab12….png`）。
+        调用方（图片识别）要拿字节交给模型，故需要读取能力。oss/cos 实现留待接入时补齐。
+        """
+
 
 class LocalStorage(Storage):
     def __init__(self, root: str):
@@ -40,6 +48,20 @@ class LocalStorage(Storage):
                 f.write(data)
             os.replace(tmp, path)
         return f"/static/{key}"
+
+    def read_image(self, key: str) -> bytes | None:
+        """读回图片字节。路径越界一律返回 `None`，不抛异常。
+
+        `os.path.realpath` 之后必须仍在 `root` 之内：`key` 可能来自 `ChatRequest.imageUrl`，
+        是外部输入；不设这道闸，`../../etc/passwd` 这类键就能读到存储目录之外的文件。
+        """
+        path = os.path.realpath(os.path.join(self.root, key))
+        if path != self.root and not path.startswith(self.root + os.sep):
+            return None
+        if not os.path.isfile(path):
+            return None
+        with open(path, "rb") as f:
+            return f.read()
 
 
 def get_storage() -> Storage:

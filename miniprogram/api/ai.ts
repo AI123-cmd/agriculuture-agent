@@ -1,9 +1,14 @@
-import { request } from '../utils/request'
-import type { ChatParams, ChatResponse, HistoryResult, ConversationDetail } from '../types/api'
+import { request, upload } from '../utils/request'
+import type { ChatParams, ChatResponse, HistoryResult, ConversationDetail, UploadResult } from '../types/api'
 
 /** 图驱动问诊：单轮对话（携带 answers 时提交槽位作答） */
 export function chat(payload: ChatParams) {
   return request<ChatResponse>({ url: '/api/ai/chat', method: 'POST', data: payload })
+}
+
+/** 问诊图片上传：返回可访问地址，随 chat() 的 imageUrl 提交 */
+export function uploadChatImage(filePath: string) {
+  return upload<UploadResult>({ url: '/api/ai/chat/upload', filePath, name: 'file' })
 }
 
 /** 历史会话列表（不含完整消息） */

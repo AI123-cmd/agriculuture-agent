@@ -10,16 +10,21 @@
 4. `environmentNote` 三态：`none` / `sensor_stale` 非空且含"暂无"或"基于"，`sensor` 为 None；
 5. `processHint="weed"` 时 trace 跳过 `triage` 直达 `subgraph_weed`（受理即分流）；
 6. 归属校验：拿另一用户的 `sessionId` 请求，读不到其会话内容（换新会话 id）。
+7. `POST /api/ai/chat/upload`：合法图片返回 `/static/` 地址；超限/伪造/类型不一致一律 400。
 """
 
+from pathlib import Path
 from typing import Any
 
+import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
 from app.agent.graph import main as main_graph
 from app.agent.state import ProcessId
+from app.integrations.storage import LocalStorage
 from app.schemas.consult import ChatResponse
 from app.services.ai_service import AIService, build_environment_note
+from tests.test_upload_validation import make_jpeg, make_png
 
 # 技术方案 13.2 约定的 `ChatResponse` 字段名集合（camelCase）。
 _EXPECTED_FIELDS = {
@@ -248,4 +253,101 @@ def test_process_hint_unknown_crop_falls_back_without_error(client, auth_headers
             headers=auth_headers,
         )
         assert resp.status_code == 200, f"{hint}: {resp.text}"
+        assert set(resp.json()["data"].keys()) == _EXPECTED_FIELDS
+
+
+# ---- 问诊图片上传接口 ----
+
+
+@pytest.fixture()
+def image_dir(tmp_path: Path, monkeypatch) -> Path:
+    """把问诊图片存储根换到临时目录，避免测试往仓库里的 `uploads/` 写文件。
+
+    `app.api.v1.ai` 在模块内以 `from ... import get_storage` 引入了符号，故必须
+    patch 该模块自身的名字，patch `app.integrations.storage` 不会生效。
+    """
+    monkeypatch.setattr("app.api.v1.ai.get_storage", lambda: LocalStorage(str(tmp_path)))
+    return tmp_path
+
+
+def _upload_chat_image(client, auth_headers, data: bytes, filename: str, content_type: str):
+    return client.post(
+        "/api/ai/chat/upload",
+        files={"file": (filename, data, content_type)},
+        headers=auth_headers,
+    )
+
+
+def test_chat_upload_returns_static_url(client, auth_headers, image_dir: Path) -> None:
+    """合法 PNG：200 且返回 `/static/<2位哈希>/<哈希>.png`，文件确实落盘。"""
+    resp = _upload_chat_image(client, auth_headers, make_png(), "a.png", "image/png")
+
+    assert resp.status_code == 200, resp.text
+    url = resp.json()["data"]["url"]
+    assert url.startswith("/static/")
+    key = url.removeprefix("/static/")
+    shard, name = key.split("/")
+    assert len(shard) == 2 and name.endswith(".png")
+    assert (image_dir / key).read_bytes() == make_png()
+
+
+def test_chat_upload_same_image_twice_returns_same_url(client, auth_headers, image_dir: Path) -> None:
+    """同一张图两次上传返回相同 URL（内容哈希去重）。"""
+    first = _upload_chat_image(client, auth_headers, make_png(), "a.png", "image/png")
+    second = _upload_chat_image(client, auth_headers, make_png(), "a.png", "image/png")
+
+    assert first.json()["data"]["url"] == second.json()["data"]["url"]
+
+
+def test_chat_upload_oversized_returns_400(client, auth_headers, image_dir: Path) -> None:
+    """超过上限的图片：400 且一个字节都不落盘。"""
+    payload = make_jpeg() + b"\x00" * (6 * 1024 * 1024)
+
+    resp = _upload_chat_image(client, auth_headers, payload, "big.jpg", "image/jpeg")
+
+    assert resp.status_code == 400
+    assert resp.json()["code"] == 400
+    assert [p for p in image_dir.rglob("*") if p.is_file()] == []
+
+
+def test_chat_upload_text_renamed_to_jpg_returns_400(client, auth_headers, image_dir: Path) -> None:
+    """内容为文本的 `.jpg`：魔数层拦截，400 且不落盘。"""
+    resp = _upload_chat_image(client, auth_headers, b"hello", "hello.jpg", "image/jpeg")
+
+    assert resp.status_code == 400
+    assert "文件头不是支持的图片格式" in resp.json()["message"]
+    assert [p for p in image_dir.rglob("*") if p.is_file()] == []
+
+
+def test_chat_upload_declared_png_but_jpeg_returns_400(client, auth_headers, image_dir: Path) -> None:
+    """声明 image/png 实为 JPEG：400，原因为声明与真实不一致。"""
+    resp = _upload_chat_image(client, auth_headers, make_jpeg(), "a.png", "image/png")
+
+    assert resp.status_code == 400
+    assert "不一致" in resp.json()["message"]
+
+
+def test_chat_upload_requires_auth(client, image_dir: Path) -> None:
+    """未带凭证的上传请求被挡在鉴权层，不进入校验与落盘。"""
+    resp = client.post(
+        "/api/ai/chat/upload",
+        files={"file": ("a.png", make_png(), "image/png")},
+    )
+
+    assert resp.status_code == 401
+
+
+def test_chat_with_illegal_image_url_still_returns_200(client, auth_headers) -> None:
+    """`imageUrl` 为非法路径（绝对 URL / 目录穿越）时不得抛错：问诊照常继续。
+
+    路径安全在 `ModelImageReader` 内挡掉（只认 `/static/`），这里断言接口层不因
+    "照片取不到"而中断——`ChatResponse` 字段依旧齐全。
+    """
+    for bad in ("https://evil.example/leaf.jpg", "/static/../../etc/passwd", "/static/"):
+        resp = client.post(
+            "/api/ai/chat",
+            json={"message": "看看这张照片", "imageUrl": bad},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200, f"{bad}: {resp.text}"
         assert set(resp.json()["data"].keys()) == _EXPECTED_FIELDS

@@ -49,6 +49,9 @@
         <!-- 用户消息（右侧） -->
         <view wx:if="{{item.role === 'user'}}" class="msg-row user-row">
           <view class="msg-content user-content">
+            <view wx:if="{{item.image}}" class="user-photo tap-88" data-url="{{item.image}}" bindtap="previewPhoto">
+              <image class="user-photo-img" src="{{item.image}}" mode="aspectFill" />
+            </view>
             <view class="msg-bubble user-bubble t-body">{{item.content}}</view>
           </view>
         </view>
@@ -166,6 +169,10 @@
           bindtouchcancel="onVoiceEnd">
       <view class="voice-icon {{recording ? 'recording' : ''}}"></view>
       <text class="voice-label t-caption">{{recording ? '松开' : '语音'}}</text>
+    </view>
+    <view class="photo-btn tap-88" bindtap="onChoosePhoto">
+      <view class="photo-icon"></view>
+      <text class="photo-label t-caption">拍照</text>
     </view>
     <view class="input-wrap">
       <input class="msg-input t-body"

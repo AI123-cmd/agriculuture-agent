@@ -67,15 +67,19 @@ def _provider_chain() -> tuple[dict[str, ModelProvider], tuple[str, ...]]:
 def _tier_specs(provider_chain: tuple[str, ...]) -> dict[ModelTier, TierSpec]:
     """四个档位的规格。
 
-    档位差异体现在模型名与供应商链上；当前四个档位共用同一个模型名，档位到模型的细分
-    映射（主模型与降档候选分开配置）属后续任务，本阶段只保证"按任务类型取到档位与候选链"
-    这条链路可跑通。
+    档位差异体现在模型名与供应商链上。当前只有 VISION 档单独指定模型名（现场采集要打向
+    视觉模型），其余档位共用 `LLM_DEFAULT_MODEL`；完整的主模型/降档候选分离属后续任务，
+    本阶段只保证"按任务类型取到档位与候选链"这条链路可跑通。
     """
     settings = get_settings()
+    models = {
+        # 留空即回落默认模型：没配视觉模型不应让现场采集直接失败。
+        ModelTier.VISION: settings.LLM_VISION_MODEL or settings.LLM_DEFAULT_MODEL,
+    }
     return {
         tier: TierSpec(
             tier=tier,
-            model=settings.LLM_DEFAULT_MODEL,
+            model=models.get(tier, settings.LLM_DEFAULT_MODEL),
             provider_chain=provider_chain,
             max_tokens=settings.LLM_MAX_TOKENS,
             max_history_rounds=settings.LLM_MAX_HISTORY_ROUNDS,

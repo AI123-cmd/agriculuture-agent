@@ -190,6 +190,21 @@ page {
   box-shadow: 0 4rpx 14rpx rgba(46, 125, 50, 0.22);
 }
 
+/* 用户消息附带的照片缩略图：点击看大图 */
+.user-photo {
+  margin: 0 16rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 14rpx rgba(46, 125, 50, 0.18);
+  flex-shrink: 0;
+}
+
+.user-photo-img {
+  width: 200rpx;
+  height: 200rpx;
+  display: block;
+}
+
 /* AI消息旁的语音播放按钮：热区由 .tap-88 撑起 */
 .voice-play-btn {
   margin-left: 12rpx;
@@ -520,6 +535,37 @@ page {
 }
 
 .voice-label {
+  color: #595959;
+}
+
+/* 拍照按钮：与语音按钮并排，样式同源 */
+.photo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+}
+
+.photo-btn .photo-icon {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border-radius: 50%;
+  background: var(--grad-brand);
+  box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.25);
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-btn .photo-icon::before {
+  content: "拍";
+  font-size: var(--font-caption);
+  color: #fff;
+  font-weight: 500;
+}
+
+.photo-label {
   color: #595959;
 }
 

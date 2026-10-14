@@ -387,6 +387,38 @@ def test_image_to_slots_ignores_undeclared_labels(tea_config: ProcessConfig) -> 
     assert slots == []
 
 
+# ---- 第五组：state 图片通道（image_url 键） ----
+
+
+async def test_image_url_state_key_reaches_recognizer(tea_config: ProcessConfig, ctx: AgentContext) -> None:
+    """接口层注入的 `state["image_url"]` 必须被识别一次：断点 A 的回归点。"""
+    agent, _, _, image = _agent([_ok()], candidates=[ImageCandidate(label="叶片", score=0.8)])
+
+    result = await agent.run(_state(image_url=_IMAGE_URL), ctx)
+
+    assert [c.label for c in result.image_candidates] == ["叶片"]
+    assert image.calls == [([_IMAGE_URL], image.calls[0][1])]
+
+
+async def test_image_url_takes_precedence_over_legacy_observations(tea_config: ProcessConfig, ctx: AgentContext) -> None:
+    """`image_url` 与历史写法同时存在时以声明键为准，两者不叠加成多图。"""
+    agent, _, _, image = _agent([_ok()], candidates=[ImageCandidate(label="叶片", score=0.8)])
+
+    await agent.run(_state(image_url=_IMAGE_URL, observations={"image_urls": ["old.png"]}), ctx)
+
+    assert image.calls[0][0] == [_IMAGE_URL]
+
+
+async def test_recognizer_not_called_without_any_image(tea_config: ProcessConfig, ctx: AgentContext) -> None:
+    """无照片时不调用识别接口：不产生无谓的模型调用。"""
+    agent, _, _, image = _agent([_ok()])
+
+    result = await agent.run(_state(), ctx)
+
+    assert image.calls == []
+    assert result.image_candidates == []
+
+
 # ---- 降级与提示词 ----
 
 

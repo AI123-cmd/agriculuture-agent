@@ -173,11 +173,14 @@ class FieldObserverAgent(BaseAgent[ObservationResult]):
 
     async def _collect_images(self, state: ConsultationState, ctx: AgentContext) -> list[ImageCandidate]:
         """图片识别候选域按流程限定，避免跨流程候选污染。"""
-        image_urls = (state.get("observations") or {}).get("image_urls") or []
+        # `image_url` 是接口层注入的声明键（T2-33）；`observations.image_urls` 为历史写法保留，
+        # 两者都接受是为了不破坏既有单测，新代码一律走前者。
+        url = state.get("image_url")
+        image_urls = [url] if url else list((state.get("observations") or {}).get("image_urls") or [])
         if not image_urls:
             return []
         allowed = self._allowed_labels(ctx.process_config)
-        raw = await self._image.recognize(list(image_urls), allowed_labels=allowed)
+        raw = await self._image.recognize(image_urls, allowed_labels=allowed)
         # 交集过滤在模型输出之后、进入 state 之前：这是代码层的硬约束，不依赖图像模型自律。
         return [ImageCandidate(label=c.label, score=c.score, part=c.part) for c in raw if c.label in allowed]
 

@@ -52,8 +52,11 @@ from app.agent.agents.prescriber import PrescriberAgent
 from app.agent.agents.retriever import KnowledgeRetriever, RegionMatcher, RetrieverAgent
 from app.agent.blackboard import apply_answers, progress_of
 from app.agent.budget import ConsultBudget
-from app.agent.contracts import EvidenceItem, EvidenceQuery, ImageCandidate, dump_contract
+from app.agent.contracts import EvidenceItem, EvidenceQuery, ImageCandidate, ObservationResult, dump_contract
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, TaskType
+from app.core.config import get_settings
+from app.integrations.image_reader import ModelImageReader
+from app.integrations.storage import get_storage
 from app.llm import get_gateway
 from app.observability import traced_node
 from app.process_config.loader import get_process_config
@@ -127,6 +130,19 @@ _EMPTY_KNOWLEDGE: KnowledgeRetriever = _EmptyKnowledge()
 _NO_REGION: RegionMatcher = _NoRegionMatcher()
 
 
+def _image_reader() -> ImageReader:
+    """视觉识别端口：未配置真实端点时回落空实现，保证 mock 模式可用。
+
+    与 `_EmptyEnvReader` 的处理方式一致：没端点不是错误，只是"这轮没有图片事实"。真实
+    端点的判定与网关装配同源（`USE_MOCK_LLM` / 端点地址），避免出现"网关打向真实模型、
+    图片识别却仍走空实现"这类不一致。
+    """
+    settings = get_settings()
+    if settings.USE_MOCK_LLM or not (settings.FARM_LLM_API_URL or settings.OPENAI_COMPAT_BASE_URL):
+        return _EMPTY_IMAGE
+    return ModelImageReader(get_gateway(), get_storage())
+
+
 def _remaining_tokens(state: ConsultationState) -> int | None:
     """从预算快照推导剩余 token；预算缺失时返回 `None`（表示不限制重试）。"""
     budget = state.get("budget")
@@ -153,13 +169,30 @@ def _context_for(state: ConsultationState, config: ProcessConfig, task_type: Tas
 
 def make_observe_node(config: ProcessConfig) -> NodeFn:
     """现场采集节点工厂：是否需要图片、环境事实三级回退口径均由 config 与注入端口决定。"""
-    observer = FieldObserverAgent(get_gateway(), _EmptyEnvReader(), _EmptyImageReader())
+    observer = FieldObserverAgent(get_gateway(), _EmptyEnvReader(), _image_reader())
 
     async def observe(state: ConsultationState) -> dict:
         result = await observer.run(state, _context_for(state, config, TaskType.OBSERVE))
-        return {"observations": dump_contract(result), "stage": ConsultStage.OBSERVE}
+        return {
+            "observations": dump_contract(result),
+            "stage": ConsultStage.OBSERVE,
+            # 照片回执：让农户立刻知道"AI 看过照片了"。无候选时为空串，不污染既有回复。
+            "reply": _photo_receipt(result),
+        }
 
     return _traced("observe", config, observe)
+
+
+def _photo_receipt(result: ObservationResult) -> str:
+    """拍照回执：把识别结果说成一句人话。没照片时返回空串（不污染既有回复）。
+
+    只说"像是"，不报置信度数字、不下诊断结论——图片识别结果不构成证据（见
+    `FieldObserverAgent.image_to_slots` 的说明），分数只进日志与槽位。
+    """
+    if not result.image_candidates:
+        return ""
+    seen = "、".join(c.label for c in result.image_candidates[:3])
+    return f"我看过您发的照片了，照片里像是：{seen}。我再问您几个问题，好判断得更准。"
 
 
 def make_interview_node(config: ProcessConfig) -> NodeFn:

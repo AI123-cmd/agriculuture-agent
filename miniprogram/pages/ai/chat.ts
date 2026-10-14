@@ -1,8 +1,9 @@
 // pages/ai/chat.ts
-import { chat, conversationDetail } from '../../api/ai'
+import { chat, conversationDetail, uploadChatImage } from '../../api/ai'
 import { savePrescriptionToLedger } from '../../api/ledger'
 import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
+import { BASE_URL } from '../../utils/config'
 import { getTtsAdapter, getAsrAdapter } from '../../utils/voice'
 import type { QuestionView, PrescriptionView, HandoffView } from '../../types/api'
 
@@ -10,9 +11,17 @@ interface Message {
   id: number;
   role: 'ai' | 'user';
   content: string;
+  /** 用户消息附带照片时渲染缩略图（存后端返回的 /static/ 相对地址） */
+  image?: string;
   showVoice?: boolean;
   /** 转人工消息带独立朗读按钮 */
   speakable?: boolean;
+}
+
+/** 后端返回的是 /static/ 相对地址，展示前拼上服务端前缀；已是完整地址则原样返回 */
+function toDisplayUrl(url: string): string {
+  if (!url) return '';
+  return url.startsWith('http') ? url : BASE_URL + url;
 }
 
 Page({
@@ -82,6 +91,8 @@ Page({
           id: Date.now() + i,
           role: m.role,
           content: m.content,
+          // 历史里带照片的用户消息同样渲染缩略图（imageUrl 已在历史接口返回）
+          image: m.imageUrl ? toDisplayUrl(m.imageUrl) : undefined,
           showVoice: m.role === 'ai',
         })) as Message[];
         this.setData(
@@ -206,6 +217,60 @@ Page({
     this.requestAIResponse({ message: text });
   },
 
+  /**
+   * 拍照/相册：选图 → 上传拿地址 → 本地先回显缩略图 → 带 imageUrl 发起问诊。
+   *
+   * 先上传后问诊，是因为模型侧要用服务端可读的地址；上传失败只提示、不发问诊，
+   * 且不锁死 `submitting`，农户可直接重试。
+   */
+  async onChoosePhoto() {
+    if (this.data.submitting) return;
+    const res: any = await wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera', 'album'],
+      sizeType: ['compressed'],
+    });
+    const file = res.tempFiles && res.tempFiles[0];
+    if (!file) return;
+    // 压缩后仍超限时前端提前拦截，避免白传一次：后端上限 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      wx.showToast({ title: '图片太大，请重拍', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '上传中...', mask: true });
+    try {
+      const { url } = await uploadChatImage(file.tempFilePath);
+      wx.hideLoading();
+      // 用服务端返回的地址回显（而非本地临时路径）：与历史回看走同一份数据，刷新后仍可见
+      this.appendUserMessage('（发送了一张照片）', toDisplayUrl(url));
+      this.requestAIResponse({ imageUrl: url });
+    } catch (err: any) {
+      wx.hideLoading();
+      wx.showToast({ title: (err && err.message) || '上传失败，请重试', icon: 'none' });
+    }
+  },
+
+  /** 追加一条用户消息并滚到底部（照片走本地临时地址即时回显） */
+  appendUserMessage(content: string, image?: string) {
+    const userMsg: Message = { id: Date.now(), role: 'user', content, image };
+    this.setData(
+      {
+        messages: [...this.data.messages, userMsg],
+        questions: [],
+        qaAnswered: 0,
+        scrollWithAnimation: true,
+      },
+      () => wx.nextTick(() => this.scrollToBottom(true))
+    );
+  },
+
+  /** 点击缩略图看大图 */
+  previewPhoto(e: WechatMiniprogram.BaseEvent) {
+    const url = e.currentTarget.dataset.url as string;
+    if (url) wx.previewImage({ urls: [toDisplayUrl(url)] });
+  },
+
   /** 作答追问：先本地累积，全部卡片答完后一次性提交 */
   onAnswerOption(e: WechatMiniprogram.BaseEvent) {
     const ds = e.currentTarget.dataset;
@@ -293,7 +358,7 @@ Page({
   },
 
   /** 调用后端图驱动问诊接口 */
-  requestAIResponse(payload: { message?: string; answers?: { slotKey: string; value: string; status: 'filled' | 'unknown' }[] }) {
+  requestAIResponse(payload: { message?: string; answers?: { slotKey: string; value: string; status: 'filled' | 'unknown' }[]; imageUrl?: string }) {
     // 末轮（判定 → 出方 → 闸门）可能耗时一分钟以上。loading 文案随时间递进，
     // 让农户知道系统仍在工作，而不是误以为卡死；文案只提示、不改动结果。
     this.startLoadingHints();
@@ -304,6 +369,7 @@ Page({
       message: payload.message === undefined ? null : payload.message,
       processHint: this.data.currentCropName || null,
       answers: payload.answers === undefined ? null : payload.answers,
+      imageUrl: payload.imageUrl === undefined ? null : payload.imageUrl,
     })
       .then((res) => {
         this.stopLoadingHints();
