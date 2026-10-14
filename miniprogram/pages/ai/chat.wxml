@@ -63,6 +63,20 @@
         <view class="qa-item card {{item.picked ? 'picked' : ''}}" wx:for="{{questions}}" wx:key="slotKey">
           <view class="qa-text t-body">{{item.text}}</view>
           <view class="qa-why t-caption" wx:if="{{item.why}}">{{item.why}}</view>
+          <!-- 拍照作答：仅 photo 类型的追问出现，照片本身就是该题的答案 -->
+          <view class="qa-photo-area" wx:if="{{item.answerType === 'photo'}}">
+            <view
+              class="qa-photo-btn tap-88 {{item.picked ? 'selected' : ''}}"
+              bindtap="onQaPhoto"
+              data-slot="{{item.slotKey}}"
+            >
+              <view class="photo-glyph"></view>
+              <text class="qa-photo-text t-body">{{item.photoUrl ? '已拍照，点击重拍' : '拍张照片说明情况'}}</text>
+            </view>
+            <view class="user-photo" wx:if="{{item.photoUrl}}" data-url="{{item.photoUrl}}" bindtap="previewPhoto">
+              <image class="user-photo-img" src="{{item.photoUrl}}" mode="aspectFill" />
+            </view>
+          </view>
           <view class="qa-options">
             <view
               class="qa-option tap-88 {{item.picked && item.pickedOption === opt ? 'selected' : ''}}"
@@ -80,8 +94,8 @@
               data-slot="{{item.slotKey}}"
             >说不清</view>
           </view>
-          <!-- 自由文本作答：选项不全或只有"说不清"时，农户可直接打字描述 -->
-          <view class="qa-input-row">
+          <!-- 自由文本作答：选项不全或只有"说不清"时，农户可直接打字描述（拍照题除外） -->
+          <view class="qa-input-row" wx:if="{{item.answerType !== 'photo'}}">
             <view class="qa-input-box">
               <input
                 class="qa-input"
