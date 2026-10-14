@@ -19,23 +19,30 @@
 导入 ORM，且智能体要能被喂假数据单测。两者的实现分别在 T2-49 与 T2-50。
 """
 
+import asyncio
 import json
 import re
 from typing import Any, Protocol, cast
 
 from app.agent.agents.base import AgentContext, BaseAgent, FailureMode
 from app.agent.blackboard import slot_summary
-from app.agent.contracts import EvidenceItem, EvidenceQuery, EvidenceSet
+from app.agent.contracts import EvidenceItem, EvidenceQuery, EvidenceSet, ModelBasis
 from app.agent.contracts.evidence import EvidenceKindValue, RegionLevelActual
+from app.agent.prompts.model_fallback import build_model_fallback_prompt
 from app.agent.state import ConsultationState, ProcessId, TaskType
+from app.core.config import get_settings
 from app.llm import ModelGateway
 from app.llm.enums import TaskType as GatewayTaskType
-from app.observability import log
+from app.observability import log, metrics
 from app.process_config.models import ProcessConfig
 
 # 未命中时的说明。它必须能区分"知识库确实没有"与"检索故障"——后者由 `degrade` 给出带原因
 # 的文案，两者在界面上分别是"暂时查不到适合您当地的条目"与"查询服务暂不可用"。
 _UNMATCHED = "知识库未命中该流程与地区的相关条目"
+
+# 兜底触发次数的指标名。只统计"成功产出可用兜底依据"的次数：失败与超时是可选增强的
+# 正常损耗，混进同一个计数会让"兜底到底帮上忙了没有"无法回答。
+_FALLBACK_METRIC = "verify_fallback_total"
 
 # 启用并行会诊的流程要更大的证据空间（三条视角各自需要材料），其余流程 8 条足够。
 _TOP_K_PANEL = 10
@@ -130,14 +137,19 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
         不走基类的"调模型出契约"入口：本智能体的产出全部是检索事实，没有一项由模型生成，
         让模型先编一版证据再由代码整份覆盖只会多一次调用与一份可能被误用的中间结果。降级
         与指标仍复用基类的失败分派（`_on_failure`），行为与其余智能体一致。
+
+        空集时在既有产出之外**可选地**补一次模型兜底（见 `_maybe_model_fallback`）：它只在
+        "库里确实没有"时报效，"检索故障"已在 `_on_failure` 的降级出口返回，不会走到这里。
         """
         try:
             draft = await self.assemble(state, ctx)
-            return await self.post_validate(draft, state, ctx)
+            result = await self.post_validate(draft, state, ctx)
         except Exception as exc:
             # 宽泛捕获是刻意的：调用方（图节点）不该因为检索故障而整条链路崩掉，降级出口
             # 就是为这种情况准备的。
             return await self._on_failure(state, ctx, exc)
+        await self._maybe_model_fallback(state, ctx, result)
+        return result
 
     async def assemble(self, state: ConsultationState, ctx: AgentContext) -> EvidenceSet:
         """组装证据集：关键词改写 → 建请求 → 逐级检索 → 跨流程硬过滤。"""
@@ -295,6 +307,89 @@ class RetrieverAgent(BaseAgent[EvidenceSet]):
         if not items and not result.unmatched_reason:
             updates["unmatched_reason"] = _UNMATCHED
         return result.model_copy(update=updates)
+
+    # ---- 知识库为空时的模型兜底 ----
+
+    async def _maybe_model_fallback(
+        self, state: ConsultationState, ctx: AgentContext, result: EvidenceSet
+    ) -> None:
+        """知识库空集时请模型补充判据与处置方向，写进 `state["model_basis"]`。
+
+        这是②-B 方案（零闸门改动）的落点，且**默认关闭**（`ALLOW_MODEL_FALLBACK`）。三条
+        边界决定了它的形态：
+
+        - **只产文本，不产事实**：产出经 `ModelBasis` 契约过滤，含剂量数字的条目被丢弃，
+          药剂仅以名称出现。下游处方把药名织进非药剂处置建议的文本，`pesticide_items`
+          恒空，因此闸门对药剂的全部校验（白名单/合理区间/登记作物/间隔期）依旧无事可做。
+        - **永不写入知识库**：它是本次问诊的临时输入，不落库、不进 `evidence`、不参与
+          `facts_provenance` 的溯源登记。
+        - **失败静默回落**：超时、解析失败、网关不可用一律只看日志，不抛异常、不改
+          `EvidenceSet`。兜底是可选增强，为它让整条问诊失败是本末倒置。
+
+        触发条件是"库里确实空"而不是"检索故障"：后者已在 `run` 的 except 分支返回降级集，
+        本方法只被正常路径调用。
+        """
+        if not self._fallback_enabled():
+            return
+        if ctx.process_config.process_id is ProcessId.RAPESEED:
+            # 油菜流程不兜底：红线 RAPE-01 是产品硬要求（"调研补齐前禁止输出药剂推荐类
+            # 内容"），而兜底会产出药剂名称——即便只给名称也是推荐类内容。这是与检索侧
+            # `kind_filter_for` 排除 `pesticide` 一致的立场，双重关闭而非依赖红线事后拦截。
+            return
+        if result.items or result.unmatched_reason != _UNMATCHED:
+            # 有证据就无需补充；带故障原因的未命中（"服务不可用"）也不兜底——那说明检索
+            # 链路本身有问题，此时让模型补内容会掩盖故障。
+            return
+        try:
+            basis = await asyncio.wait_for(
+                self._call_fallback(state, ctx),
+                timeout=get_settings().MODEL_FALLBACK_TIMEOUT_SECONDS,
+            )
+        except Exception as exc:
+            log.warning("model fallback skipped", process_id=ctx.process_config.process_id.value, reason=str(exc))
+            return
+        if basis is None or not self._has_content(basis):
+            return
+        cast(dict[str, Any], state)["model_basis"] = basis.model_dump(mode="json")
+        metrics.incr(_FALLBACK_METRIC, tags={"process_id": ctx.process_config.process_id.value})
+        log.info("model fallback used", process_id=ctx.process_config.process_id.value)
+
+    @staticmethod
+    def _fallback_enabled() -> bool:
+        """读兜底开关。延迟到调用点读而不是在 `__init__` 缓存：开关是运维期环境变量，
+        进程内测试会反复改它（`get_settings.cache_clear()` 后可立即生效）。"""
+        return bool(get_settings().ALLOW_MODEL_FALLBACK)
+
+    @staticmethod
+    def _has_content(basis: ModelBasis) -> bool:
+        """四条清单全空视为没有可用的兜底产出，不必写进 state。
+
+        空产出写进去会让下游多一次"读到空对象"的分支判断，收益为零。
+        """
+        return bool(
+            basis.suggested_pesticide_names
+            or basis.basis_points
+            or basis.observation_suggestions
+            or basis.help_suggestions
+        )
+
+    async def _call_fallback(self, state: ConsultationState, ctx: AgentContext) -> ModelBasis | None:
+        """一次兜底调用。响应带错误或解析为空时返回 `None`。
+
+        复用检索档位（`TaskType.RETRIEVE`，中等预算）：兜底是"查依据"的备用手段，与检索
+        同属该环节，不单独开档位也不用高价档位——它产出的只是文本提示，不承担事实准确性。
+        """
+        messages = build_model_fallback_prompt(ctx.process_config, state)
+        response = await self._require_gateway().chat(cast(GatewayTaskType, self.task_type), messages, ModelBasis)
+        if response.error or response.parsed is None:
+            return None
+        basis = ModelBasis.model_validate(response.parsed)
+        # `process_id` 由代码强制对齐当前流程，不信模型给的值：兜底产出只在同一流程内可复用，
+        # 而模型在枚举字段上常给出无关流程（mock 供应商恒定回第一个枚举值）。留一手核对是
+        # 因为跨流程套用会重演"术语与判据不能跨流程混用"的问题。
+        if basis.process_id is not ctx.process_config.process_id:
+            basis = basis.model_copy(update={"process_id": ctx.process_config.process_id})
+        return basis
 
     async def degrade(self, state: ConsultationState, ctx: AgentContext, reason: str) -> EvidenceSet:
         """降级：返回空集并标注未命中。

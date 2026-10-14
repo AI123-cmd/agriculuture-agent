@@ -30,8 +30,8 @@ PROMPT_VERSIONS: dict[str, int] = {
     "triage": 1,
     "interviewer": 1,
     "retriever": 1,
-    "diagnoser": 1,
-    "prescriber": 1,
+    "diagnoser": 2,
+    "prescriber": 2,
     "report_guard": 1,
     "snapshot_writer": 1,
 }

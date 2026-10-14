@@ -30,6 +30,7 @@ from app.agent.prompts.formatters import (
     format_terms,
 )
 from app.agent.prompts.interviewer import TOP_K, build_interviewer_prompt
+from app.agent.prompts.model_fallback import build_model_fallback_prompt
 from app.agent.prompts.prescriber import build_prescriber_prompt
 from app.agent.prompts.registry import PROMPT_VERSIONS, PromptTemplate, current_prompt_version
 from app.agent.prompts.triage import build_triage_prompt
@@ -40,6 +41,7 @@ __all__ = [
     "PromptTemplate",
     "build_diagnoser_prompt",
     "build_interviewer_prompt",
+    "build_model_fallback_prompt",
     "build_prescriber_prompt",
     "build_triage_prompt",
     "current_prompt_version",

@@ -4,6 +4,10 @@
 "鉴别点提示"改为"判据全文注入"，因为判定需要据此做排除裁定。system 里显式禁止百分比，与
 契约层不含分数字段形成双保险——技术方案 5.3.4 要求把握程度用农户听得懂的话表达，而模型在
 自由生成时很容易写出"大约 70% 的可能是"。
+
+知识库为空且开关开启时（见 `RetrieverAgent._maybe_model_fallback`），state 上会有模型补充
+的判据（`model_basis`）。它与此处注入的知识库证据**分开标注**：它不是已核准条目、不带溯源，
+注入时明确写"未经本地资料核实"，避免模型把模型生成的判据当成知识库事实引用。
 """
 
 from __future__ import annotations
@@ -11,7 +15,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.agent.contracts import DiagnosisResult
+from app.agent.contracts import DiagnosisResult, ModelBasis
 from app.agent.prompts.formatters import (
     format_confusables,
     format_evidence,
@@ -29,6 +33,8 @@ from app.process_config.models import ProcessConfig
 _MAX_EVIDENCE_ROWS = 6
 # 单条证据的内容摘要长度。判定要看的是判据而不是整篇条目，截断由后端做，不留给模型自己取舍。
 _CONTENT_CAP = 120
+# 兜底判据的条数上限。它与知识库证据不同源，多给无益。
+_MAX_FALLBACK_ROWS = 6
 
 
 def build_diagnoser_prompt(
@@ -43,6 +49,16 @@ def build_diagnoser_prompt(
     未显式传入时读 `state["evidence"]`，本函数不做二次筛选。
     """
     rows = evidence if evidence is not None else list(state.get("evidence") or [])
+    user = [
+        f"已确认信息：{format_slots(config, state)}",
+        f"现场事实：{format_observations(state.get('observations'))}",
+        f"检索到的证据：{format_evidence(rows, max_rows=_MAX_EVIDENCE_ROWS, content_cap=_CONTENT_CAP)}",
+        f"档案用药史：{format_history(state.get('prescription_history'))}",
+    ]
+    if not rows:
+        fallback = _fallback_basis(config, state)
+        if fallback:
+            user.append(f"模型补充的判据（未经本地资料核实，仅供你参考，不得当作知识库条目引用）：{fallback}")
     system = [
         f"你是{config.role_definition}，负责给出判断结论。",
         f"你必须输出符合以下 JSON Schema 的内容：{json.dumps(DiagnosisResult.model_json_schema(), ensure_ascii=False)}",
@@ -55,16 +71,26 @@ def build_diagnoser_prompt(
         "你本身就掌握本领域的判据知识，检索条目只是佐证、不是给结论的前提；没有检索条目时照常按专业判断给结论。",
         "只有在你确实无法判断时，才选择 uncertain 并说明需要补什么，不要用模糊表述掩盖。",
     ]
-    user = [
-        f"已确认信息：{format_slots(config, state)}",
-        f"现场事实：{format_observations(state.get('observations'))}",
-        f"检索到的证据：{format_evidence(rows, max_rows=_MAX_EVIDENCE_ROWS, content_cap=_CONTENT_CAP)}",
-        f"档案用药史：{format_history(state.get('prescription_history'))}",
-    ]
     return [
         {"role": "system", "content": "\n".join(system)},
         {"role": "user", "content": "\n".join(user)},
     ]
 
 
+def _fallback_basis(config: ProcessConfig, state: ConsultationState) -> str:
+    """取本流程的兜底判据文本。缺失、跨流程或解析失败一律返回空串。"""
+    raw = state.get("model_basis")
+    if not isinstance(raw, dict):
+        return ""
+    try:
+        basis = ModelBasis.model_validate(raw)
+    except Exception:
+        # 旧版本检查点可能不含该字段的完整形态；解析失败当作"没有兜底判据"。
+        return ""
+    if basis.process_id is not config.process_id:
+        return ""
+    return "；".join(basis.basis_points[:_MAX_FALLBACK_ROWS])
+
+
 __all__ = ["build_diagnoser_prompt"]
+

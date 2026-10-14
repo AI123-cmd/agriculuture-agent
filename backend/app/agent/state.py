@@ -378,6 +378,11 @@ class ConsultationState(TypedDict, total=False):
     triage: dict
     diagnosis: dict | None
     prescription: dict | None
+    # 知识库为空时的模型兜底依据（`ModelBasis` 序列化）。由 verify 节点在检索空集且
+    # `ALLOW_MODEL_FALLBACK` 开启时写入，供判定侧当佐证、处方侧取药剂名称织入处置建议。
+    # 它**不是**事实来源：不含任何剂量数字，不写入知识库，不参与 `facts_provenance`
+    # 的溯源登记。必须在此声明，否则节点返回值会被 LangGraph 静默丢弃。
+    model_basis: dict | None
     # 处方卡最终展示文本（T2-45）。闸门的 `R-PROVENANCE`/`R-REDLINE`/`R-CAUTION` 反向扫描
     # 读的是它，闸门据此判断"模型说的"是否落在知识库与红线允许的范围内。`prescription_suppressed`
     # 在 degrade/block 时置真，展示层据此不渲染处方卡。

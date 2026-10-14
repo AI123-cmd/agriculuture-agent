@@ -31,7 +31,7 @@ from app.agent.agents.base import AgentContext, BaseAgent, FailureMode
 from app.agent.agents.followup_builder import build_followup_plan
 from app.agent.agents.retriever import KnowledgeRetriever, RegionMatcher
 from app.agent.blackboard import slot_summary
-from app.agent.contracts import DiagnosisResult, EvidenceItem, EvidenceQuery, PesticideItem, Prescription
+from app.agent.contracts import DiagnosisResult, EvidenceItem, EvidenceQuery, ModelBasis, PesticideItem, Prescription
 from app.agent.contracts.evidence import EvidenceKindValue
 from app.agent.contracts.prescription import PrescriptionAction
 from app.agent.prompts.prescriber import build_prescriber_prompt
@@ -213,13 +213,21 @@ class PrescriberAgent(BaseAgent[Prescription]):
            `keep_ids` 为空时退回全部候选，避免模型写错 id 导致处方无药剂可给。
         2. 顶层数值取最保守值，不接受模型给的值。
         3. `facts_provenance` 完全由代码重建，使溯源与实际数值必然一致。
+
+        知识库为空且有兜底依据时，另外追加一条只含药名的处置建议（见
+        `_append_fallback_action`）：`pesticide_items` 仍为空，因此闸门对药剂的全部校验
+        无需任何改动。
         """
         candidates = cast(list[PesticideItem], cast(dict[str, Any], state).get("_pesticide_candidates") or [])
         keep_ids = {item.knowledge_id for item in result.pesticide_items}
         items = [c for c in candidates if c.knowledge_id in keep_ids] or candidates
         top_interval, top_uses = self.conservative_top_level(items)
+        actions = [action.model_dump() for action in result.actions]
+        if not items:
+            actions = self._append_fallback_action(actions, self._fallback_names(state, ctx))
         merged = {
             **result.model_dump(),
+            "actions": actions,
             "pesticide_items": [i.model_dump() for i in items],
             "safety_interval_days": top_interval,
             "max_uses_per_season": top_uses,
@@ -227,6 +235,48 @@ class PrescriberAgent(BaseAgent[Prescription]):
             "requires_tech_station": result.requires_tech_station or not items,
         }
         return Prescription.model_validate(merged)
+
+    def _fallback_names(self, state: ConsultationState, ctx: AgentContext) -> list[str]:
+        """取本流程的兜底药名。依据缺失、跨流程或解析失败一律返回空列表。"""
+        raw = state.get("model_basis")
+        if not isinstance(raw, dict):
+            return []
+        try:
+            basis = ModelBasis.model_validate(raw)
+        except Exception:
+            return []
+        if basis.process_id is not ctx.process_config.process_id:
+            return []
+        return basis.suggested_pesticide_names
+
+    def _append_fallback_action(self, actions: list[dict], names: list[str]) -> list[dict]:
+        """把兜底药名织成一条**非药剂处置建议**，剂量与间隔期一律不给。
+
+        药名出现在动作文本里而不是 `pesticide_items`：后者是"已核准事实"的载体，每一项
+        都要有 `knowledge_id` 供闸门 `R-WHITELIST` 核验，而兜底药名没有条目、没有溯源。
+        放进文本后，它仍受 `R-REDLINE` 的 `actions[i]` 扫描保护，但不被当作事实性用药方案。
+
+        `cautions` 里的免责与"按标签用量"由代码写死，不交给模型：整条建议的安全边界因此
+        与模型输出无关。无药名时不追加，保持"空库转农技站"的既有形态。
+        """
+        if not names:
+            return actions
+        next_order = max((int(a.get("order") or 0) for a in actions), default=0) + 1
+        actions.append(
+            PrescriptionAction(
+                order=next_order,
+                action=f"可考虑在农技站确认后使用这些药剂：{'、'.join(names)}",
+                timing="先与当地农技站确认后再定",
+                method="按产品标签标注的用法使用，不要自行加大用量",
+                cautions=[
+                    "本条只提供药剂名称方向，未包含用量、安全间隔期与每季使用次数",
+                    "是否适用需由当地农技站结合地块与前次用药确认",
+                ],
+                stop_conditions=["症状明显加重或出现药害时立即停止并联系农技人员"],
+            ).model_dump()
+        )
+        return actions
+
 
     # ---- 改动检测 ----
 

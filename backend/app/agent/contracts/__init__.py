@@ -24,6 +24,7 @@ from .interview import (
     InterviewQuestion,
     QuestionOption,
 )
+from .model_basis import ModelBasis
 from .observation import EnvReading, ImageCandidate, ObservationResult
 from .prescription import (
     FollowupPlan,
@@ -77,6 +78,7 @@ __all__ = [
     "InterviewBatch",
     "InterviewQuestion",
     "KnowledgeFacts",
+    "ModelBasis",
     "ObjectConfirmRequest",
     "ObservationResult",
     "PesticideItem",

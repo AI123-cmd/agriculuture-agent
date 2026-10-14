@@ -301,13 +301,20 @@ async def _absorb_photo_answer(
 
 def make_verify_node(config: ProcessConfig) -> NodeFn:
     """证据核查节点工厂：检索的元数据过滤条件（process_id、region_scope、status=approved）
-    由 config 与注入的检索端口决定。"""
+    由 config 与注入的检索端口决定。
+
+    空库时的模型兜底依据（`state["model_basis"]`）由检索智能体原地写入 state，而 LangGraph
+    **会静默丢弃**节点返回的、未在 `ConsultationState` 中声明的键，因此这里必须把该键一并
+    作为返回值提交——与 judge 节点回传 `confidence_score` 是同一处约束。未开启兜底或未触发
+    兜底时该键不存在，返回 `None` 让下游读到"没有兜底依据"。
+    """
     retriever = RetrieverAgent(get_gateway(), _EmptyKnowledge(), _NoRegionMatcher())
 
     async def verify(state: ConsultationState) -> dict:
         evidence_set = await retriever.run(state, _context_for(state, config, TaskType.RETRIEVE))
         return {
             "evidence": [item.model_dump(mode="json") for item in evidence_set.items],
+            "model_basis": cast(dict[str, Any], state).get("model_basis"),
             "stage": ConsultStage.VERIFY,
         }
 
