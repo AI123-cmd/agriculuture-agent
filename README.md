@@ -1,20 +1,76 @@
-# 话农点金（HNDJ）
+<div align="center">
 
-> 把一个**懂流程、守红线、可追溯**的 AI 农技员，装进农户的微信里。
+# 话农点金 · HNDJ
+
+**把一个懂流程、守红线、可追溯的 AI 农技员，装进农户的微信里。**
 
 面向农户与农技人员的微信小程序：农户用大白话描述庄稼或猪场的问题，AI 按**七条专业流程**分诊、看现场、问五情、查知识库、下判断、开处方——而每一张处方在到达农户之前，都必须先过一道**拥有否决权的安全闸门**。
 
-这不是一个"套壳聊天机器人"。它要解决的是农业 AI 落地最难的三件事：
+<br />
 
-1. **瞎开药会出人命**——农药处方一旦错了，轻则绝收、重则农残超标。所以本项目把「生成」与「校验」在架构上物理隔离：处方由大模型产出，但能不能给农户看，由一套纯规则、可单测、零模型的**安全闸门**说了算。
-2. **农户说不清楚**——"叶子黄了"不是一个可用的诊断输入。系统用流程配置驱动多轮问诊，把"五情"（种情/肥情/墒情/苗情/病虫情）逐个槽位问全，模型离线时整条链路仍可用规则兜底。
-3. **模型挂了服务不能挂**——模型网关带熔断降级链，`ZERO_MODEL_MODE` 下一行配置即可切断全部模型调用，农事播报照发不误。
+<img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+<img src="https://img.shields.io/badge/FastAPI-async-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+<img src="https://img.shields.io/badge/PostgreSQL-pgvector%20%2B%20TimescaleDB-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
+<img src="https://img.shields.io/badge/LangGraph-Multi--Agent-1C3C3C?style=flat-square" alt="LangGraph">
+<img src="https://img.shields.io/badge/WeChat-Mini%20Program-07C160?style=flat-square&logo=wechat&logoColor=white" alt="WeChat">
+<img src="https://img.shields.io/badge/License-Apache--2.0-2E7D32?style=flat-square" alt="License">
+
+</div>
+
+---
+
+## 界面预览
+
+> 「小禾」是项目的农技助手 IP。四张真机截图对应四步核心体验：**看提示 → 问问题 → 查历史 → 管档案**。
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="docs/photo/screen-home.png" width="240" alt="首页"><br />
+      <b>首页 · 农事播报</b><br />
+      <sub>作物与位置卡片、环境摘要、<br />今日提示，一键发起提问</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="docs/photo/screen-ai-chat.png" width="240" alt="AI 咨询"><br />
+      <b>AI 咨询 · 多轮问诊</b><br />
+      <sub>逐条说明判定依据与排除项，<br />给出发病期与后续观察节点</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="docs/photo/screen-history.png" width="240" alt="历史对话"><br />
+      <b>历史对话 · 会话留存</b><br />
+      <sub>每次咨询自动保存，<br />回看结论与当时的判断</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="docs/photo/screen-mine.png" width="240" alt="我的"><br />
+      <b>我的 · 档案与设置</b><br />
+      <sub>农户档案、咨询历史、<br />环境数据、设备管理入口</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 为什么做这个
+
+这不是一个「套壳聊天机器人」。它要解决农业 AI 落地最难的三件事：
+
+| 难点 | 如果处理不当 | 本项目的做法 |
+| --- | --- | --- |
+| **瞎开药会出人命** | 农药处方一旦错了，轻则绝收、重则农残超标 | 把「生成」与「校验」在架构上**物理隔离**：处方由大模型产出，但能不能给农户看，由一套纯规则、可单测、零模型的**安全闸门**说了算 |
+| **农户说不清楚** | 「叶子黄了」不是一个可用的诊断输入 | 用**流程配置驱动**多轮问诊，把「五情」（种情/肥情/墒情/苗情/病虫情）逐个槽位问全；模型离线时整条链路仍可用规则兜底 |
+| **模型挂了服务不能挂** | 一次接口抖动就让全站不可用 | 模型网关带**熔断降级链**，`ZERO_MODEL_MODE` 下一行配置即可切断全部模型调用，农事播报照发不误 |
+
+---
+
+## 系统架构
 
 ![系统架构](docs/photo/architecture.svg)
 
+---
+
 ## 核心亮点
 
-### 1. 受理即分流的诊断状态机
+### 1 · 受理即分流的诊断状态机
 
 诊断不是一问一答的聊天，而是一条 LangGraph 编排的闭环链路：
 
@@ -22,62 +78,59 @@
 
 ![AI 诊断状态机](docs/photo/ai-diagnosis-flow.svg)
 
-- 进入图后的**第一条边就是路由**：按入口提示或分诊结果直达七条流程子图之一（水稻 / 茶 / 油菜 / 辣椒 / 杂草 / 养猪 / 通用兜底），不存在"先聊三句再猜你在种什么"。
+- 进入图后的**第一条边就是路由**：按入口提示或分诊结果直达七条流程子图之一（水稻 / 茶 / 油菜 / 辣椒 / 杂草 / 养猪 / 通用兜底），不存在「先聊三句再猜你在种什么」。
 - 多智能体分工：分诊、现场采集、问诊、证据核查、判定、受限并行会诊、处方、报告守卫、转人工，各司其职。
 - 流程差异不写死在代码里：七条流程由 `backend/app/process_config/seeds/*.yaml` 声明（必填槽位、追问顺序、术语大白话映射、紧急判定阈值、流程红线），支持版本化与热加载。
 
-### 2. 安全闸门：唯一拥有否决权的组件
+### 2 · 安全闸门：唯一拥有否决权的组件
 
 处方产出后必须过独立闸门子图，裁定 `allow / degrade / block` 三态，命中红线一律转人工：
 
-- 10 条规则各自独立可测：药剂白名单、登记作物匹配、剂量区间与每季次数、安全间隔期、用药史冲突、地区适宜性、数字溯源、流程专属红线、红线加载校验、表述语气。
-- 处方的剂量、间隔期等数字**只能从知识库条目照抄**（"模板出事实、模型只改写"），闸门的数字溯源规则会反向扫描最终展示文本——模型说出的每个数字都要在知识库里找到出处。
-- 支持 `shadow`（灰度观察）/ `enforce`（全量拦截）两种模式，全部判定落审计表，block 事件自动触发知识条目复核工单。
+- **10 条规则各自独立可测**：药剂白名单、登记作物匹配、剂量区间与每季次数、安全间隔期、用药史冲突、地区适宜性、数字溯源、流程专属红线、红线加载校验、表述语气。
+- 处方的剂量、间隔期等数字**只能从知识库条目照抄**（「模板出事实、模型只改写」），闸门的数字溯源规则会反向扫描最终展示文本——模型说出的每个数字都要在知识库里找到出处。
+- 支持 `shadow`（灰度观察）/ `enforce`（全量拦截）两种模式，全部判定落审计表，`block` 事件自动触发知识条目复核工单。
 
-### 3. 知识库：一条 SQL 完成混合检索
+### 3 · 知识库：一条 SQL 完成混合检索
 
 `pgvector` 向量相似度 + 元数据过滤（流程、地区、条目状态）在一条 SQL 内完成，配合**地区回退匹配**（县 → 市 → 省 → 全国逐级兜底）与重排序。知识条目上架必须经人工核准，运营白名单接口与农户侧完全隔离。
 
-### 4. 规则优先的农事播报
+### 4 · 规则优先的农事播报
 
 播报不依赖模型在线：环境事实三级回退采集（传感器 → 天气服务 → 档案推断），阈值规则与病虫害气象风险规则先出文案，模型只做润色。快照幂等生成，按农户时区在最佳触达窗口内推送，额度、静默时段、失败归因全链路可观测。
 
-### 5. 工程质量：被 CI 强制的架构约束
+![农事播报链路](docs/photo/broadcast-flow.svg)
+
+### 5 · 工程质量：被 CI 强制的架构约束
 
 - **四条分层硬规则**由 `backend/scripts/check_layers.py` 检查，违反即构建失败：闸门不得依赖智能体层、智能体不得直接导入 ORM、模型网关不得反向依赖业务、任何模块不得直接 `db.query`。
 - 全项目枚举只在一处定义；自由文本转枚举失败即抛异常，**禁止静默兜底**。
 - 归属安全：`OwnedMixin` + `OwnedRepository` 基类保证任何接口拿不到别家农户的数据。
-- 300+ pytest 用例：契约测试、图路径测试、闸门规则覆盖矩阵、离线评测集回归，测试环境用 mock LLM 与独立测试库，不碰真实大模型。
+- **180 个测试文件、2100+ 个测试函数**：契约测试、图路径测试、闸门规则覆盖矩阵、离线评测集回归；测试环境用 mock LLM 与独立测试库，不碰真实大模型。
 
-## 界面预览
-
-<table>
-  <tr>
-    <td align="center" width="25%"><img src="docs/photo/screen-home.png" width="200" alt="首页"><br><sub>首页 · 农事播报与环境摘要</sub></td>
-    <td align="center" width="25%"><img src="docs/photo/screen-ai-chat.png" width="200" alt="AI 咨询"><br><sub>AI 咨询 · 多轮农技诊断</sub></td>
-    <td align="center" width="25%"><img src="docs/photo/screen-history.png" width="200" alt="历史对话"><br><sub>历史对话 · 会话列表</sub></td>
-    <td align="center" width="25%"><img src="docs/photo/screen-mine.png" width="200" alt="我的"><br><sub>我的 · 档案与设置</sub></td>
-  </tr>
-</table>
+---
 
 ## 技术栈
 
 | 层 | 技术 |
 | --- | --- |
-| 小程序端 | 原生微信小程序 · TypeScript · glass-easel · 自定义 tabBar · 适老化样式 token · 语音朗读/输入 |
-| 后端 | Python 3.11+ · FastAPI（全异步）· SQLAlchemy 2.0（async）· Alembic · ARQ（异步任务） |
-| 数据 | PostgreSQL 16+（pgvector 向量检索 · TimescaleDB 时序）· Redis 7 |
-| AI | LangGraph 多智能体 · MCP 工具层 · PostgreSQL 检查点（断点续问）· DeepSeek 兼容模型 |
+| **小程序端** | 原生微信小程序 · TypeScript · glass-easel · 自定义 tabBar · 适老化样式 token · 语音朗读/输入 |
+| **后端** | Python 3.11+ · FastAPI（全异步）· SQLAlchemy 2.0（async）· Alembic · ARQ（异步任务） |
+| **数据** | PostgreSQL 16+（pgvector 向量检索 · TimescaleDB 时序）· Redis 7 |
+| **AI** | LangGraph 多智能体 · MCP 工具层 · PostgreSQL 检查点（断点续问）· DeepSeek 兼容模型 |
+| **可观测** | OpenTelemetry 链路追踪 · structlog 结构化日志 · Langfuse 提示词版本对比 |
 
 > 底座统一为 **PostgreSQL 单一栈**：知识检索一条 SQL、LangGraph 检查点 `AsyncPostgresSaver` 持久化，取代了早期的 MySQL + SQLite 组合。
+
+---
 
 ## 目录结构
 
 ```
 agriculuture-agent/
 ├── miniprogram/            # 微信小程序前端
-│   ├── pages/              # 页面（login/profile/index/ai/history/mine/env）
+│   ├── pages/              # 页面：login / profile / index / ai / history / mine / env / device
 │   ├── api/                # 后端接口封装
+│   ├── components/         # 公共组件（小禾 IP 形象 sprout-mascot）
 │   ├── custom-tab-bar/     # 自定义 tabBar
 │   ├── styles/             # 公共样式 token（适老化，由门禁脚本守护）
 │   └── utils/              # 请求、鉴权 guard、定位、语音
@@ -101,6 +154,8 @@ agriculuture-agent/
 │   └── photo/              # 架构与界面资源
 └── project.config.json
 ```
+
+---
 
 ## 快速开始
 
@@ -150,6 +205,8 @@ arq app.worker.WorkerSettings
 2. 后端地址在 [miniprogram/utils/config.ts](miniprogram/utils/config.ts) 中配置（默认本机 `http://127.0.0.1:8000`）。
 3. 本地联调时在开发者工具「详情 → 本地设置」勾选「不校验合法域名」。
 
+---
+
 ## 环境变量
 
 完整配置见 [backend/.env.example](backend/.env.example)，关键项：
@@ -166,6 +223,8 @@ arq app.worker.WorkerSettings
 
 密钥类变量只写入本地 `.env`，不要提交到仓库。
 
+---
+
 ## API 一览
 
 统一响应结构 `{ "code": 200, "message": "success", "data": ... }`，除登录外均需 `Authorization: Bearer <token>`。
@@ -181,6 +240,8 @@ arq app.worker.WorkerSettings
 | 设备 | 设备绑定 / 上报 / 列表解绑 | 传感器接入与字段映射 |
 | 订阅 | `GET /api/subscription/quota`、`POST /grant` | 推送额度与订阅授权 |
 | 运营 | `POST /api/knowledge/review/{knowledge_id}` | 知识条目核准（白名单隔离） |
+
+---
 
 ## 质量门禁与测试
 
@@ -204,12 +265,14 @@ python -m pytest -q
 
 - 测试使用 PostgreSQL 测试库（`TEST_DATABASE_URL`）与 mock LLM 隔离环境，不调用真实大模型。
 - `scripts/check_layers.py` 强制四条分层依赖规则，白名单条目有上限且需登记失效任务编号；
-  `scripts/check_no_noqa.py` 拦"用 `# noqa` 掩盖分层违规"与"CI 里 `continue-on-error` 降级检查"
+  `scripts/check_no_noqa.py` 拦「用 `# noqa` 掩盖分层违规」与「CI 里 `continue-on-error` 降级检查」
   ——分层规则不允许行内豁免。
 - 前端适老化样式由根目录 `scripts/check_wxss_tokens.mjs` 门禁校验（字号/行距/热区只允许定义在 `tokens.wxss`）。
 - 离线评测集（`backend/tests/eval/`）对七条流程做加权一致率回归；一致率低于阈值或相对
   基线下降超过 1 个百分点即阻断发布（`scripts/compare_eval_reports.py`）。
 - 发布前人工核对项与其自动化检查的映射见 [docs/release-checklist.md](docs/release-checklist.md)。
+
+---
 
 ## 设计与任务文档
 
@@ -219,6 +282,8 @@ python -m pytest -q
 - 全局约定与执行规范（动手前必读）：[docs/tasks/00-全局约定与执行规范.md](docs/tasks/00-全局约定与执行规范.md)
 - 产品说明书与技术实现方案见 `docs/` 目录
 
+---
+
 ## License
 
-见 [LICENSE](LICENSE)。
+见 [LICENSE](LICENSE)。本项目采用 Apache License 2.0。
