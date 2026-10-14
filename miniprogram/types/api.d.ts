@@ -403,6 +403,36 @@ export interface HandoffView {
   speakable: boolean
 }
 
+/** 统一"问诊结果"类别：出方 / 转人工 / 安全拦截 / 法定报告 */
+export type ConsultResultKind = 'prescription' | 'handoff' | 'blocked' | 'report'
+
+/**
+ * 统一"问诊结果"。所有终态路径都产出（含转人工），前端以它作为唯一渲染源。
+ * 出方路径用 actions / pesticideItems / followupPlan；转人工路径用
+ * conclusion / confirmedInfo / observationPoints / nextStep / contacts。
+ */
+export interface ConsultResultView {
+  kind: ConsultResultKind
+  title: string
+  conclusion: string
+  confidenceLabel?: string | null
+  basis: string[]
+  confirmedInfo: string[]
+  observationPoints: string[]
+  excludedItems: string[]
+  actions: PrescriptionActionView[]
+  pesticideItems: PesticideItemView[]
+  followupPlan?: FollowupPlanView | null
+  /** 有序"该做的事"：法定报告情形的强制动作，顺序即展示顺序 */
+  steps: string[]
+  nextStep?: string | null
+  contacts: ContactInfoView[]
+  requiresTechStation: boolean
+  speakable: boolean
+  /** 处方卡主键，用于「存入台账」；转人工路径为 null */
+  cardId?: string | null
+}
+
 export interface QuotaPromptView {
   scene: string
   text: string
@@ -421,6 +451,8 @@ export interface ChatResponse {
   environmentNote?: string | null
   handoff?: HandoffView | null
   quotaPrompt?: QuotaPromptView | null
+  /** 统一"问诊结果"：终态非空，追问轮为空。前端以此渲染结果卡 */
+  result?: ConsultResultView | null
   degraded: boolean
 }
 
@@ -452,6 +484,8 @@ export interface ConversationDetail {
   messages: ConversationMessage[]
   /** 该会话最新一张处方卡；转人工会话为 null */
   prescription?: PrescriptionView | null
+  /** 统一"问诊结果"快照；转人工会话也有值，使历史回看与实时一致 */
+  result?: ConsultResultView | null
   /** 处方卡是否已存入台账 */
   ledgerSaved?: boolean
 }

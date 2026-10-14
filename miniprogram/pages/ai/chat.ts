@@ -5,7 +5,7 @@ import { ensureAuth } from '../../utils/guard'
 import { KEY } from '../../utils/constants'
 import { BASE_URL } from '../../utils/config'
 import { getTtsAdapter, getAsrAdapter } from '../../utils/voice'
-import type { QuestionView, PrescriptionView, HandoffView } from '../../types/api'
+import type { ConsultResultView } from '../../types/api'
 
 interface Message {
   id: number;
@@ -35,14 +35,14 @@ Page({
     progressText: '',
     cropList: [] as string[],     // 档案中的作物列表
     currentCropName: '',          // 当前选中的作物名称
-    // 结构化结果：questions / prescription / handoff 三者最多一个非空
+    // 结构化结果：questions / result 互斥（追问轮无结果，终态无追问）
     questions: [] as any[],
     /** 已作答的卡片数：多卡片需全部答完才提交 */
     qaAnswered: 0,
     /** 提交中标志，防止重复提交 */
     submitting: false,
-    prescription: null as PrescriptionView | null,
-    handoff: null as HandoffView | null,
+    /** 统一"问诊结果"：出方 / 转人工 / 安全拦截 / 法定报告 共用一张卡 */
+    result: null as ConsultResultView | null,
     /** 处方卡是否已存入台账（驱动按钮文案与抑制重复点击） */
     ledgerSaved: false,
     // 录音态：驱动按钮视觉反馈
@@ -108,9 +108,8 @@ Page({
             questions: [],
             qaAnswered: 0,
             submitting: false,
-            // 还原该会话的处方卡与台账状态，使历史界面与实时界面一致
-            prescription: res.prescription || null,
-            handoff: null,
+            // 还原该会话的问诊结果与台账状态，使历史界面与实时界面一致
+            result: res.result || null,
             ledgerSaved: !!res.ledgerSaved,
             stageLabel: '',
             progressText: '',
@@ -178,8 +177,7 @@ Page({
         questions: [],
         qaAnswered: 0,
         submitting: false,
-        prescription: null,
-        handoff: null,
+        result: null,
         stageLabel: '',
         progressText: '',
         scrollWithAnimation: false,
@@ -431,7 +429,8 @@ Page({
           role: 'ai',
           content: res.reply || '（暂无回复）',
           showVoice: !!res.reply,
-          speakable: !!res.handoff,
+          // 转人工/安全拦截/法定报告的整段回复可朗读（普通追问/出方用气泡上的朗读按钮）
+          speakable: !!(res.result && res.result.speakable),
         };
 
         this.setData({
@@ -442,8 +441,7 @@ Page({
           questions: (res.questions || []).map((q: any) => ({ ...q, inputValue: '' })),
           qaAnswered: 0,
           submitting: false,
-          prescription: res.prescription || null,
-          handoff: res.handoff || null,
+          result: res.result || null,
           ledgerSaved: false,
           scrollWithAnimation: true,
         }, () => {
@@ -517,7 +515,7 @@ Page({
 
   /** 处方卡存入农事台账（幂等；需后端下发 cardId，缺失时按钮不渲染） */
   onSaveLedger() {
-    const cardId = this.data.prescription && this.data.prescription.cardId;
+    const cardId = this.data.result && this.data.result.cardId;
     if (!cardId || this.data.ledgerSaved) return;
     wx.showLoading({ title: '正在存入...' });
     savePrescriptionToLedger(cardId)
@@ -532,20 +530,25 @@ Page({
       });
   },
 
-  /** 朗读转人工卡片（朗读面向农户的文案，不含内部字段） */
-  playHandoff() {
-    const handoff = this.data.handoff;
-    if (!handoff) return;
-    const parts: string[] = [handoff.summary];
-    if (handoff.observationPoints.length > 0) {
-      parts.push(`需要留意：${handoff.observationPoints.join('；')}`);
+  /** 朗读问诊结果（转人工 / 安全拦截 / 法定报告；面向农户的文案，不含内部字段） */
+  playResult() {
+    const result = this.data.result;
+    if (!result) return;
+    const parts: string[] = [result.conclusion];
+    if (result.steps.length > 0) {
+      parts.push(`该做的事：${result.steps.join('；')}`);
+    }
+    if (result.nextStep) {
+      parts.push(result.nextStep);
+    } else if (result.observationPoints.length > 0) {
+      parts.push(`需要留意：${result.observationPoints.join('；')}`);
     }
     const tts = getTtsAdapter();
     if (tts.isSpeaking()) {
       tts.stop();
       return;
     }
-    tts.speak(parts.join('。')).catch(() => {
+    tts.speak(parts.filter((p) => !!p).join('。')).catch(() => {
       wx.showToast({ title: '现在读不出来，稍后再试', icon: 'none' });
     });
   },

@@ -78,6 +78,11 @@ class Consultation(Base, TimestampMixin, OwnedMixin):
     )
     triage_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, comment="分诊结果快照")
     slots_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, comment="最终槽位快照")
+    # 统一"问诊结果"快照（转人工/安全拦截/法定报告也落这里）：历史回看据此还原结果卡，
+    # 使转人工会话与出方会话一样有可回看的结果。出方路径另有 prescription_card 存处置明细。
+    result_snapshot: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, comment="问诊结果快照，所有终态路径都写"
+    )
 
     @validates("status")
     def _validate_status(self, key: str, value: Any) -> Any:

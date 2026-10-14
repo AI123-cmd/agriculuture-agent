@@ -132,6 +132,41 @@ class QuotaPromptView(BaseModel):
     granted: bool = False
 
 
+# 统一的"问诊结果"类型。四条终态路径各对应一个取值，前端据它决定卡片内部区块：
+# prescription 出方 / handoff 转人工 / blocked 安全拦截 / report 法定报告。
+ConsultResultKind = Literal["prescription", "handoff", "blocked", "report"]
+
+
+class ConsultResultView(BaseModel):
+    """统一"问诊结果"。所有终态路径都产出，转人工路径也不例外。
+
+    出方路径给出处置建议（`actions` / `pesticideItems` / `followupPlan`），转人工路径给出
+    结论 + 已了解情况 + 观察要点 + 下一步建议（`conclusion` / `confirmedInfo` /
+    `observationPoints` / `nextStep` / `contacts`）。两类共用同一张卡，前端只渲染 `result`，
+    不再区分"处方卡"与"转人工卡"。合规红线（安全拦截不复述药剂、法定报告不做认定）在
+    服务层的构造函数里落实。
+    """
+
+    kind: ConsultResultKind
+    title: str = "问诊结果"
+    conclusion: str
+    confidenceLabel: str | None = None
+    basis: list[str] = []
+    confirmedInfo: list[str] = []
+    observationPoints: list[str] = []
+    excludedItems: list[str] = []
+    actions: list[PrescriptionActionView] = []
+    pesticideItems: list[PesticideItemView] = []
+    followupPlan: FollowupPlanView | None = None
+    # 有序的"该做的事"清单：法定报告情形承载强制动作（顺序即展示顺序，不截断）。
+    steps: list[str] = []
+    nextStep: str | None = None
+    contacts: list[ContactInfoView] = []
+    requiresTechStation: bool = False
+    speakable: bool = False
+    cardId: str | None = None
+
+
 class ChatResponse(BaseModel):
     sessionId: str
     stage: ConsultStage
@@ -143,12 +178,17 @@ class ChatResponse(BaseModel):
     environmentNote: str | None = None
     handoff: HandoffView | None = None
     quotaPrompt: QuotaPromptView | None = None
+    # 统一"问诊结果"：终态（出方 / 转人工 / 安全拦截 / 法定报告）非空，追问轮为空。
+    # 前端以它作为唯一渲染源；`prescription` / `handoff` 暂留一个版本作过渡。
+    result: ConsultResultView | None = None
     degraded: bool = False
 
 
 __all__ = [
     "ChatRequest",
     "ChatResponse",
+    "ConsultResultKind",
+    "ConsultResultView",
     "ContactInfoView",
     "FollowupPlanView",
     "FollowupTaskView",

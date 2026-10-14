@@ -20,7 +20,7 @@ from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.blackboard import progress_of
-from app.agent.contracts import match_object_alias, resolve_process_hint
+from app.agent.contracts import CONFIDENCE_DISPLAY, match_object_alias, resolve_process_hint
 from app.agent.state import ConsultationState, ConsultStage, ProcessId, SlotValue
 from app.core.config import get_settings
 from app.db.base import new_id
@@ -44,6 +44,8 @@ from app.repositories import (
 from app.schemas.consult import (
     ChatRequest,
     ChatResponse,
+    ConsultResultKind,
+    ConsultResultView,
     ContactInfoView,
     FollowupPlanView,
     FollowupTaskView,
@@ -82,6 +84,38 @@ HandoffReason = Literal["out_of_scope", "safety_degrade", "safety_block", "not_c
 # `degrade` 与 `block` 在内部同为 `safety_block`，接口层按闸门裁定细分展示。
 _SAFETY_DEGRADE: HandoffReason = "safety_degrade"
 _SAFETY_BLOCK: HandoffReason = "safety_block"
+
+# 转人工五值 reason → 统一"问诊结果"的 kind。闸门 degrade / block 同归安全拦截，
+# 法定报告单列一档（承载强制动作），其余（超边界 / 未收敛）归普通转人工。
+_RESULT_KIND_BY_REASON: dict[HandoffReason, ConsultResultKind] = {
+    "out_of_scope": "handoff",
+    "not_converged": "handoff",
+    "safety_degrade": "blocked",
+    "safety_block": "blocked",
+    "mandatory_report": "report",
+}
+
+# 转人工（超边界 / 未收敛）情形的"下一步建议"。安全拦截与法定报告各有专属文案，不走这里。
+_HANDOFF_NEXT_STEP: dict[HandoffReason, str] = {
+    "out_of_scope": "建议把上面几条拍清楚、记下来，找当地农技站看看。",
+    "not_converged": "建议带上地块里的样本，到当地农技站现场确认。",
+}
+
+# "问诊结果"类别 → 落库的会话状态。出方是"有结论但未闭环"的观察期（供 T3-04 首页
+# 跟进提示取数）；转人工是升级处理；安全拦截与法定报告是"出于安全已停止出方"。
+_CONSULT_STATUS_BY_KIND: dict[ConsultResultKind, ConsultStatus] = {
+    "prescription": ConsultStatus.OBSERVING,
+    "handoff": ConsultStatus.ESCALATED,
+    "blocked": ConsultStatus.BLOCKED,
+    "report": ConsultStatus.BLOCKED,
+}
+
+
+def _confidence_label(level: str | None) -> str | None:
+    """把握程度口语化。缺失或未知档位返回 `None`，不编造档位。"""
+    if not level:
+        return None
+    return CONFIDENCE_DISPLAY.get(level)
 
 
 def stage_label(stage: ConsultStage) -> str:
@@ -356,6 +390,8 @@ class AIService:
 
     def _build_response(self, session_id: str, state: dict[str, Any]) -> ChatResponse:
         stage = state.get("stage") or ConsultStage.INTAKE
+        prescription = self._prescription(state)
+        handoff = self._handoff(state)
         response = ChatResponse(
             sessionId=session_id,
             stage=stage,
@@ -363,14 +399,17 @@ class AIService:
             progress=ProgressInfo(**progress_of(cast(ConsultationState, state))),
             reply=state.get("reply") or "",
             questions=self._questions(state),
-            prescription=self._prescription(state),
+            prescription=prescription,
             environmentNote=build_environment_note(cast(ConsultationState, state)),
-            handoff=self._handoff(state),
+            handoff=handoff,
             quotaPrompt=self._quota_prompt(state),
+            result=self._consult_result(state, prescription, handoff),
             degraded=state.get("degraded", False),
         )
         # questions / handoff / prescription 三者最多出现一个，用断言固定互斥。
         assert sum(x is not None for x in (response.questions, response.handoff, response.prescription)) <= 1
+        # 追问轮不产出"问诊结果"：结果只在终态（出方 / 转人工 / 安全拦截 / 法定报告）出现。
+        assert response.questions is None or response.result is None
         return response
 
     @staticmethod
@@ -435,6 +474,102 @@ class AIService:
             speakable=True,
         )
 
+    def _consult_result(
+        self,
+        state: dict[str, Any],
+        prescription: PrescriptionView | None,
+        handoff: HandoffView | None,
+    ) -> ConsultResultView | None:
+        """统一"问诊结果"。所有终态路径都产出，转人工路径也不例外。
+
+        出方路径由处方视图投影，其余三条（转人工 / 安全拦截 / 法定报告）由上下文包投影。
+        追问轮（`handoff` 与 `prescription` 皆空）返回 `None`——结果只在问诊有结论时出现。
+
+        合规红线：转人工四类情形的 `conclusion` 取自上下文包的 `headline`（由转人工模块
+        代码生成，安全拦截情形不含被拦截的药剂名），法定报告情形不复述疾病名称、
+        `excludedItems` 恒为空。
+        """
+        if prescription is not None:
+            return self._result_from_prescription(state, prescription)
+        if handoff is None:
+            return None
+        package = state.get("handoff_package") or {}
+        return self._result_from_handoff(state, handoff, package)
+
+    def _result_from_prescription(
+        self, state: dict[str, Any], prescription: PrescriptionView
+    ) -> ConsultResultView:
+        """出方路径的结果：结论 + 依据 + 处置动作 / 用药 / 后续观察。"""
+        diagnosis = state.get("diagnosis") or {}
+        return ConsultResultView(
+            kind="prescription",
+            conclusion=prescription.diagnosisSummary,
+            confidenceLabel=_confidence_label(diagnosis.get("confidence_level")),
+            basis=list(diagnosis.get("basis") or []),
+            excludedItems=list(diagnosis.get("excluded") or []),
+            actions=prescription.actions,
+            pesticideItems=prescription.pesticideItems,
+            followupPlan=prescription.followupPlan,
+            requiresTechStation=prescription.requiresTechStation,
+            cardId=prescription.cardId,
+        )
+
+    def _result_from_handoff(
+        self, state: dict[str, Any], handoff: HandoffView, package: dict[str, Any]
+    ) -> ConsultResultView:
+        """转人工路径的结果：结论 + 已了解情况 + 观察要点 + 下一步建议 + 联系方式。
+
+        三种 kind 共用一份上下文包，只改结论口径与"下一步建议"：
+        `mandatory_report`（法定报告）用强制动作清单，`safety_block`/`safety_degrade`
+        （安全拦截）用中性的再确认引导，其余（超出边界 / 未收敛）用去农技站的引导。
+        """
+        kind = _RESULT_KIND_BY_REASON.get(handoff.reason, "handoff")
+        conclusion = handoff.summary
+        if kind == "handoff":
+            diagnosis = state.get("diagnosis") or {}
+            conclusion = (diagnosis.get("conclusion") or "").strip() or conclusion
+            boundary_reason = diagnosis.get("boundary_reason")
+            if diagnosis.get("out_of_scope") and boundary_reason and boundary_reason not in conclusion:
+                conclusion = f"{conclusion}（{boundary_reason}）"
+
+        confidence: str | None = None
+        if kind == "handoff":
+            confidence = _confidence_label((state.get("diagnosis") or {}).get("confidence_level"))
+
+        if kind == "report":
+            return ConsultResultView(
+                kind=kind,
+                conclusion=conclusion,
+                # 法定报告的强制动作一条都不能少、顺序即展示顺序；`excludedItems` 恒空。
+                steps=list(package.get("mandatory_actions") or []),
+                observationPoints=handoff.observationPoints,
+                excludedItems=[],
+                nextStep="按上面的步骤尽快处理，并保留现场情况便于说明。",
+                contacts=handoff.contacts,
+                speakable=True,
+            )
+        if kind == "blocked":
+            return ConsultResultView(
+                kind=kind,
+                conclusion=conclusion,
+                observationPoints=handoff.observationPoints,
+                excludedItems=handoff.excludedItems,
+                nextStep="建议带上地块情况和已用的药，联系当地农技站现场确认后再用药。",
+                contacts=handoff.contacts,
+                speakable=True,
+            )
+        return ConsultResultView(
+            kind="handoff",
+            conclusion=conclusion,
+            confidenceLabel=confidence,
+            confirmedInfo=handoff.confirmedInfo,
+            observationPoints=handoff.observationPoints,
+            excludedItems=handoff.excludedItems,
+            nextStep=_HANDOFF_NEXT_STEP.get(handoff.reason, "建议带上这份记录联系当地农技站。"),
+            contacts=handoff.contacts,
+            speakable=True,
+        )
+
     @staticmethod
     def _quota_prompt(state: dict) -> None:
         """配额提示。配额来源（服务与表）尚未接入，恒为 `None`（T2-33 只留接口位）。"""
@@ -483,16 +618,21 @@ class AIService:
 
         await MemoryService().remember(db, user_id, session_id, stored_user, stored_ai)
 
-        # 判据用 `response.prescription`（构建响应时的最终产物）而非 `state["stage"]`：
-        # 图成功路径的终点 stage 已被 `followup` 节点改写为 FOLLOWUP，用 stage==PRESCRIBE
-        # 判定会恒假，导致卡片不落库、事件不发出（§3.4 的根因）。
-        if response.prescription is not None:
-            card = await self._persist_prescription(
+        # 判据用 `response.result`（统一"问诊结果"）而非 `state["stage"]`：图成功路径的
+        # 终点 stage 已被 `followup` 节点改写为 FOLLOWUP，用 stage==PRESCRIBE 判定会恒假，
+        # 导致卡片不落库、事件不发出（§3.4 的根因）。用 `result` 还顺带覆盖了转人工路径：
+        # 所有终态都落 `consultation` 行，使转人工会话也能历史回看"问诊结果"。
+        if response.result is not None:
+            await self._persist_consultation(
                 db, user_id, session_id, request_message=stored_user, response=response, state=state
+            )
+        if response.prescription is not None:
+            card = await self._persist_prescription_card(
+                db, user_id, session_id, response=response, state=state
             )
             await self._emit_prescription_created(db, user_id, session_id, messages[-1], card_id=card.id)
 
-    async def _persist_prescription(
+    async def _persist_consultation(
         self,
         db: AsyncSession,
         user_id: str,
@@ -501,15 +641,15 @@ class AIService:
         request_message: str,
         response: ChatResponse,
         state: dict,
-    ) -> PrescriptionCard:
-        """落库问诊会话与处方卡，回填 `cardId` 后返回卡片。
+    ) -> Consultation:
+        """落库问诊会话（所有终态路径都调用），并写统一"问诊结果"快照。
 
-        `prescription_card.consultation_id` 是 NOT NULL 外键指向 `consultation.id`，且本链路
-        此前从不建 `consultation` 行，故首次产出处方时必须先建会话行（主键复用 session_id，
-        与 `AIConversation` 同键）。会话已存在（续问后再次开方）则只滚动 stage / status /
-        rounds / slots_snapshot 这几项随轮次推进的字段，不重建。
+        `result_snapshot` 使转人工 / 安全拦截 / 法定报告会话与出方会话一样可历史回看。
+        `status` 按结果类别取值：出方 `observing`（供 T3-04 首页观察期提示取数）；
+        转人工 `escalated`；安全拦截与法定报告 `blocked`。会话已存在（续问后再次产出结果）
+        则只滚动随轮次推进的字段，并覆盖结果快照。
         """
-        assert response.prescription is not None  # 调用方已保证
+        assert response.result is not None  # 调用方已保证
         stage = state.get("stage") or ConsultStage.INTAKE
         process_value = self._process_value(state)
         triage = state.get("triage") or {}
@@ -517,6 +657,8 @@ class AIService:
         budget = state.get("budget") or {}
         rounds = int(budget.get("interview_rounds", 0) or 0)
         slots_snapshot = self._slots_snapshot(state)
+        status = _CONSULT_STATUS_BY_KIND[response.result.kind]
+        result_snapshot = response.result.model_dump(mode="json")
 
         consult = await consult_repo.get(db, user_id, session_id)
         if consult is None:
@@ -531,11 +673,10 @@ class AIService:
                 topic_summary=(request_message or response.reply)[:120],
                 stage=stage.value,
                 rounds=rounds,
-                # 产出处方即"有结论但未闭环"，置为观察期，供 T3-04 的首页跟进提示取数
-                # （`list_observing` 会再排除已登记回访任务的会话，两处合起来才不重复）。
-                status=ConsultStatus.OBSERVING.value,
+                status=status.value,
                 triage_snapshot=triage,
                 slots_snapshot=slots_snapshot,
+                result_snapshot=result_snapshot,
             )
             await consult_repo.add(db, user_id, consult)
             await db.flush()
@@ -545,11 +686,29 @@ class AIService:
                 user_id,
                 session_id,
                 stage=stage.value,
-                status=ConsultStatus.OBSERVING.value,
+                status=status.value,
                 rounds=rounds,
                 slots_snapshot=slots_snapshot,
+                result_snapshot=result_snapshot,
             )
+        return consult
 
+    async def _persist_prescription_card(
+        self,
+        db: AsyncSession,
+        user_id: str,
+        session_id: str,
+        *,
+        response: ChatResponse,
+        state: dict,
+    ) -> PrescriptionCard:
+        """落库处方卡并回填 `cardId`（仅出方路径调用）。
+
+        `prescription_card.consultation_id` 是 NOT NULL 外键指向 `consultation.id`；
+        调用方已先经 `_persist_consultation` 建好会话行，这里只需建卡。
+        """
+        assert response.prescription is not None  # 调用方已保证
+        process_value = self._process_value(state)
         raw = state.get("prescription") or {}
         card = PrescriptionCard(
             id=new_id("card"),
@@ -571,6 +730,8 @@ class AIService:
         await db.flush()  # 卡片须先落库，回访消费者才能按 consultation_id 反查到
 
         response.prescription.cardId = card.id
+        if response.result is not None:
+            response.result.cardId = card.id
         return card
 
     @staticmethod
@@ -754,13 +915,15 @@ class AIService:
     async def conversation_detail(self, db: AsyncSession, user_id: str, session_id: str) -> dict:
         """回看单个会话：归属不符抛 403（与删除同口径，不区分"不存在"与"不属于你"）。
 
-        除消息文本外还带出**最新一张处方卡**：历史界面要与实时界面一致地展示处方结论，
-        而消息表只存文本（`ai_message.content`），处方结构落在 `prescription_card`。
-        转人工会话没有卡片，`prescription` 为 `None`，前端回看时也不渲染处方卡。
+        除消息文本外还带出**最新一张处方卡**与**统一"问诊结果"快照**：历史界面要与实时
+        界面一致地展示结论。处方结构落在 `prescription_card`；转人工 / 安全拦截 / 法定报告
+        没有卡片，但结果落在 `consultation.result_snapshot`，故两类会话都能还原"问诊结果"。
         """
         conv = await conversation_repo.get_or_raise(db, user_id, session_id)
         rows = await message_repo.list_by_conversation(db, user_id, session_id)
         card = await prescription_repo.get_latest_by_consultation(db, user_id, session_id)
+        consult = await consult_repo.get(db, user_id, session_id)
+        result = (consult.result_snapshot or {}) if consult is not None else {}
         return {
             "sessionId": conv.id,
             "title": conv.title or "新对话",
@@ -770,6 +933,7 @@ class AIService:
             "prescription": (
                 prescription_view_from_card(card).model_dump(mode="json") if card is not None else None
             ),
+            "result": result or None,
             "ledgerSaved": bool(card.ledger_saved) if card is not None else False,
         }
 

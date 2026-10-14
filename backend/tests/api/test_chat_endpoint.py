@@ -18,15 +18,19 @@ from typing import Any
 
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.agent.graph import main as main_graph
 from app.agent.state import ProcessId
 from app.integrations.storage import LocalStorage
+from app.models import Consultation
 from app.schemas.consult import ChatResponse
 from app.services.ai_service import AIService, build_environment_note
 from tests.test_upload_validation import make_jpeg, make_png
 
-# 技术方案 13.2 约定的 `ChatResponse` 字段名集合（camelCase）。
+# 技术方案 13.2 约定的 `ChatResponse` 字段名集合（camelCase），
+# 加上"统一问诊结果"改造引入的 `result`（见《转人工路径生成问诊结果改造技术方案》§5.2）。
 _EXPECTED_FIELDS = {
     "sessionId",
     "stage",
@@ -37,6 +41,7 @@ _EXPECTED_FIELDS = {
     "prescription",
     "environmentNote",
     "handoff",
+    "result",
     "quotaPrompt",
     "degraded",
 }
@@ -119,6 +124,86 @@ def test_pig_report_guard_hands_off_mandatory_report(client, auth_headers) -> No
     assert data["handoff"] is not None
     assert data["handoff"]["reason"] == "mandatory_report"
     assert data["prescription"] is None
+
+
+# ---- 统一"问诊结果"：所有终态都产出 ----
+
+
+def test_handoff_still_produces_result(client, auth_headers) -> None:
+    """转人工路径同样产出"问诊结果"（法定报告分支）：结构齐全、强制作业不截断。
+
+    合规断言：法定报告不复述疾病名，`excludedItems` 恒为空。
+    """
+    resp = client.post(
+        "/api/ai/chat",
+        json={"processHint": "pig", "message": "昨天还好好的，今天突然死了一头"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+
+    result = data["result"]
+    assert result is not None, "转人工路径不得缺'问诊结果'"
+    assert result["kind"] == "report"
+    assert result["title"] == "问诊结果"
+    assert result["conclusion"]
+    assert result["nextStep"]
+    assert result["steps"], "法定报告的强制动作不能为空"
+    assert result["excludedItems"] == [], "法定报告不复述疾病名，排除项恒空"
+    assert result["speakable"] is True
+
+
+def test_handoff_result_persists_and_reads_back(client, auth_headers, engine, run_async) -> None:
+    """转人工会话落 `consultation`（status=escalated），历史回看的 `result` 与实时一致。"""
+    resp = client.post(
+        "/api/ai/chat",
+        json={"processHint": "pig", "message": "昨天还好好的，今天突然死了一头"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    session_id = data["sessionId"]
+    live_result = data["result"]
+    assert live_result is not None
+
+    detail = client.get(f"/api/ai/consult/{session_id}", headers=auth_headers)
+    assert detail.status_code == 200, detail.text
+    payload = detail.json()["data"]
+    assert payload["result"] is not None, "转人工会话必须能历史回看'问诊结果'"
+    assert payload["result"]["kind"] == live_result["kind"]
+    assert payload["result"]["conclusion"] == live_result["conclusion"]
+    assert payload["result"]["nextStep"] == live_result["nextStep"]
+
+    # 库内 `consultation` 行：status=escalated、result_snapshot 非空。
+    async def _row() -> tuple[str, dict]:
+        factory = async_sessionmaker(bind=engine, expire_on_commit=False)
+        async with factory() as db:
+            row = (
+                await db.execute(
+                    select(Consultation.status, Consultation.result_snapshot).where(
+                        Consultation.id == session_id
+                    )
+                )
+            ).one()
+            return row[0], row[1]
+
+    status, snapshot = run_async(_row())
+    assert status == "escalated"
+    assert snapshot, "转人工会话必须写 result_snapshot"
+    assert snapshot["kind"] == live_result["kind"]
+
+
+def test_questions_turn_has_no_result(client, auth_headers) -> None:
+    """追问轮只问不结：`questions` 非空时 `result` 必须为空（互斥契约）。"""
+    resp = client.post(
+        "/api/ai/chat",
+        json={"message": "我家水稻叶片发黄", "processHint": "水稻"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    if data["questions"]:
+        assert data["result"] is None
 
 
 # ---- environmentNote 三态 ----

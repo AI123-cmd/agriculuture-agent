@@ -436,13 +436,28 @@ page {
   font-weight: 600;
 }
 
-/* —— 处方卡：品牌绿左侧强调条 —— */
-.rx-card {
+/* —— 问诊结果卡：出方 / 转人工 / 安全拦截 / 法定报告 共用，品牌绿左侧强调条 —— */
+.result-card {
   border-left: 8rpx solid #43a047;
 }
 
 .rx-summary {
   margin-bottom: var(--space-heading);
+}
+
+.rx-confidence {
+  margin-top: -4rpx;
+  margin-bottom: var(--space-heading);
+  color: var(--text-brand);
+}
+
+/* 下一步建议：转人工/安全拦截/法定报告的结果引导，替代原独立"建议找农技人员"提示 */
+.rx-next {
+  margin-top: var(--space-block);
+  padding: 12rpx 16rpx;
+  border-radius: 12rpx;
+  color: var(--text-primary);
+  background: #fbf6ec;
 }
 
 .rx-section {
@@ -505,15 +520,7 @@ page {
   box-shadow: none;
 }
 
-/* —— 转人工卡：琥珀色左侧强调条，与处方卡区分 —— */
-.handoff-card {
-  border-left: 8rpx solid #f0a53c;
-}
-
-.handoff-points {
-  margin-top: var(--space-heading);
-}
-
+/* —— 联系方式（问诊结果卡内） —— */
 .handoff-contact {
   margin-top: var(--space-inline);
 }

@@ -116,14 +116,28 @@
         </view>
       </view>
 
-      <!-- 处方结论 -->
-      <view class="rx-card card" wx:if="{{prescription}}">
-        <view class="card-title">处置建议</view>
-        <view class="rx-summary t-body">{{prescription.diagnosisSummary}}</view>
+      <!-- 问诊结果：出方 / 转人工 / 安全拦截 / 法定报告 统一一张卡 -->
+      <view class="result-card card" wx:if="{{result}}">
+        <view class="card-title">{{result.title || '问诊结果'}}</view>
+        <view class="rx-summary t-body">{{result.conclusion}}</view>
+        <view class="rx-confidence t-caption" wx:if="{{result.confidenceLabel}}">{{result.confidenceLabel}}</view>
 
-        <view class="rx-section" wx:if="{{prescription.actions.length > 0}}">
+        <!-- 已了解的情况（转人工） -->
+        <view class="rx-section" wx:if="{{result.confirmedInfo.length > 0}}">
+          <view class="rx-section-title t-title">已了解的情况</view>
+          <view class="rx-action-meta t-caption" wx:for="{{result.confirmedInfo}}" wx:key="*this">{{item}}</view>
+        </view>
+
+        <!-- 该做的事（法定报告） -->
+        <view class="rx-section" wx:if="{{result.steps.length > 0}}">
+          <view class="rx-section-title t-title">该做的事</view>
+          <view class="rx-action-main t-body" wx:for="{{result.steps}}" wx:key="*this">{{index + 1}}. {{item}}</view>
+        </view>
+
+        <!-- 怎么做（出方） -->
+        <view class="rx-section" wx:if="{{result.actions.length > 0}}">
           <view class="rx-section-title t-title">怎么做</view>
-          <view class="rx-action" wx:for="{{prescription.actions}}" wx:key="order">
+          <view class="rx-action" wx:for="{{result.actions}}" wx:key="order">
             <view class="rx-action-main t-body">{{item.order}}. {{item.action}}</view>
             <view class="rx-action-meta t-caption" wx:if="{{item.timing}}">时间：{{item.timing}}</view>
             <view class="rx-action-meta t-caption" wx:if="{{item.method}}">方法：{{item.method}}</view>
@@ -131,46 +145,65 @@
           </view>
         </view>
 
-        <view class="rx-section" wx:if="{{prescription.pesticideItems.length > 0}}">
+        <!-- 用药（出方） -->
+        <view class="rx-section" wx:if="{{result.pesticideItems.length > 0}}">
           <view class="rx-section-title t-title">用药</view>
-          <view class="rx-pesticide" wx:for="{{prescription.pesticideItems}}" wx:key="name">
+          <view class="rx-pesticide" wx:for="{{result.pesticideItems}}" wx:key="name">
             <view class="rx-pesticide-name t-body">{{item.name}}</view>
             <view class="rx-action-meta t-caption" wx:if="{{item.safetyIntervalDays}}">安全间隔：{{item.safetyIntervalDays}} 天</view>
             <view class="rx-action-meta t-caption" wx:if="{{item.sourceNote}}">{{item.sourceNote}}</view>
           </view>
         </view>
 
-        <view class="rx-section" wx:if="{{prescription.followupPlan.tasks.length > 0}}">
+        <!-- 判断依据（出方） -->
+        <view class="rx-section" wx:if="{{result.basis.length > 0}}">
+          <view class="rx-section-title t-title">判断依据</view>
+          <view class="rx-action-meta t-caption" wx:for="{{result.basis}}" wx:key="*this">{{item}}</view>
+        </view>
+
+        <!-- 观察要点（转人工 / 安全拦截 / 法定报告） -->
+        <view class="rx-section" wx:if="{{result.observationPoints.length > 0}}">
+          <view class="rx-section-title t-title">接下来可以用得上的</view>
+          <view class="rx-action-meta t-caption" wx:for="{{result.observationPoints}}" wx:key="*this">{{item}}</view>
+        </view>
+
+        <!-- 已排除 -->
+        <view class="rx-section" wx:if="{{result.excludedItems.length > 0}}">
+          <view class="rx-section-title t-title">已排除</view>
+          <view class="rx-action-meta t-caption" wx:for="{{result.excludedItems}}" wx:key="*this">{{item}}</view>
+        </view>
+
+        <!-- 后续观察（出方） -->
+        <view class="rx-section" wx:if="{{result.followupPlan && result.followupPlan.tasks.length > 0}}">
           <view class="rx-section-title t-title">后续观察</view>
-          <view class="rx-action-meta t-caption" wx:for="{{prescription.followupPlan.tasks}}" wx:key="dueOffsetDays">
+          <view class="rx-action-meta t-caption" wx:for="{{result.followupPlan.tasks}}" wx:key="dueOffsetDays">
             {{item.dueOffsetDays}} 天后：{{item.ask || '观察效果'}}
           </view>
         </view>
 
-        <view class="rx-tech t-caption" wx:if="{{prescription.requiresTechStation}}">本情况建议同时咨询当地农技站。</view>
+        <view class="rx-tech t-caption" wx:if="{{result.requiresTechStation}}">本情况建议同时咨询当地农技站。</view>
 
-        <!-- 存入台账：仅当后端下发了处方卡 id 时渲染（当前后端未下发，按钮自动隐藏） -->
-        <view
-          class="rx-ledger-btn {{ledgerSaved ? 'saved' : ''}}"
-          wx:if="{{prescription.cardId}}"
-          bindtap="onSaveLedger"
-        >{{ledgerSaved ? '已存入台账' : '存入农事台账'}}</view>
-      </view>
+        <!-- 下一步建议（转人工 / 安全拦截 / 法定报告）：替代原独立的"建议找农技人员"提示 -->
+        <view class="rx-next t-body" wx:if="{{result.nextStep}}">{{result.nextStep}}</view>
 
-      <!-- 转人工 -->
-      <view class="handoff-card card" wx:if="{{handoff}}">
-        <view class="card-title">建议找农技人员</view>
-        <view class="rx-summary t-body">{{handoff.summary}}</view>
-        <view class="handoff-points" wx:if="{{handoff.observationPoints.length > 0}}">
-          <view class="rx-action-meta t-caption" wx:for="{{handoff.observationPoints}}" wx:key="*this">{{item}}</view>
-        </view>
-        <view class="handoff-contact" wx:for="{{handoff.contacts}}" wx:key="name">
+        <!-- 联系方式（转人工 / 安全拦截 / 法定报告） -->
+        <view class="handoff-contact" wx:for="{{result.contacts}}" wx:key="name">
           <view class="rx-pesticide-name t-body">{{item.name}}</view>
           <view class="rx-action-meta t-caption" wx:if="{{item.phone}}">{{item.phone}}</view>
+          <view class="rx-action-meta t-caption" wx:elif="{{item.note}}">{{item.note}}</view>
         </view>
-        <view class="tip-read-btn tap-88" wx:if="{{handoff.speakable}}" bindtap="playHandoff">
+
+        <!-- 朗读（转人工 / 安全拦截 / 法定报告） -->
+        <view class="tip-read-btn tap-88" wx:if="{{result.speakable}}" bindtap="playResult">
           <text class="tip-read-icon">读</text>
         </view>
+
+        <!-- 存入台账：仅出方路径下发 cardId 时渲染 -->
+        <view
+          class="rx-ledger-btn {{ledgerSaved ? 'saved' : ''}}"
+          wx:if="{{result.cardId}}"
+          bindtap="onSaveLedger"
+        >{{ledgerSaved ? '已存入台账' : '存入农事台账'}}</view>
       </view>
     </view>
   </scroll-view>
