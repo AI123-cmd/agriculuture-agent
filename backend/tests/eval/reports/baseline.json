@@ -1,0 +1,47 @@
+{
+  "knowledge_version": "test",
+  "model_mode": "mock",
+  "config_version": null,
+  "overall": {
+    "total": 54,
+    "passed": 54,
+    "consistency": 1.0
+  },
+  "processes": {
+    "chili": {
+      "total": 12,
+      "passed": 12,
+      "consistency": 1.0
+    },
+    "general": {
+      "total": 7,
+      "passed": 7,
+      "consistency": 1.0
+    },
+    "pig": {
+      "total": 6,
+      "passed": 6,
+      "consistency": 1.0
+    },
+    "rapeseed": {
+      "total": 3,
+      "passed": 3,
+      "consistency": 1.0
+    },
+    "rice": {
+      "total": 8,
+      "passed": 8,
+      "consistency": 1.0
+    },
+    "tea": {
+      "total": 12,
+      "passed": 12,
+      "consistency": 1.0
+    },
+    "weed": {
+      "total": 6,
+      "passed": 6,
+      "consistency": 1.0
+    }
+  }
+}
