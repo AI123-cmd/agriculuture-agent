@@ -215,11 +215,15 @@ def test_partial_excluded_is_rejected(chili_config: ProcessConfig, ctx: AgentCon
 
 
 def test_required_exclusions_follows_config(chili_config: ProcessConfig, tea_config: ProcessConfig) -> None:
-    """必须排除的集合来自 `confusable_items` 中 `must_exclude` 的候选，随流程变化。"""
+    """必须排除的集合来自 `confusable_items` 中 `must_exclude` 的候选，随流程变化。
+
+    茶树的候选是分类维度（侵染性病害/生理性病害），结论必然是归属其中一类具体病名，
+    强制排除该类会自相矛盾，故该流程的 `must_exclude` 为 false，不产生必排除项。
+    """
     agent, _ = _agent([])
 
     assert agent.required_exclusions(chili_config) == {_BACTERIAL_WILT, _WILT}
-    assert agent.required_exclusions(tea_config) == {"侵染性病害", "生理性病害"}
+    assert agent.required_exclusions(tea_config) == set()
 
 
 def test_no_confusable_pair_skips_check(rapeseed_config: ProcessConfig) -> None:

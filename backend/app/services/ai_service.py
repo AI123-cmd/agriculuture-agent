@@ -345,9 +345,14 @@ class AIService:
 
     @staticmethod
     def _resume_value(req: ChatRequest) -> dict:
-        """中断恢复值：结构化答案走 `answers`（`apply_answers` 两种键写法都接受）。"""
+        """中断恢复值：结构化答案走 `answers`（`apply_answers` 两种键写法都接受）。
+
+        `image_url` 与 `answers` 并列携带：追问卡片里的"拍张照片说明情况"由农户拍照作答，
+        照片本身就是该题的答案。恢复时观察节点不会重跑，照片只能经恢复值交给问诊节点识别
+        ——它据本轮是否存在 `photo` 类型问题判定这是作答而非中途发图。
+        """
         answers = [answer.model_dump() for answer in (req.answers or [])]
-        return {"answers": answers}
+        return {"answers": answers, "image_url": req.imageUrl}
 
     def _build_response(self, session_id: str, state: dict[str, Any]) -> ChatResponse:
         stage = state.get("stage") or ConsultStage.INTAKE

@@ -73,6 +73,9 @@ class CandidateSlot(BaseModel):
     group: str
     required: bool
     options: list[str] | None = None
+    # 作答形态提示：`photo` 表示该槽位靠农户拍照作答，模型据此把问题问成"能不能拍张
+    # 照片说明情况"。由槽位配置的 `source_hint` 决定，不由模型自由发挥。
+    answer_type: str = "text"
     relevant_score: int = 0
     reason: CandidateReason = "must_ask"
 
@@ -234,6 +237,7 @@ def _rank_by_relevance(specs: list[SlotSpec], state: ConsultationState, config: 
                     group=spec.group.value,
                     required=spec.required,
                     options=spec.options,
+                    answer_type=_answer_type_of(spec),
                     relevant_score=score,
                     reason=reason,
                 ),
@@ -242,6 +246,17 @@ def _rank_by_relevance(specs: list[SlotSpec], state: ConsultationState, config: 
 
     scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
     return [item[2] for item in scored]
+
+
+def _answer_type_of(spec: SlotSpec) -> str:
+    """候选槽位的作答形态。由 `source_hint` 与是否有选项决定，不由模型自由发挥。
+
+    `source_hint` 含 `image` 的槽位靠拍照作答（"能不能拍张照片说明情况"），提示模型把
+    问题问成拍照请求；有选项的槽位走单选，其余走自由文本。
+    """
+    if "image" in spec.source_hint:
+        return "photo"
+    return "single" if spec.options else "text"
 
 
 def _confusable_terms(config: ProcessConfig) -> set[str]:

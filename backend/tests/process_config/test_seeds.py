@@ -89,9 +89,15 @@ def test_chili_has_key_differentiation_slots() -> None:
     assert len(features) >= 2
 
 
-def test_tea_and_chili_confusable_must_exclude(configs) -> None:
-    assert configs[ProcessId.TEA].confusable_items[0].must_exclude is True
+def test_confusable_must_exclude_matches_candidate_semantics(configs) -> None:
+    """`must_exclude` 只适用于"互斥的具体病名"这一对语义。
+
+    辣椒的候选（青枯病/枯萎病）是两个互斥的具体病名，结论取其一、排除另一个是自洽的，
+    因此必须排除；茶树的候选（侵染性病害/生理性病害）是分类维度，结论必然是归属其中一类
+    的具体病名，要求把该类也排除会自相矛盾，故不得强制排除。
+    """
     assert configs[ProcessId.CHILI].confusable_items[0].must_exclude is True
+    assert configs[ProcessId.TEA].confusable_items[0].must_exclude is False
 
 
 def test_weed_has_herbicide_related_confusable_pairs(configs) -> None:

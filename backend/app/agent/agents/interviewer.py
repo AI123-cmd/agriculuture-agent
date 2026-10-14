@@ -168,8 +168,28 @@ class InterviewerAgent(BaseAgent[InterviewBatch]):
         if note:
             updates["confidence_note"] = note
         result = result.model_copy(update=updates)
+        result = self._align_photo_questions(result)
         self._mark_asked_slots(state, result)
         return result
+
+    def _align_photo_questions(self, batch: InterviewBatch) -> InterviewBatch:
+        """把候选池声明为拍照作答的问题统一改成 `photo` 类型。
+
+        "能不能拍张照片说明情况"这类问题的作答形态是**代码决定的**（槽位 `source_hint`
+        含 `image`），不能让模型自由填写：模型给了 `text`，前端就渲染不出拍照按钮，农户
+        只能打字描述，这条链路当场断掉。`options` 一并清空——拍照题没有选项可点。
+        """
+        pool = _pool.get()
+        if pool is None:
+            return batch
+        photo_keys = {c.slot_key for c in pool.candidates if c.answer_type == "photo"}
+        if not photo_keys:
+            return batch
+        questions = [
+            q.model_copy(update={"answer_type": "photo", "options": None}) if q.slot_key in photo_keys else q
+            for q in batch.questions
+        ]
+        return batch.model_copy(update={"questions": questions})
 
     def _mark_asked_slots(self, state: ConsultationState, batch: InterviewBatch) -> None:
         """记录本轮的追问次数；超限槽位将在写入时强制置 unknown。

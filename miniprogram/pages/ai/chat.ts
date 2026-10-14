@@ -55,6 +55,9 @@ Page({
   /** 本轮卡片的作答暂存（slotKey -> 答案），不入 data，避免无谓渲染 */
   qaAnswers: {} as Record<string, { slotKey: string; value: string; status: 'filled' | 'unknown' }>,
 
+  /** 本轮卡片拍照作答的服务端地址（照片即答案，随 answers 一并提交） */
+  qaPhotoUrl: '',
+
   /** loading 文案升级用的定时器句柄（出方一轮可能耗时较久） */
   hintTimers: [] as ReturnType<typeof setTimeout>[],
 
@@ -204,6 +207,7 @@ Page({
     const newMessages = [...this.data.messages, userMsg];
     // 手动输入等同放弃当前卡片作答：清掉卡片与暂存，避免旧答案混入下一轮
     this.qaAnswers = {};
+    this.qaPhotoUrl = '';
     this.setData(
       {
         messages: newMessages,
@@ -256,6 +260,9 @@ Page({
 
   /** 追加一条用户消息并滚到底部（照片走本地临时地址即时回显） */
   appendUserMessage(content: string, image?: string) {
+    // 独立拍照入口发图等同放弃当前卡片作答：清掉卡片暂存，避免旧答案混入下一轮
+    this.qaAnswers = {};
+    this.qaPhotoUrl = '';
     const userMsg: Message = { id: Date.now(), role: 'user', content, image };
     this.setData(
       {
@@ -308,6 +315,45 @@ Page({
   },
 
   /**
+   * 卡片内拍照作答：照片本身就是该题的答案。
+   *
+   * 与输入栏的拍照入口不同，这里不立即发起问诊——多张卡片要全部答完才统一提交，
+   * 故只上传拿地址、在卡片内回显缩略图并记为已答，照片随 `submitAnswers` 一并提交。
+   */
+  async onQaPhoto(e: WechatMiniprogram.BaseEvent) {
+    if (this.data.submitting) return;
+    const slotKey = e.currentTarget.dataset.slot as string;
+    if (!slotKey) return;
+    const res: any = await wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera', 'album'],
+      sizeType: ['compressed'],
+    });
+    const file = res.tempFiles && res.tempFiles[0];
+    if (!file) return;
+    // 压缩后仍超限时前端提前拦截，避免白传一次：后端上限 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      wx.showToast({ title: '图片太大，请重拍', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '上传中...', mask: true });
+    try {
+      const { url } = await uploadChatImage(file.tempFilePath);
+      wx.hideLoading();
+      this.qaPhotoUrl = url;
+      const updated = (this.data.questions as any[]).map((q) =>
+        q.slotKey === slotKey ? { ...q, photoUrl: toDisplayUrl(url) } : q
+      );
+      this.setData({ questions: updated });
+      this.pickAnswer(slotKey, '已拍照说明', 'filled');
+    } catch (err: any) {
+      wx.hideLoading();
+      wx.showToast({ title: (err && err.message) || '上传失败，请重试', icon: 'none' });
+    }
+  },
+
+  /**
    * 记录单张卡片的作答，并在全部答完时统一提交。
    *
    * 多张卡片同时出现时，若点一张就立即提交，后端只收到这一条答案，其余槽位被丢弃。
@@ -349,6 +395,10 @@ Page({
       })
       .filter((s) => !!s)
       .join('；');
+    // 拍照作答的照片随答案一并提交：后端恢复值里没有 `answers` 就走不到识别分支，
+    // 而照片只在恢复值里传递（观察节点恢复时不重跑），故必须与 `answers` 同时带上。
+    const imageUrl = this.qaPhotoUrl;
+    this.qaPhotoUrl = '';
     this.setData({
       submitting: true,
       questions: [],
@@ -357,7 +407,7 @@ Page({
       scrollWithAnimation: true,
     }, () => wx.nextTick(() => this.scrollToBottom(true)));
     this.qaAnswers = {};
-    this.requestAIResponse({ message: summary, answers });
+    this.requestAIResponse({ message: summary, answers, imageUrl: imageUrl || undefined });
   },
 
   /** 调用后端图驱动问诊接口 */

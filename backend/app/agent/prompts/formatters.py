@@ -38,6 +38,7 @@ class CandidateView(Protocol):
     group: str
     required: bool
     options: list[str] | None
+    answer_type: str
 
 
 def format_terms(display_metrics: list[str]) -> str:
@@ -78,7 +79,13 @@ def format_candidates(candidates: Sequence[CandidateView]) -> str:
     for candidate in candidates:
         kind = "必问" if candidate.required else "选问"
         options = f"，选项：{'、'.join(candidate.options)}" if candidate.options else ""
-        lines.append(f"- {candidate.display_label}（槽位 {candidate.slot_key}，{candidate.group}，{kind}{options}）")
+        # 作答形态必须显式给出：`photo` 方向要问成"能不能拍张照片说明情况"，模型自行
+        # 揣测容易问成"请描述一下"，农户就无法用拍照作答。契约字段 `answer_type` 必须
+        # 与之一致，否则前端拿不到拍照按钮。
+        want = "，作答方式：拍照片（answer_type=photo）" if candidate.answer_type == "photo" else ""
+        lines.append(
+            f"- {candidate.display_label}（槽位 {candidate.slot_key}，{candidate.group}，{kind}{options}{want}）"
+        )
     return "\n".join(lines)
 
 

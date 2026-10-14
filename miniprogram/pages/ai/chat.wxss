@@ -398,6 +398,44 @@ page {
   box-shadow: 0 4rpx 12rpx rgba(46, 125, 50, 0.3);
 }
 
+/* 卡片内拍照作答：照片即答案，按钮整行可点（热区由 .tap-88 保证） */
+.qa-photo-area {
+  display: flex;
+  align-items: center;
+  gap: var(--space-inline);
+  margin-top: var(--space-inline);
+}
+
+.qa-photo-btn {
+  flex: 1;
+  min-height: var(--tap-min);
+  padding: 0 24rpx;
+  border: 2rpx solid #c8e6c9;
+  border-radius: 16rpx;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-inline);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.qa-photo-btn:active {
+  background: #e3f2e4;
+  transform: scale(0.98);
+}
+
+/* 已拍照：描边加重，文案切换为"点击重拍" */
+.qa-photo-btn.selected {
+  border-color: #2e7d32;
+  background: #f6fbf5;
+}
+
+.qa-photo-text {
+  color: var(--text-brand);
+  font-weight: 600;
+}
+
 /* —— 处方卡：品牌绿左侧强调条 —— */
 .rx-card {
   border-left: 8rpx solid #43a047;

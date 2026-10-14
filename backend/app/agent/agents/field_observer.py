@@ -179,9 +179,17 @@ class FieldObserverAgent(BaseAgent[ObservationResult]):
         image_urls = [url] if url else list((state.get("observations") or {}).get("image_urls") or [])
         if not image_urls:
             return []
-        allowed = self._allowed_labels(ctx.process_config)
+        return await self.recognize_images(image_urls, ctx.process_config)
+
+    async def recognize_images(self, image_urls: list[str], config: ProcessConfig) -> list[ImageCandidate]:
+        """识别图片并按流程候选域过滤。
+
+        现场采集与追问拍照作答共用同一条识别路径：候选域过滤在模型输出之后、进入 state
+        之前，是代码层的硬约束，不依赖图像模型自律。追问作答复用此方法，两条路径对
+        "哪些标签算数"因此给出同一答案。
+        """
+        allowed = self._allowed_labels(config)
         raw = await self._image.recognize(image_urls, allowed_labels=allowed)
-        # 交集过滤在模型输出之后、进入 state 之前：这是代码层的硬约束，不依赖图像模型自律。
         return [ImageCandidate(label=c.label, score=c.score, part=c.part) for c in raw if c.label in allowed]
 
     def _allowed_labels(self, config: ProcessConfig) -> set[str]:

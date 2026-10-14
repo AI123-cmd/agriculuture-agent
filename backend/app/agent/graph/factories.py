@@ -31,6 +31,7 @@ handoff 两个结构节点，全部以「工厂闭包 + 流程配置」的形式
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, cast
 
 from langgraph.graph.state import StateNode
@@ -52,8 +53,8 @@ from app.agent.agents.prescriber import PrescriberAgent
 from app.agent.agents.retriever import KnowledgeRetriever, RegionMatcher, RetrieverAgent
 from app.agent.blackboard import apply_answers, progress_of
 from app.agent.budget import ConsultBudget
-from app.agent.contracts import EvidenceItem, EvidenceQuery, ImageCandidate, ObservationResult, dump_contract
-from app.agent.state import ConsultationState, ConsultStage, ProcessId, TaskType
+from app.agent.contracts import EvidenceItem, EvidenceQuery, ImageCandidate, dump_contract
+from app.agent.state import ConsultationState, ConsultStage, ProcessId, SlotValue, TaskType
 from app.core.config import get_settings
 from app.integrations.image_reader import ModelImageReader
 from app.integrations.storage import get_storage
@@ -177,21 +178,21 @@ def make_observe_node(config: ProcessConfig) -> NodeFn:
             "observations": dump_contract(result),
             "stage": ConsultStage.OBSERVE,
             # 照片回执：让农户立刻知道"AI 看过照片了"。无候选时为空串，不污染既有回复。
-            "reply": _photo_receipt(result),
+            "reply": _photo_receipt(result.image_candidates),
         }
 
     return _traced("observe", config, observe)
 
 
-def _photo_receipt(result: ObservationResult) -> str:
-    """拍照回执：把识别结果说成一句人话。没照片时返回空串（不污染既有回复）。
+def _photo_receipt(candidates: list[ImageCandidate]) -> str:
+    """拍照回执：把识别结果说成一句人话。没候选时返回空串（不污染既有回复）。
 
     只说"像是"，不报置信度数字、不下诊断结论——图片识别结果不构成证据（见
     `FieldObserverAgent.image_to_slots` 的说明），分数只进日志与槽位。
     """
-    if not result.image_candidates:
+    if not candidates:
         return ""
-    seen = "、".join(c.label for c in result.image_candidates[:3])
+    seen = "、".join(c.label for c in candidates[:3])
     return f"我看过您发的照片了，照片里像是：{seen}。我再问您几个问题，好判断得更准。"
 
 
@@ -207,6 +208,9 @@ def make_interview_node(config: ProcessConfig) -> NodeFn:
     那一刻的快照；若先写答案再中断，恢复会读到已被修改的 state，答案被套用两次。
     """
     interviewer = InterviewerAgent(get_gateway(), ConsultBudget())
+    # 追问卡片里的"拍张照片说明情况"由农户拍照作答：识别端口与现场采集同源，
+    # 复用同一个 FieldObserverAgent 的识别与候选域过滤，两条路径对"哪些标签算数"给出同一答案。
+    observer = FieldObserverAgent(get_gateway(), _EmptyEnvReader(), _image_reader())
 
     async def interview(state: ConsultationState) -> dict:
         try:
@@ -235,18 +239,64 @@ def make_interview_node(config: ProcessConfig) -> NodeFn:
 
         budget = ConsultBudget(**state.get("budget", {}))
         budget.note_interview_round()
+        slots = apply_answers(state.get("slots") or {}, answers)
+        # 追问卡片里的拍照作答：农户用照片回答"能不能拍张照片说明情况"这类问题时，
+        # 照片本身就是答案。识别结果写进该题对应槽位（来源标注为 image），并回一句
+        # 农户看得懂的识别说明。识别不到候选时槽位仍记为已答，避免同一题被反复追问。
+        reply, slots = await _absorb_photo_answer(state, config, observer, payload, answers, slots)
         return {
-            "slots": apply_answers(state.get("slots") or {}, answers),
+            "slots": slots,
             "budget": budget.to_state(),
             "pending_questions": payload["questions"],
             "stage_hint": batch.stage_hint,
             # 会诊必要性由代码按流程配置置位：路由只读这个布尔量，不对自由文本做关键词匹配。
             "panel_needed": config.panel_enabled,
             "stage": ConsultStage.INTERVIEW,
+            "reply": reply,
         }
 
     interview.__name__ = f"interview_{config.process_id.value}"
     return _traced("interview", config, interview)
+
+
+async def _absorb_photo_answer(
+    state: ConsultationState,
+    config: ProcessConfig,
+    observer: FieldObserverAgent,
+    payload: dict[str, Any],
+    answers: object,
+    slots: dict[str, SlotValue],
+) -> tuple[str, dict[str, SlotValue]]:
+    """把恢复值里的照片当作本轮 photo 类型问题的答案：识别后写入槽位并生成回执文案。
+
+    照片只有在"本轮确实问了 photo 类型的问题"时才作为答案处理——这既避免把普通的
+    中途发图误当成作答，也让"写哪个槽位"有明确出处（问题的 `slot_key`），不依赖
+    前端额外声明。识别失败（无候选）时槽位仍记为已答，否则问诊会拿同一题反复追问。
+    """
+    resume: Mapping[str, Any] = answers if isinstance(answers, Mapping) else {}
+    image_url = resume.get("image_url")
+    slot_key = next(
+        (
+            row.get("slot_key") or row.get("slotKey")
+            for row in payload.get("questions") or []
+            if row.get("answer_type") == "photo"
+        ),
+        None,
+    )
+    if not image_url or not isinstance(slot_key, str) or not slot_key:
+        return "", slots
+
+    candidates = await observer.recognize_images([str(image_url)], config)
+    label = candidates[0].label if candidates else ""
+    merged = dict(slots)
+    merged[slot_key] = SlotValue(
+        key=slot_key,
+        value=label or "农户已拍照说明",
+        status="filled",
+        source="image" if label else "user_answer",
+        confidence=candidates[0].score if candidates else None,
+    )
+    return _photo_receipt(candidates), merged
 
 
 def make_verify_node(config: ProcessConfig) -> NodeFn:
